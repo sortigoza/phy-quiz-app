@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Attempt } from '../domain/attempt';
 import { bankLanguage } from '../domain/bank';
 import { submitAttempt, type InProgressAttempt } from '../quiz';
+import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
 
 /**
@@ -17,12 +18,21 @@ import { BankText } from './BankText';
 type Props = {
   inProgress: InProgressAttempt;
   index: number;
+  /** Why answers are not being saved as they are given, or null when they are. */
+  unsaved: string | null;
   onChoose: (questionId: string, optionId: string) => void;
   onGoTo: (index: number) => void;
   onSubmitted: (attempt: Attempt) => void;
 };
 
-export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted }: Props) {
+export function AttemptScreen({
+  inProgress,
+  index,
+  unsaved,
+  onChoose,
+  onGoTo,
+  onSubmitted,
+}: Props) {
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -48,7 +58,7 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
     } catch (cause) {
       // Stay on the question with every answer intact, so trying again is possible.
       setSubmitting(false);
-      setSaveError(cause instanceof Error ? cause.message : String(cause));
+      setSaveError(storageProblem(cause));
     }
   }
 
@@ -64,7 +74,13 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
       </p>
 
       {/* Keyed by question so each question starts with fresh, unshared radio state. */}
-      <fieldset key={question.id} className="card question" aria-labelledby={promptId}>
+      {/* Locked while submitting, so no answer can be saved as in progress after the submission. */}
+      <fieldset
+        key={question.id}
+        className="card question"
+        aria-labelledby={promptId}
+        disabled={submitting}
+      >
         <BankText id={promptId} className="question__prompt" text={question.prompt} lang={lang} />
         {options.map((option) => (
           <label key={option.id} className="radio-card option">
@@ -108,9 +124,16 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
         </div>
       )}
 
+      {unsaved && !saveError && (
+        <p className="panel panel--error" role="alert">
+          Your answers are not being saved, so closing this page would lose them. {unsaved} Your
+          answers are still here while the page stays open.
+        </p>
+      )}
+
       {saveError && (
         <p className="panel panel--error" role="alert">
-          Could not save this attempt: {saveError}. Your answers are still here; try submitting
+          Could not save this attempt. {saveError} Your answers are still here; try submitting
           again.
         </p>
       )}
@@ -119,7 +142,7 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
         <button
           type="button"
           className="button button--quiet"
-          disabled={index === 0}
+          disabled={index === 0 || submitting}
           onClick={() => {
             setConfirming(false);
             onGoTo(index - 1);

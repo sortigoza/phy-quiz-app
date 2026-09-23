@@ -1,6 +1,9 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
+import { saveInProgress } from './quiz';
+import { storageProblem } from './storage/problems';
 import { AttemptScreen } from './ui/AttemptScreen';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Help } from './ui/Help';
 import { Library } from './ui/Library';
 import { Review } from './ui/Review';
@@ -16,6 +19,7 @@ import { APP_VERSION } from './version';
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   useLeaveWarning(isAttemptInProgress(state));
+  const unsaved = usePersistAttempt(state);
 
   return (
     <div className="app">
@@ -41,7 +45,12 @@ export function App() {
       </header>
 
       <main className="app__main">
-        <Screen state={state} dispatch={dispatch} />
+        <ErrorBoundary
+          screen={state.screen}
+          onBackToLibrary={() => dispatch({ type: 'open-library' })}
+        >
+          <Screen state={state} dispatch={dispatch} unsaved={unsaved} />
+        </ErrorBoundary>
       </main>
 
       <footer className="app__footer">
@@ -59,7 +68,8 @@ function isAttemptInProgress(state: AppState): boolean {
 
 /**
  * Asks the browser to confirm before the page is closed, reloaded or navigated
- * away from. Until ticket 07 persists the attempt, leaving loses every answer.
+ * away from. The attempt is saved and can be resumed, but leaving by accident
+ * mid-quiz is still worth a question.
  */
 function useLeaveWarning(active: boolean): void {
   useEffect(() => {
@@ -70,15 +80,47 @@ function useLeaveWarning(active: boolean): void {
   }, [active]);
 }
 
-function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAction) => void }) {
+/**
+ * Writes the attempt to storage whenever an answer or the question on screen
+ * changes. Returns why the last write failed, or null when it succeeded.
+ */
+function usePersistAttempt(state: AppState): string | null {
+  const [problem, setProblem] = useState<string | null>(null);
+  const attempt = state.screen === 'attempt' ? state : undefined;
+  const inProgress = attempt?.inProgress;
+  const index = attempt?.index;
+  useEffect(() => {
+    if (inProgress === undefined || index === undefined) return;
+    saveInProgress(inProgress, index).then(
+      () => setProblem(null),
+      (error: unknown) => setProblem(storageProblem(error)),
+    );
+  }, [inProgress, index]);
+  return problem;
+}
+
+type ScreenProps = {
+  state: AppState;
+  dispatch: (action: AppAction) => void;
+  /** Why the attempt in progress is not being saved, or null. */
+  unsaved: string | null;
+};
+
+function Screen({ state, dispatch, unsaved }: ScreenProps) {
   switch (state.screen) {
     case 'library':
-      return <Library onStart={(bank) => dispatch({ type: 'open-start', bank })} />;
+      return (
+        <Library
+          onStart={(stored, bank) => dispatch({ type: 'open-start', stored, bank })}
+          onResume={(inProgress, index) => dispatch({ type: 'resume', inProgress, index })}
+        />
+      );
 
     case 'start':
       return (
         <Start
-          stored={state.bank}
+          stored={state.stored}
+          bank={state.bank}
           onBegin={(inProgress) => dispatch({ type: 'begin', inProgress })}
           onCancel={() => dispatch({ type: 'open-library' })}
         />
@@ -89,6 +131,7 @@ function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAc
         <AttemptScreen
           inProgress={state.inProgress}
           index={state.index}
+          unsaved={unsaved}
           onChoose={(questionId, optionId) => dispatch({ type: 'choose', questionId, optionId })}
           onGoTo={(index) => dispatch({ type: 'go-to', index })}
           onSubmitted={(attempt) => dispatch({ type: 'submitted', attempt })}

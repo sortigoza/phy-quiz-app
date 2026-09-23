@@ -176,6 +176,7 @@ export const quizSteps: string[] = [
   'Load a question bank on the library screen: from your device with "Upload a bank file", or from a link with "Load from URL". A GitHub file link works as it is, from a public repository.',
   'Press Start on the bank, type your name, and choose how many questions to answer.',
   'Answer one question per screen. Previous and Next move freely; nothing tells you whether you are right until the end.',
+  'Every answer is saved in this browser as you give it. If the page is closed mid-quiz, open the app again and the library offers to resume the quiz where you left off, or to discard it. One quiz can be in progress at a time.',
   'Submit on the last question. If any are blank, you are warned first; blank questions score as wrong.',
   'Read the review: every question with the correct option, the option you chose, the explanation, and a note on why your option was wrong when the author wrote one.',
 ];
@@ -193,7 +194,6 @@ export const textFormatting: string[] = [
 export const currentLimits: string[] = [
   'Banks are JSON files. Writing banks in YAML is planned.',
   'Loading by URL only works when the server allows cross-origin requests. GitHub (raw links and file links from public repositories) and GitHub Pages do; many university servers and Google Drive do not. If a link fails, download the file and upload it.',
-  'Answers are kept only while the page is open. Reloading or closing the page mid-quiz loses them; the browser asks first. Resuming an interrupted quiz is planned.',
   'Attempts are saved in this browser, but there is no history screen to browse them yet. To hand a score to a teacher, take a screenshot of the review, which shows the attempt code.',
   'Scores are self-reported. Everything runs in the browser, so a determined participant can change their own record. Use the app for practice and classroom quizzes, not for grading.',
 ];

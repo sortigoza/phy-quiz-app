@@ -1,5 +1,5 @@
 import type { Attempt } from '../domain/attempt';
-import { bankLanguage } from '../domain/bank';
+import { bankLanguage, type Bank } from '../domain/bank';
 import type { Selection } from '../domain/selection';
 import type { InProgressAttempt } from '../quiz';
 import type { StoredBank } from '../storage/db';
@@ -13,7 +13,7 @@ import type { StoredBank } from '../storage/db';
  */
 type WorkScreen =
   | { screen: 'library' }
-  | { screen: 'start'; bank: StoredBank }
+  | { screen: 'start'; stored: StoredBank; bank: Bank }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
   | { screen: 'review'; attempt: Attempt; selection: Selection; language: string };
 
@@ -25,8 +25,9 @@ export type AppState = WorkScreen | { screen: 'help'; back: WorkScreen };
 
 export type AppAction =
   | { type: 'open-library' }
-  | { type: 'open-start'; bank: StoredBank }
+  | { type: 'open-start'; stored: StoredBank; bank: Bank }
   | { type: 'begin'; inProgress: InProgressAttempt }
+  | { type: 'resume'; inProgress: InProgressAttempt; index: number }
   | { type: 'choose'; questionId: string; optionId: string }
   | { type: 'go-to'; index: number }
   | { type: 'submitted'; attempt: Attempt }
@@ -41,10 +42,19 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return { screen: 'library' };
 
     case 'open-start':
-      return { screen: 'start', bank: action.bank };
+      return { screen: 'start', stored: action.stored, bank: action.bank };
 
     case 'begin':
       return { screen: 'attempt', inProgress: action.inProgress, index: 0 };
+
+    case 'resume': {
+      const last = action.inProgress.selection.length - 1;
+      return {
+        screen: 'attempt',
+        inProgress: action.inProgress,
+        index: Math.min(Math.max(action.index, 0), last),
+      };
+    }
 
     case 'choose':
       if (state.screen !== 'attempt') return state;

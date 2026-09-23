@@ -79,12 +79,12 @@ afterEach(() => {
 
 describe('Library', () => {
   it('says the library is empty before anything is loaded', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     expect(await screen.findByText(/no question banks yet/i)).toBeInTheDocument();
   });
 
   it('shows an uploaded bank, with what a teacher needs to recognise it', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(bankFile());
 
     const item = within(await bankList()).getByRole('listitem');
@@ -95,17 +95,17 @@ describe('Library', () => {
   });
 
   it('shows banks already held when it opens, so they survive a reload', async () => {
-    const { unmount } = render(<Library onStart={() => {}} />);
+    const { unmount } = render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
     unmount();
 
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     expect(await screen.findByText(/kinematics in one dimension/i)).toBeInTheDocument();
   });
 
   it('lists the reasons a bank was rejected, and adds nothing', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(bankFile({ questions: [] }, 'empty.json'));
 
     const problems = await screen.findByRole('alert');
@@ -116,13 +116,13 @@ describe('Library', () => {
   });
 
   it('explains a file that is not JSON at all', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(rawFile('{ not json'));
     expect(await screen.findByRole('alert')).toHaveTextContent(/not valid json/i);
   });
 
   it('clears an earlier rejection once a good bank loads', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(rawFile('{ not json'));
     await screen.findByRole('alert');
 
@@ -132,7 +132,7 @@ describe('Library', () => {
   });
 
   it('says so when the same bank is loaded twice', async () => {
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
 
@@ -143,7 +143,7 @@ describe('Library', () => {
 
   it('removes a bank on request', async () => {
     const user = userEvent.setup();
-    render(<Library onStart={() => {}} />);
+    render(<Library onStart={() => {}} onResume={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
 
@@ -161,7 +161,7 @@ describe('Library', () => {
     }
 
     it('warns and asks before replacing, changing nothing yet', async () => {
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await uploadEdited();
 
       const warning = await screen.findByRole('alert');
@@ -172,7 +172,7 @@ describe('Library', () => {
 
     it('replaces the held bank on confirmation', async () => {
       const user = userEvent.setup();
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await uploadEdited();
 
       await user.click(await screen.findByRole('button', { name: /replace/i }));
@@ -183,7 +183,7 @@ describe('Library', () => {
 
     it('keeps the held bank when told to', async () => {
       const user = userEvent.setup();
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await uploadEdited();
 
       await user.click(await screen.findByRole('button', { name: /keep/i }));
@@ -198,7 +198,7 @@ describe('Library', () => {
 
     it('loads a bank from a GitHub link into the library, reading the raw file', async () => {
       const fetchMock = stubFetch(new Response(bankText(), { status: 200 }));
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await loadUrl(githubPage);
 
       expect(await screen.findByRole('status')).toHaveTextContent(/added kinematics/i);
@@ -210,7 +210,7 @@ describe('Library', () => {
 
     it('explains a cross-origin refusal and both ways round it', async () => {
       stubFetch(new TypeError('Failed to fetch'));
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await loadUrl('https://intranet.example.edu/bank.json');
 
       const alert = await screen.findByRole('alert');
@@ -222,14 +222,14 @@ describe('Library', () => {
 
     it('says when nothing is at the address', async () => {
       stubFetch(new Response('Not found', { status: 404 }));
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await loadUrl(githubRaw);
       expect(await screen.findByRole('alert')).toHaveTextContent(/nothing was found/i);
     });
 
     it('says when the file is not JSON, and when it is an invalid bank, differently', async () => {
       stubFetch(new Response('{ not json', { status: 200 }));
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await loadUrl(githubRaw);
       expect(await screen.findByRole('alert')).toHaveTextContent(/not valid json/i);
 
@@ -242,7 +242,7 @@ describe('Library', () => {
 
     it('says so when the bank at the URL is already held, and adds nothing', async () => {
       stubFetch(new Response(bankText(), { status: 200 }));
-      render(<Library onStart={() => {}} />);
+      render(<Library onStart={() => {}} onResume={() => {}} />);
       await uploadFile(bankFile());
       await bankList();
 

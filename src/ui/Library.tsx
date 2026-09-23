@@ -2,8 +2,17 @@ import { useCallback, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { fetchBankText, fetchFailureMessage } from '../bank-url';
 import { addBankFromText, type AddBankOptions, type AddBankStatus } from '../library';
-import { deleteBank, listBanks, type BankSource, type StoredBank } from '../storage/db';
-import type { BankIssue } from '../domain/bank';
+import { findInProgress, openStoredBank, type InProgressAttempt } from '../quiz';
+import {
+  deleteBank,
+  deleteInProgress,
+  listBanks,
+  type BankSource,
+  type StoredBank,
+} from '../storage/db';
+import type { Bank, BankIssue } from '../domain/bank';
+import { storageProblem } from '../storage/problems';
+import { InProgressOffer } from './InProgressOffer';
 
 /**
  * The library: every question bank held in this browser, and the way to add one.
@@ -13,9 +22,18 @@ import type { BankIssue } from '../domain/bank';
  * richer error reporting is ticket 06.
  */
 
-/** Why the last bank offered was not added: problems in the file, or a link that failed. */
+/**
+ * Why the last thing asked of the library did not happen: a file with problems,
+ * a link that failed, or a bank already held that no longer opens.
+ */
 type Rejection =
-  { kind: 'invalid'; name: string; issues: BankIssue[] } | { kind: 'unreachable'; message: string };
+  | { kind: 'invalid'; name: string; issues: BankIssue[] }
+  | { kind: 'unreachable'; message: string }
+  | { kind: 'storage'; message: string }
+  | { kind: 'unopenable'; bank: StoredBank; issues: BankIssue[] };
+
+/** A bank from the library, parsed and ready to start. */
+type OpenedBank = { stored: StoredBank; bank: Bank };
 
 /** A bank that changed without a version bump, waiting for a decision. */
 type Conflict = { text: string; source: BankSource; existing: StoredBank; incoming: StoredBank };
@@ -31,36 +49,87 @@ const statusMessage: Record<AddBankStatus, (bank: StoredBank) => string> = {
 };
 
 type Props = {
-  onStart: (bank: StoredBank) => void;
+  onStart: (stored: StoredBank, bank: Bank) => void;
+  onResume: (inProgress: InProgressAttempt, index: number) => void;
 };
 
-export function Library({ onStart }: Props) {
+export function Library({ onStart, onResume }: Props) {
   // Dexie pushes a new value whenever the table changes, so adding or removing
   // a bank updates this list without anything having to remember to refresh it.
   // Undefined means the first read has not resolved yet.
-  const banks = useLiveQuery(() => listBanks());
+  const held = useLiveQuery(() =>
+    listBanks().then(
+      (banks) => ({ banks, problem: null }),
+      (error: unknown) => ({ banks: [], problem: storageProblem(error) }),
+    ),
+  );
+  const banks = held?.banks;
   const [rejection, setRejection] = useState<Rejection | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [url, setUrl] = useState('');
   const [fetching, setFetching] = useState(false);
+  // Live, so removing the bank of an attempt in progress is reflected at once.
+  // Null when there is none; undefined until the first read, and the bank list
+  // waits for it so that Start cannot skip the question about discarding. A
+  // failure here is the one the bank list reports, so it is not repeated.
+  const pending = useLiveQuery(() =>
+    findInProgress().then(
+      (found) => found ?? null,
+      () => null,
+    ),
+  );
+  const [startingOver, setStartingOver] = useState<OpenedBank | null>(null);
 
-  const addText = useCallback(
-    async (text: string, source: BankSource, options?: AddBankOptions) => {
-      const result = await addBankFromText(text, source, options);
-      setRejection(null);
+  function requestStart(stored: StoredBank) {
+    setNotice(null);
+    setConflict(null);
+    const opened = openStoredBank(stored);
+    if (!opened.ok) {
+      setRejection({ kind: 'unopenable', bank: stored, issues: opened.issues });
+      return;
+    }
+    setRejection(null);
+    if (pending) setStartingOver({ stored, bank: opened.bank });
+    else onStart(stored, opened.bank);
+  }
+
+  /** Runs something that touches storage, explaining a failure rather than dropping it. */
+  const guard = useCallback(async (operation: () => Promise<void>) => {
+    try {
+      await operation();
+    } catch (error) {
       setNotice(null);
       setConflict(null);
+      setRejection({ kind: 'storage', message: storageProblem(error) });
+    }
+  }, []);
 
-      if (!result.ok) {
-        setRejection({ kind: 'invalid', name: sourceName(source), issues: result.issues });
-      } else if (result.status === 'conflict') {
-        setConflict({ text, source, existing: result.existing, incoming: result.bank });
-      } else {
-        setNotice(statusMessage[result.status](result.bank));
-      }
-    },
-    [],
+  async function discardInProgress() {
+    setStartingOver(null);
+    await guard(async () => {
+      await deleteInProgress();
+      if (startingOver) onStart(startingOver.stored, startingOver.bank);
+    });
+  }
+
+  const addText = useCallback(
+    (text: string, source: BankSource, options?: AddBankOptions) =>
+      guard(async () => {
+        const result = await addBankFromText(text, source, options);
+        setRejection(null);
+        setNotice(null);
+        setConflict(null);
+
+        if (!result.ok) {
+          setRejection({ kind: 'invalid', name: sourceName(source), issues: result.issues });
+        } else if (result.status === 'conflict') {
+          setConflict({ text, source, existing: result.existing, incoming: result.bank });
+        } else {
+          setNotice(statusMessage[result.status](result.bank));
+        }
+      }),
+    [guard],
   );
 
   const handleFiles = useCallback(
@@ -90,14 +159,31 @@ export function Library({ onStart }: Props) {
     }
   }
 
-  const handleRemove = useCallback(async (bank: StoredBank) => {
-    await deleteBank(bank.key);
-    setNotice(`Removed ${bank.title}.`);
-  }, []);
+  const handleRemove = useCallback(
+    (bank: StoredBank) =>
+      guard(async () => {
+        await deleteBank(bank.key);
+        setRejection(null);
+        setNotice(`Removed ${bank.title}.`);
+      }),
+    [guard],
+  );
 
   return (
     <section className="library">
       <h2>Your question banks</h2>
+
+      {pending && (
+        <InProgressOffer
+          pending={pending}
+          startingOver={startingOver?.stored ?? null}
+          onResume={() => {
+            if (pending.blocked === null) onResume(pending.inProgress, pending.index);
+          }}
+          onDiscard={() => void discardInProgress()}
+          onKeep={() => setStartingOver(null)}
+        />
+      )}
 
       <p className="library__intro">
         A question bank is a single file holding a set of questions. Load one to take a quiz from
@@ -150,17 +236,44 @@ export function Library({ onStart }: Props) {
             Could not load <code>{rejection.name}</code>
           </h3>
           <p>Nothing was added. Fix these and try again:</p>
-          <ul className="issues">
-            {rejection.issues.map((issue, index) => (
-              <li key={`${issue.path}-${index}`}>
-                {issue.path && <code>{issue.path}</code>} {issue.message}
-              </li>
-            ))}
-          </ul>
+          <IssueList issues={rejection.issues} />
         </div>
       )}
 
-      {rejection?.kind === 'unreachable' && (
+      {rejection?.kind === 'unopenable' && (
+        <div className="panel panel--error" role="alert">
+          <h3>{rejection.bank.title} can no longer be opened</h3>
+          <p>
+            It was added to your library, but it does not pass this version's checks, so no quiz can
+            be taken from it. Load a corrected copy of the file, or remove it:
+          </p>
+          <IssueList issues={rejection.issues} />
+          <div className="actions">
+            <button
+              type="button"
+              className="button button--quiet"
+              onClick={() => setRejection(null)}
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void handleRemove(rejection.bank)}
+            >
+              Remove it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {held?.problem && (
+        <p className="panel panel--error" role="alert">
+          {held.problem}
+        </p>
+      )}
+
+      {(rejection?.kind === 'unreachable' || rejection?.kind === 'storage') && (
         <p className="panel panel--error" role="alert">
           {rejection.message}
         </p>
@@ -203,7 +316,7 @@ export function Library({ onStart }: Props) {
         </p>
       )}
 
-      {banks === undefined ? null : banks.length === 0 ? (
+      {banks === undefined || pending === undefined ? null : banks.length === 0 ? (
         <p className="library__empty">No question banks yet.</p>
       ) : (
         <ul className="library__list" aria-label="Question banks">
@@ -227,7 +340,7 @@ export function Library({ onStart }: Props) {
                   type="button"
                   className="button"
                   aria-label={`Start ${bank.title}`}
-                  onClick={() => onStart(bank)}
+                  onClick={() => requestStart(bank)}
                 >
                   Start
                 </button>
@@ -245,5 +358,17 @@ export function Library({ onStart }: Props) {
         </ul>
       )}
     </section>
+  );
+}
+
+function IssueList({ issues }: { issues: BankIssue[] }) {
+  return (
+    <ul className="issues">
+      {issues.map((issue, index) => (
+        <li key={`${issue.path}-${index}`}>
+          {issue.path && <code>{issue.path}</code>} {issue.message}
+        </li>
+      ))}
+    </ul>
   );
 }

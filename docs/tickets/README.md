@@ -42,8 +42,8 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 05 | Load a bank from a URL | 02 | [x] |
 | 06 | Author ergonomics | 02 | [ ] |
 | 06a | Private banks by link (v1.1) | 05 | [ ] |
-| 07 | Resume an interrupted attempt | 03 | [ ] |
-| 07a | Alpha hardening | 03 | [ ] |
+| 07 | Resume an interrupted attempt | 03 | [x] |
+| 07a | Alpha hardening | 03 | [x] |
 | 08 | History, export and import | 03 | [ ] |
 | 09 | Share a result by link | 08 | [ ] |
 | 10 | Leaderboard | 03 | [ ] |

@@ -30,6 +30,35 @@ export type StoredBank = {
   raw: string;
 };
 
+/**
+ * The one attempt in progress in this browser, if any, under a fixed key so
+ * there can never be two.
+ *
+ * It holds only what cannot be recomputed. The selection and option order are
+ * replayed from the bank and the seed, exactly as a review is, and the bank's
+ * fingerprint is kept so a bank replaced mid-attempt is noticed rather than
+ * replayed into a different selection.
+ */
+export type StoredInProgress = {
+  key: typeof IN_PROGRESS_KEY;
+  bankKey: string;
+  bankFingerprint: string;
+  /** Snapshotted so the attempt can be named even after its bank is removed. */
+  bankTitle: string;
+  name: string;
+  seed: number;
+  /** The number of questions drawn, already clamped to the bank. */
+  questionCount: number;
+  /** Chosen option id by question id. */
+  chosen: Record<string, string>;
+  /** ISO 8601. */
+  startedAt: string;
+  /** The question on screen, so resuming lands where the participant was. */
+  index: number;
+};
+
+const IN_PROGRESS_KEY = 'current';
+
 /** Small preferences remembered in this browser, one row per setting. */
 type Setting = { key: 'lastParticipantName'; value: string };
 
@@ -37,6 +66,7 @@ const database = new Dexie('physics-quiz') as Dexie & {
   banks: EntityTable<StoredBank, 'key'>;
   attempts: EntityTable<Attempt, 'id'>;
   settings: EntityTable<Setting, 'key'>;
+  inProgress: EntityTable<StoredInProgress, 'key'>;
 };
 
 database.version(1).stores({
@@ -46,6 +76,10 @@ database.version(1).stores({
 database.version(2).stores({
   attempts: 'id, bankId, name, submittedAt',
   settings: 'key',
+});
+
+database.version(3).stores({
+  inProgress: 'key',
 });
 
 export const db = database;
@@ -71,8 +105,28 @@ export async function deleteBank(key: string): Promise<void> {
   await db.banks.delete(key);
 }
 
-export async function putAttempt(attempt: Attempt): Promise<void> {
-  await db.attempts.put(attempt);
+/**
+ * Records an attempt submitted in this browser and clears the in-progress one
+ * it came from, in one transaction, so it is never both or neither.
+ */
+export async function recordSubmittedAttempt(attempt: Attempt): Promise<void> {
+  await db.transaction('rw', db.attempts, db.inProgress, async () => {
+    await db.attempts.put(attempt);
+    await db.inProgress.delete(IN_PROGRESS_KEY);
+  });
+}
+
+/** Saves the attempt in progress, replacing any other: there is only ever one. */
+export async function putInProgress(inProgress: Omit<StoredInProgress, 'key'>): Promise<void> {
+  await db.inProgress.put({ ...inProgress, key: IN_PROGRESS_KEY });
+}
+
+export async function getInProgress(): Promise<StoredInProgress | undefined> {
+  return db.inProgress.get(IN_PROGRESS_KEY);
+}
+
+export async function deleteInProgress(): Promise<void> {
+  await db.inProgress.delete(IN_PROGRESS_KEY);
 }
 
 /** Every attempt held in this browser, newest first. */
