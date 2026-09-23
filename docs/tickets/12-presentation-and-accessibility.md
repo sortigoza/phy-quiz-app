@@ -9,7 +9,7 @@ This lands after the screens exist so it polishes finished work rather than a mo
 **Status:** ready-for-agent
 
 - [ ] Mobile-first single column with a sensible maximum width, tested at phone and tablet sizes
-- [ ] Light and dark palettes driven by system preference, with no in-app toggle
+- [ ] The retro terminal palette (phosphor green on near-black, neon pink and cyan accents) holds AA contrast everywhere. It is deliberately dark only: there is no light theme and no toggle
 - [ ] Touch targets of at least 44 pixels and text contrast meeting WCAG AA
 - [ ] Visible focus indicators on every interactive element, and a sensible focus order through the quiz
 - [ ] Number keys select options during an attempt
