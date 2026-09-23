@@ -38,6 +38,7 @@ Named here so nobody has to wonder whether they were forgotten.
 | Timers | Duration is recorded, not enforced | Additive per-bank time limit |
 | Pasting bank JSON as text | Upload and URL cover it | Trivial to add |
 | Dark mode toggle, i18n, gamification | Complexity without teaching value | System dark mode already works |
+| Private banks | Adds a key story and an author CLI to a v1 that works without either | v1.1: specified in §3.4, built by ticket 06a, see [ADR 0003](./docs/adr/0003-private-banks-by-capability-link.md) |
 
 ---
 
@@ -199,6 +200,85 @@ A loaded bank is stored in IndexedDB keyed by `id` and `version`, with its finge
 
 A bank that fails validation is never partially loaded. The error screen lists up to 20 errors, each with the JSON path (`questions[7].answer`) and a human sentence ("answer 'e' does not match any option id; options are a, b, c, d"). The same view is reachable directly as the **Validate a bank** screen, so a teacher can check a file without starting a quiz and without installing anything.
 
+### 3.4 Private banks (v1.1)
+
+Not part of v1.0.0. Specified now so the v1 formats leave room for it; built by ticket 06a.
+
+A **private bank** is a bank published encrypted, so that the file can sit on a public host (a public GitHub repo, GitHub Pages) while only the people holding its **bank link** can read it. The goal is keeping a bank away from people nobody gave it to, such as search engines, next year's class, or anyone browsing the repo. It is not meant to keep a bank away from the students who were given the link; §3.4.5 says why. [ADR 0003](./docs/adr/0003-private-banks-by-capability-link.md) records why this is a link carrying a symmetric key rather than per-student public-key encryption.
+
+#### 3.4.1 The encrypted file
+
+A JWE in **General JSON serialisation**, produced and read with the `jose` library on WebCrypto. Only browsers with WebCrypto support are supported.
+
+| Header field | Value |
+| --- | --- |
+| `alg` | `dir` |
+| `enc` | `A256GCM` |
+| `cty` | `application/vnd.physics-quiz.bank+json` |
+| `kid` | The bank key's RFC 7638 JWK thumbprint (SHA-256, base64url). It reveals nothing about the key and tells the app which key opens the file. |
+
+All four fields go in the **protected** header. Nothing else about the bank is readable without the key: no `id`, `version`, `title` or `author`, because titles often give the course and year away. The plaintext is the bank as UTF-8 JSON, the same bytes a plaintext bank file would hold. Published files are named `<name>.bank.jwe.json` by convention; the app ignores the name.
+
+#### 3.4.2 The bank key
+
+One random 256-bit key per bank, **stable across editions**: version 1.1.0 of a bank is encrypted with the same key as 1.0.0, so a link sent once keeps opening every later edition. The author keeps it next to the plaintext bank in a **private** repo as `keys/<bank-id>.key.json` (a JWK, `kty: "oct"`). It is no more secret than the plaintext it protects, and both already live in that repo. The plaintext bank and its key must never reach the public repo.
+
+**Rotation** creates a new key for a bank. Every link sent before that stops opening new editions, and files already published under the old key stay readable to anyone who holds it.
+
+#### 3.4.3 The author CLI
+
+`scripts/bank-crypto.ts`, in this repo, run through `pnpm bank-crypto`. It uses the app's own bank parser, so the CLI and the app cannot disagree about what a valid bank is. The author runs it from their private repo with paths.
+
+```
+pnpm bank-crypto encrypt <bank-file> --out <file> --url <public URL of that file> [--app-url <url>] [--rotate]
+pnpm bank-crypto decrypt <file> --key <key-file>
+```
+
+- `encrypt` validates the bank and **refuses to encrypt an invalid one**, with the same field-path errors as §3.3. It reads `keys/<bank-id>.key.json` if it exists and creates it if not; `--rotate` replaces it and prints a warning that old links will not open new editions. It writes the JWE and prints the bank link. `--app-url` defaults to the live GitHub Pages URL.
+- `decrypt` lets an author check their own output. It prints the plaintext bank.
+
+#### 3.4.4 The bank link
+
+```
+https://<app>/#bank=<percent-encoded URL of the encrypted file>&key=<base64url of the 32 key bytes>
+```
+
+About 150 to 250 characters. Both parameters are in the **fragment**, which browsers never send to a server, so the key never reaches the app's host or the bank's host. The bank itself is not embedded in the link: real banks run to tens of KB, which chat apps truncate.
+
+Opening a bank link:
+
+1. Reads `#bank=` and `#key=`, then clears the fragment from the address bar so a reload or a copied address does not carry the key.
+2. Imports the key and stores it in the **bank key store** (§3.4.6) straight away.
+3. Fetches the URL exactly as §3.1 does, with the same failure messages. If the fetch fails, the key is already stored, so the person can download the file and upload it, and it opens without the link.
+4. Decrypts, then hands the plaintext to the same validate-and-store path as any other bank (§3.2 and §3.3).
+
+**Recognising an encrypted file.** Upload and URL loading both check content, not file names: a JSON object with `protected`, `ciphertext` and `iv` whose protected header has our `cty` is a private bank. Any other file goes through the normal bank path. An encrypted file that arrives without a link is opened with the stored key whose thumbprint matches its `kid`.
+
+Failures, each with its own message:
+
+| Case | Message |
+| --- | --- |
+| No stored key matches the `kid` | "This is a private bank. Open the link your teacher sent to unlock it." |
+| Decryption fails | The file is damaged or was changed after it was encrypted, or the link's key belongs to a different bank. |
+| It decrypts but is not a valid bank | The normal §3.3 error list, introduced with "This private bank opened, but it is not a valid bank:". |
+
+The stored bank is the **decrypted** text, handled like any other bank from then on. Its fingerprint is computed over the plaintext bytes, because the ciphertext changes every time a bank is encrypted. The record also keeps the `kid` it was opened with, and the library shows a 🔒 badge on it.
+
+#### 3.4.5 What this does not do
+
+In the same spirit as §6.5, and repeated in the teacher documentation:
+
+- A bank link is a **bearer secret**. Anyone it is forwarded to can open the bank. Send it to the class, not to the world.
+- Anyone who can take the quiz can copy the questions and the explanations. Encryption protects the file on the public host, not the bank from its readers.
+- Rotating a key protects **future editions only**. Old files stay in the public repo's git history, readable with the old key.
+- The key sits in the student's browser history until the fragment is cleared, and in whatever chat or email carried the link, for as long as that message exists.
+
+Attempts, history exports and share links never carry a bank key. A participant who shares a result on a private bank shares only question ids and choices, as §6.4 already specifies.
+
+#### 3.4.6 The bank key store
+
+A Dexie table `bankKeys` of `{ kid, key, addedAt }`, where `key` is a **non-extractable** `CryptoKey`: once imported, no script on the page can read the raw key back. It has no screen. A key is deleted when the last bank opened with it leaves the library. To move to a new device, the student opens the link again; the app has no key export.
+
 ---
 
 ## 4. Taking a quiz
@@ -331,17 +411,20 @@ A toggle switches between **best attempt per name** (default) and **every attemp
 
 Library (home) | Start | Attempt | Review | History | Leaderboard | Validate a bank | Import share link
 
-No router. One `useReducer` state machine holds `screen` plus its data; the in-progress attempt is persisted to IndexedDB on every change, which is what makes both resume and `base: './'` deployment work. The only URL the app reads is the `#share=` fragment on boot.
+No router. One `useReducer` state machine holds `screen` plus its data; the in-progress attempt is persisted to IndexedDB on every change, which is what makes both resume and `base: './'` deployment work. The only URLs the app reads are the `#share=` fragment on boot and, from v1.1, the `#bank=` fragment of a bank link (§3.4.4).
 
 ### 8.2 Modules
 
 ```
 src/
   domain/      bank.ts  selection.ts  scoring.ts  attempt.ts  share.ts  history-file.ts
-  storage/     db.ts                      # Dexie: banks, attempts, inProgress, settings
+               private-bank.ts            # v1.1: JWE encrypt/decrypt and bank link, shared with the CLI
+  storage/     db.ts                      # Dexie: banks, attempts, inProgress, settings; bankKeys from v1.1
   render/      markdown.ts                # marked + DOMPurify + KaTeX
   app/         state.ts  App.tsx
   ui/          one component per screen, plus shared primitives
+scripts/
+  bank-crypto.ts                          # v1.1 author CLI for private banks, §3.4.3
 public/
   schema/bank-v1.schema.json              # generated from the Zod types at build time
 ```
@@ -356,6 +439,7 @@ public/
 | UI | React 19, TypeScript strict | As specified |
 | PWA | `vite-plugin-pwa` (Workbox), prompt mode | Hand-written service workers are the code you asked to avoid |
 | Validation | Zod, JSON Schema generated from it | Schema and runtime validator cannot drift |
+| Encryption (v1.1) | `jose` on WebCrypto | One JOSE implementation shared by the app and the author CLI; no hand-rolled crypto |
 | Storage | Dexie | IndexedDB without the ceremony |
 | Maths | KaTeX | Synchronous, offline, small, sufficient |
 | Text | marked + DOMPurify | Untrusted remote content must be sanitised |

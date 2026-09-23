@@ -27,6 +27,18 @@ The edition of a bank, declared by its author and bumped when the questions chan
 The hash of a bank file's exact bytes, used to tell two files apart when their author gave them the same Bank ID and Bank Version.
 _Avoid_: Checksum, digest, ETag
 
+**Private Bank**:
+A bank published encrypted, so its file can sit on a public host while only people holding its Bank Link can read it. Once opened, it is a bank like any other.
+_Avoid_: Locked bank, secret bank, encrypted bank
+
+**Bank Key**:
+The secret that opens one private bank. There is one per bank, the same for every edition of it.
+_Avoid_: Password, passphrase, access key
+
+**Bank Link**:
+A link carrying a private bank's location and its Bank Key, which is how a private bank reaches the people meant to read it. Anyone holding it can open the bank.
+_Avoid_: Share link (that carries an attempt), invite link, access link
+
 **Question**:
 One prompt with a fixed set of options, exactly one of which is correct.
 
@@ -77,7 +89,7 @@ _Avoid_: Scoreboard, rankings, high scores
 
 **Share Link**:
 A link carrying one attempt inside its URL fragment, so a participant can hand a result to someone else without a server. The receiving browser recomputes the score rather than believing it.
-_Avoid_: Result link, share code (the Attempt Code is a different thing)
+_Avoid_: Result link, share code (the Attempt Code is a different thing), bank link (that carries a private bank)
 
 **Unverified**:
 The status of any attempt that arrived by import or share link rather than being taken in this browser. The app cannot prove such an attempt is genuine and says so rather than implying otherwise.

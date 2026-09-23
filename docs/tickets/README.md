@@ -19,6 +19,7 @@ Tracking is local and in git: tick the checkboxes in a ticket as you go, and com
     │   ├── 10 leaderboard
     │   └── 11 installable and offline  (also needs 05)
     ├── 05 load a bank from a URL
+    │   └── 06a private banks by link  (v1.1)
     └── 06 author ergonomics
 12 presentation and accessibility   needs 04, 10
 13 documentation and examples       needs 06, 09
@@ -26,6 +27,8 @@ Tracking is local and in git: tick the checkboxes in a ticket as you go, and com
 ```
 
 The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in parallel; after 03, so can 04, 07, 08, 10 and 11.
+
+06a is v1.1 work. It is specified and ready, but nothing in v1.0.0 waits for it, and ticket 14 does not depend on it.
 
 ## Status
 
@@ -38,6 +41,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 04 | Maths and Markdown rendering | 03 | [x] |
 | 05 | Load a bank from a URL | 02 | [x] |
 | 06 | Author ergonomics | 02 | [ ] |
+| 06a | Private banks by link (v1.1) | 05 | [ ] |
 | 07 | Resume an interrupted attempt | 03 | [ ] |
 | 07a | Alpha hardening | 03 | [ ] |
 | 08 | History, export and import | 03 | [ ] |
