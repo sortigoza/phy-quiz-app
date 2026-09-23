@@ -1,0 +1,144 @@
+{
+  "formatVersion": 1,
+  "id": "example.mechanics.kinematics",
+  "version": "1.0.0",
+  "title": "Kinematics in one dimension",
+  "description": "Constant acceleration, free fall, and reading motion graphs. An example bank; see docs for how to write your own.",
+  "author": "Physics Quiz examples",
+  "license": "CC-BY-4.0",
+  "language": "en",
+  "tags": ["mechanics", "kinematics"],
+  "defaultQuestionCount": 5,
+  "questions": [
+    {
+      "id": "free-fall-speed",
+      "prompt": "A ball is released from rest and falls freely for $1.00\\,\\mathrm{s}$. Taking $g = 9.81\\,\\mathrm{m/s^2}$ and ignoring air resistance, what is its speed?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$4.91\\,\\mathrm{m/s}$",
+          "why": "This is $\\tfrac{1}{2}gt$, the **average** speed over the fall, not the speed at the end of it."
+        },
+        { "id": "b", "text": "$9.81\\,\\mathrm{m/s}$" },
+        {
+          "id": "c",
+          "text": "$19.6\\,\\mathrm{m/s}$",
+          "why": "This is $2gt$. Check which factor the kinematic equation actually carries."
+        },
+        {
+          "id": "d",
+          "text": "$4.91\\,\\mathrm{m}$",
+          "why": "That is a distance, not a speed. Checking units is the fastest way to catch this one."
+        }
+      ],
+      "answer": "b",
+      "explanation": "From rest, $v = gt = 9.81 \\times 1.00 = 9.81\\,\\mathrm{m/s}$. The distance fallen in the same second is $\\tfrac{1}{2}gt^2 = 4.91\\,\\mathrm{m}$, which is why the other numbers look tempting.",
+      "tags": ["free-fall"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "stopping-distance-doubling",
+      "prompt": "A car braking with constant deceleration stops in a distance $d$ from speed $v$. From speed $2v$, with the same deceleration, it stops in a distance of:",
+      "options": [
+        {
+          "id": "a",
+          "text": "$2d$",
+          "why": "Stopping distance is not proportional to speed. Look at which power of $v$ appears in $v^2 = 2ad$."
+        },
+        { "id": "b", "text": "$4d$" },
+        {
+          "id": "c",
+          "text": "$d$",
+          "why": "Doubling the speed must increase the stopping distance; the kinetic energy to dissipate has grown."
+        },
+        {
+          "id": "d",
+          "text": "$\\sqrt{2}\\,d$",
+          "why": "This inverts the relationship: distance goes as the square of speed, not the square root."
+        }
+      ],
+      "answer": "b",
+      "explanation": "With $v^2 = v_0^2 - 2ad$ and a final speed of zero, $d = v_0^2 / (2a)$. Stopping distance goes as the **square** of the initial speed, so doubling the speed quadruples the distance. This is why speed limits matter more than they intuitively seem to.",
+      "tags": ["constant-acceleration"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "velocity-time-area",
+      "prompt": "On a velocity against time graph, what does the area between the curve and the time axis represent?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Acceleration",
+          "why": "Acceleration is the **slope** of a velocity against time graph, not its area."
+        },
+        { "id": "b", "text": "Displacement" },
+        {
+          "id": "c",
+          "text": "Average velocity",
+          "why": "Average velocity is the area divided by the elapsed time, not the area itself."
+        },
+        {
+          "id": "d",
+          "text": "Jerk",
+          "why": "Jerk is the rate of change of acceleration, which on this graph would be the change in the slope."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Velocity is the rate of change of position, so integrating velocity over time gives displacement: $\\Delta x = \\int v\\,\\mathrm{d}t$. Area below the axis counts as negative, which is exactly why area gives displacement rather than distance travelled.",
+      "tags": ["graphs"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "projectile-vertical-independence",
+      "prompt": "One ball is dropped from a height $h$ at the same instant an identical ball is fired horizontally from the same height. Ignoring air resistance, which lands first?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The dropped ball",
+          "why": "The horizontal motion does not slow the fall: the two motions are independent."
+        },
+        {
+          "id": "b",
+          "text": "The fired ball",
+          "why": "Moving horizontally gives no upward support, so it does not stay aloft any longer."
+        },
+        { "id": "c", "text": "They land at the same time" },
+        {
+          "id": "d",
+          "text": "It depends on the horizontal speed",
+          "why": "Horizontal speed sets how far the ball travels, not how long it falls."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Horizontal and vertical motion are independent under gravity. Both balls start with zero vertical velocity and fall under the same $g$, so both take $t = \\sqrt{2h/g}$. The fired ball simply travels further sideways in that same time.",
+      "tags": ["projectiles"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "average-speed-round-trip",
+      "prompt": "A cyclist rides out at $10\\,\\mathrm{km/h}$ and returns along the same route at $20\\,\\mathrm{km/h}$. What is the average speed for the round trip?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$15\\,\\mathrm{km/h}$",
+          "why": "This averages the speeds, but more time is spent at the slower speed, so the true average is lower."
+        },
+        { "id": "b", "text": "$13.3\\,\\mathrm{km/h}$" },
+        {
+          "id": "c",
+          "text": "$0\\,\\mathrm{km/h}$",
+          "why": "The average **velocity** is zero for a round trip, but speed is distance over time and cannot be zero here."
+        },
+        {
+          "id": "d",
+          "text": "$12.5\\,\\mathrm{km/h}$",
+          "why": "Close, but check the arithmetic: the harmonic mean of 10 and 20 is $2(10)(20)/(10+20)$."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Average speed is total distance over total time, not the mean of the speeds. For equal distances it is the harmonic mean: $\\frac{2 v_1 v_2}{v_1 + v_2} = \\frac{2(10)(20)}{30} = 13.3\\,\\mathrm{km/h}$. The slower leg takes twice as long, so it dominates.",
+      "tags": ["average-speed"],
+      "difficulty": "hard"
+    }
+  ]
+}

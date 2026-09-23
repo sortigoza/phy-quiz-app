@@ -10,6 +10,9 @@
   --text-muted: #5c5f66;
   --border: #dcdde1;
   --accent: #1d4ed8;
+  --accent-text: #ffffff;
+  --danger-bg: #fdf2f2;
+  --danger-border: #e0b4b4;
 
   color-scheme: light dark;
 }
@@ -21,7 +24,10 @@
     --text: #ecedef;
     --text-muted: #a2a5ad;
     --border: #2f3239;
-    --accent: #7ea2ff;
+    --accent: #2f5fd0;
+    --accent-text: #ffffff;
+    --danger-bg: #2a1c1e;
+    --danger-border: #6b3b40;
   }
 }
 
@@ -84,4 +90,145 @@ body {
   padding: 1.5rem 0 1rem;
   color: var(--text-muted);
   font-size: 0.875rem;
+}
+
+/* Buttons, panels and the library list. Ticket 12 does the full design pass. */
+
+.button {
+  display: inline-block;
+  padding: 0.625rem 1rem;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.button:hover {
+  filter: brightness(1.08);
+}
+
+.button--quiet {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The file input is hidden but still focusable, so its label shows the focus. */
+.library__add:focus-within .button {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.library h2 {
+  font-size: 1.125rem;
+}
+
+.library__intro {
+  color: var(--text-muted);
+  margin-top: 0;
+}
+
+.library__add {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.library__hint,
+.library__empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.library__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bank {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bank__title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.bank__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.bank__fingerprint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+}
+
+.panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.panel--error {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.panel--notice {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.issues {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.issues li + li {
+  margin-top: 0.25rem;
+}
+
+.issues code,
+.panel code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125em;
 }

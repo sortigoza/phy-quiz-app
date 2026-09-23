@@ -1,10 +1,12 @@
+import { Library } from './ui/Library';
 import { APP_VERSION } from './version';
 
 /**
  * The application shell.
  *
- * Ticket 01 is a walking skeleton: this renders the frame that every later
- * screen hangs inside, and nothing else. The library screen arrives in ticket 02.
+ * There is no router: screens are chosen by state, which is what lets the build
+ * work unchanged at any subpath. Ticket 03 introduces the state machine when
+ * there is more than one screen to choose between.
  */
 export function App() {
   return (
@@ -14,13 +16,7 @@ export function App() {
       </header>
 
       <main className="app__main">
-        <section className="card">
-          <h2>Nothing here yet</h2>
-          <p>
-            This is the walking skeleton: build, tests and deployment are wired up end to end. Your
-            question bank library will live on this screen.
-          </p>
-        </section>
+        <Library />
       </main>
 
       <footer className="app__footer">
