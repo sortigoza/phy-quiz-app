@@ -43,3 +43,34 @@ This is v1.1 work. Nothing in v1.0.0 depends on it. The design is SPEC section 3
 - The key parameter is base64url of the raw 32 bytes, not a JWK, so the link stays short. Import it with `extractable: false` before storing it.
 - Clear the fragment before any await, so a failure halfway through never leaves the key in the address bar.
 - Use the terms in [CONTEXT.md](../../CONTEXT.md): private bank, bank key, bank link. "Share link" means an attempt, never a bank.
+
+## Implementation notes
+
+Built on top of 05, then rebased onto 07. What was built, where it lives, and what was left open on purpose.
+
+### Where things are
+
+- `src/domain/private-bank.ts`: JWE encrypt and decrypt, key encoding, `kid` thumbprint, content-based recognition (`readPrivateBankHeader`), and bank link building and parsing. Shared by the app and the CLI; no DOM, no Dexie.
+- `src/bank-link.ts`: `takeBankLink` reads and clears the fragment synchronously, and is called in `main.tsx` before the first render. `openBankLink` stores the key, then fetches and adds the bank.
+- `src/library.ts`: `addBankFromText` is still the single entry point. It decrypts a private bank before parsing, fingerprints the plaintext and records the `kid`. Its failures now carry a `reason`: `invalid` (with `private`), `no-key` or `undecryptable`.
+- `src/storage/db.ts`: a `bankKeys` table, and a `kid` index on `banks`. `putBank` and `deleteBank` release a key once no bank uses it.
+- `scripts/bank-crypto.ts`: the author CLI. Paths resolve against `INIT_CWD`, so it works when run from the teacher's own repo.
+- `src/docs/bank-reference.ts` (`privateBanks`), rendered in Help and `llms.txt`.
+
+### Decisions made along the way
+
+- **The link's own key is tried first.** A bank link decrypts with the key it carries, not with the stored key whose `kid` matches the file. A link whose key belongs to another bank then gets the "different bank" message rather than "open the link your teacher sent", which the student has just done.
+- **Key clean-up goes beyond "last bank leaves".** A link key that fails to decrypt a file it did fetch is deleted at once. Replacing a bank with an edition under a rotated key lets the old key go. A key from a failed fetch is kept, by design, so an uploaded copy opens.
+- **A bank already held gets its key recorded.** If the same plaintext arrives again as a private bank, the stored bank gains the `kid` (and the 🔒 badge). Re-uploading the plaintext never strips a `kid`.
+- **A truncated link gets its own message.** A `#bank=` link with a missing or malformed key says it is incomplete. This is a fourth case beyond SPEC §3.4.4's three, because chat apps do cut links short.
+- **The bank link is held in `App` state, not in the reducer.** It is a one-shot boot input, not screen data. `Library` shows the outcome, then `App` drops the link so returning to the library does not open it again. A ref keeps StrictMode from fetching twice.
+- **Tooling.** `pnpm-workspace.yaml` sets `allowBuilds: esbuild: false`, because pnpm 11 fails the install on an undecided build script. `tsx` works without it. `src/test/setup.ts` wraps `TextEncoder` so jsdom and Node agree on `Uint8Array`, which `jose` checks with `instanceof`.
+- **Merging with 07.** Both tickets claimed Dexie version 3; 06a takes version 4.
+
+### Left open
+
+- **History exports and share links (08, 09) do not exist yet.** The "never contain a bank key" box is proven for attempts only. Those tickets build on attempts and must keep keys out.
+- **Leaving the library mid-open.** If the student goes to Start before a bank link finishes opening, returning to the library opens it again: one extra fetch and a repeated key write, with nothing corrupted.
+- **Only automated tests so far.** Everything is covered in jsdom with fake-indexeddb. Before v1.1 ships, open a real bank link on a phone and a desktop browser.
+- **`--rotate` with no key file** creates a key without printing the rotation warning, since nothing was replaced.
+- **The teacher guide** for publishing private banks is ticket 13.
