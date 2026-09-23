@@ -13,6 +13,7 @@ Tracking is local and in git: tick the checkboxes in a ticket as you go, and com
     │   ├── 03a in-app help and llms.txt
     │   ├── 04 maths and Markdown rendering
     │   ├── 07 resume an interrupted attempt
+    │   ├── 07a alpha hardening
     │   ├── 08 history, export and import
     │   │   └── 09 share a result by link
     │   ├── 10 leaderboard
@@ -38,6 +39,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 05 | Load a bank from a URL | 02 | [x] |
 | 06 | Author ergonomics | 02 | [ ] |
 | 07 | Resume an interrupted attempt | 03 | [ ] |
+| 07a | Alpha hardening | 03 | [ ] |
 | 08 | History, export and import | 03 | [ ] |
 | 09 | Share a result by link | 08 | [ ] |
 | 10 | Leaderboard | 03 | [ ] |
