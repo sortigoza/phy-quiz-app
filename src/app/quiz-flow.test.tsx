@@ -207,6 +207,23 @@ describe('taking a quiz', () => {
     expect(attempt?.appVersion).toBeTruthy();
   });
 
+  it('asks before the page is closed or reloaded mid-attempt, and not once it is submitted', async () => {
+    const leave = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    const user = userEvent.setup();
+    expect(leave()).toBe(false);
+
+    await startQuiz(user);
+    expect(leave()).toBe(true);
+
+    await answerAllAndSubmit(user, { q1: 'right', q2: 'right', q3: 'right' });
+    await screen.findByRole('heading', { name: /review/i });
+    expect(leave()).toBe(false);
+  });
+
   it('remembers the name for next time', async () => {
     const user = userEvent.setup();
     await startQuiz(user, 'Anna');

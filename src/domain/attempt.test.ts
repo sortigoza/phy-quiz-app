@@ -46,14 +46,22 @@ const bank: Bank = {
 };
 
 describe('attemptCode', () => {
-  it('renders the first 35 bits of the id in Crockford base32, grouped for reading aloud', () => {
-    // 0x01890a5dac = 00000 00110 00100 10000 10100 10111 01101 | 01100 (dropped)
-    //              =   0     6     4     G     M     Q     D
-    expect(attemptCode('01890a5d-ac96-774b-bcce-b302099a8057')).toBe('064-GMQD');
+  it('renders the last 35 bits of the id in Crockford base32, grouped for reading aloud', () => {
+    // 0x2099a8057 = 01000 00100 11001 10101 00000 00010 10111 (35 bits)
+    //             =   8     4     S     N     0     2     Q
+    expect(attemptCode('01890a5d-ac96-774b-bcce-b302099a8057')).toBe('84S-N02Q');
+  });
+
+  it('comes from the random end of the id, so attempts submitted together still differ', () => {
+    // The leading bits of a UUIDv7 are the timestamp: a class submitting in
+    // the same second would all read out the same code if it came from there.
+    const sameMoment = new Date('2026-09-23T10:00:00Z');
+    const codes = new Set(Array.from({ length: 50 }, () => attemptCode(uuidv7(sameMoment))));
+    expect(codes.size).toBe(50);
   });
 
   it('never uses the letters Crockford base32 leaves out', () => {
-    expect(attemptCode('ffffffff-ff00-7000-8000-000000000000')).toBe('ZZZ-ZZZZ');
+    expect(attemptCode('00000000-0000-7000-8007-ffffffffffff')).toBe('ZZZ-ZZZZ');
   });
 });
 
@@ -123,7 +131,7 @@ describe('createAttempt', () => {
   it('records every field the attempt record carries', () => {
     expect(attempt).toMatchObject({
       id: '01890a5d-ac96-774b-bcce-b302099a8057',
-      code: '064-GMQD',
+      code: '84S-N02Q',
       name: 'Anna Svensson',
       bankId: 'test.bank',
       bankVersion: '2.1.0',

@@ -49,7 +49,7 @@ No React, no IndexedDB, no DOM. Pure functions and types under `src/domain/`. Th
 
 **`scoring.ts`**: `correctCount` over an answer list; percentage derived, never stored.
 
-**`attempt.ts`**: the `Attempt` type, `createAttempt`, UUIDv7 generation, and `attemptCode(id)` rendering the first 35 bits as Crockford base32, grouped `XXX-XXXX`.
+**`attempt.ts`**: the `Attempt` type, `createAttempt`, UUIDv7 generation, and `attemptCode(id)` rendering the last (random) 35 bits as Crockford base32, grouped `XXX-XXXX`.
 
 **`share.ts`**: `encodeShare` / `decodeShare` using `CompressionStream("deflate-raw")` plus base64url, with a plain-base64 fallback. Round trip must be lossless.
 

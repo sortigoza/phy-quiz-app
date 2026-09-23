@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useEffect, useReducer } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
 import { AttemptScreen } from './ui/AttemptScreen';
 import { Help } from './ui/Help';
@@ -15,6 +15,7 @@ import { APP_VERSION } from './version';
  */
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  useLeaveWarning(isAttemptInProgress(state));
 
   return (
     <div className="app">
@@ -49,6 +50,24 @@ export function App() {
       </footer>
     </div>
   );
+}
+
+/** True from Begin until Submit, including while Help is open over the attempt. */
+function isAttemptInProgress(state: AppState): boolean {
+  return state.screen === 'attempt' || (state.screen === 'help' && state.back.screen === 'attempt');
+}
+
+/**
+ * Asks the browser to confirm before the page is closed, reloaded or navigated
+ * away from. Until ticket 07 persists the attempt, leaving loses every answer.
+ */
+function useLeaveWarning(active: boolean): void {
+  useEffect(() => {
+    if (!active) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [active]);
 }
 
 function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAction) => void }) {

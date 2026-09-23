@@ -266,7 +266,7 @@ type Attempt = {
 
 **Lean by design.** The record references question ids and does not snapshot question text. A teacher collecting results has the bank by definition, and a class of 30 exports as tens of KB rather than megabytes.
 
-**Attempt Code.** The first 35 bits of the UUID rendered in Crockford base32 as 7 characters grouped `XXX-XXXX`. Display only: deduplication always uses the full `id`.
+**Attempt Code.** The last 35 bits of the UUID rendered in Crockford base32 as 7 characters grouped `XXX-XXXX`. The last bits, because they are random: the leading bits of a UUIDv7 are its timestamp, so attempts submitted together would share a code. Display only: deduplication always uses the full `id`.
 
 ---
 

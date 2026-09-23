@@ -34,13 +34,13 @@ function list(items: string[]): string {
 export function renderLlmsTxt(appVersion: string): string {
   return `# Physics Quiz
 
-> Physics Quiz is a local-first web app for multiple-choice physics quizzes. A teacher or an AI assistant writes a question bank as a single JSON file; a student loads it into the app, answers a random selection of its questions, and then sees a review with the correct options and the author's explanations. This file tells an AI agent how to write a question bank that the app accepts. It describes app version ${appVersion}.
+> Physics Quiz is a local-first web app for multiple-choice physics quizzes. A teacher or an AI assistant writes a question bank as a single JSON file; a participant loads it into the app, answers a random selection of its questions, and then sees a review with the correct options and the author's explanations. This file tells an AI agent how to write a question bank that the app accepts. It describes app version ${appVersion}.
 
 When asked to write a question bank, output one JSON document that follows the reference below: no comments, no trailing commas, and no keys that are not listed. The app is strict and rejects the whole file on any error.
 
 ## Links
 
-- [The app](./): load a bank with "Load a bank file" or "Load from URL", then press Start. Publishing a bank in a public GitHub repository and loading its file link is the easiest way to share one.
+- [The app](./): load a bank with "Upload a bank file" or "Load from URL", then press Start. Publishing a bank in a public GitHub repository and loading its file link is the easiest way to share one.
 - [Example bank](./examples/kinematics.json): a complete five-question bank on one-dimensional kinematics
 
 ## Vocabulary
@@ -49,7 +49,7 @@ When asked to write a question bank, output one JSON document that follows the r
 - **Question**: a prompt with between two and eight options, exactly one of which is correct.
 - **Option**: one selectable answer. The wrong ones are **distractors**.
 - **Explanation**: the author's account of why the correct option is correct, shown after submission. It is where the teaching happens, so it is required.
-- **why**: an optional note on a distractor, explaining the mistake that leads to it. Shown only to a student who chose that option.
+- **why**: an optional note on a distractor, explaining the mistake that leads to it. Shown only to a participant who chose that option.
 
 ## Bank fields
 
@@ -94,8 +94,8 @@ ${list(currentLimits)}
 - Make the explanation teach: show the working with numbers and units, not just "the answer is b".
 - Compute every numerical option yourself and state values to consistent significant figures. The correct option must actually be correct.
 - Do not rely on option order: the app shuffles options, so never write "all of the above" or "both a and b".
-- Use short, stable, kebab-case question ids such as \`free-fall-speed\`. Results refer to questions by id.
-- Set \`defaultQuestionCount\` to the number of questions a student should see in one sitting.
+- Use short, stable, kebab-case question ids such as \`free-fall-speed\`. Attempt records refer to questions by id.
+- Set \`defaultQuestionCount\` to the number of questions a participant should see in one sitting.
 
 ## Minimal example
 

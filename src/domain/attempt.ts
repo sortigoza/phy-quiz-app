@@ -73,10 +73,16 @@ export function uuidv7(now: Date = new Date()): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/** The first 35 bits of the id in Crockford base32, grouped `XXX-XXXX`. */
+/**
+ * The last 35 bits of the id in Crockford base32, grouped `XXX-XXXX`.
+ *
+ * The end of a UUIDv7 is random; its start is the timestamp. Taking the code
+ * from the start would give every attempt submitted in the same second the
+ * same code, which is exactly the classroom case.
+ */
 export function attemptCode(id: string): string {
-  const leading40 = parseInt(id.replaceAll('-', '').slice(0, 10), 16);
-  let bits = Math.floor(leading40 / 32);
+  // The last 9 hex digits hold 36 bits; the top one is dropped. Under 2^53, so exact.
+  let bits = parseInt(id.replaceAll('-', '').slice(-9), 16) % 2 ** 35;
   let code = '';
   for (let i = 0; i < 7; i++) {
     code = (CROCKFORD[bits % 32] as string) + code;

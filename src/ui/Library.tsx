@@ -106,7 +106,7 @@ export function Library({ onStart }: Props) {
 
       <div className="library__add">
         <label className="button" htmlFor="bank-file">
-          Load a bank file
+          Upload a bank file
         </label>
         <input
           id="bank-file"

@@ -44,3 +44,6 @@ spec says, but those bits are all timestamp. Any two attempts submitted within
 the same ~8 seconds get the same code, and codes from one day share their
 first few characters. Deduplication uses the full `id`, so nothing breaks, but
 two students submitting together will read out the same code.
+
+Resolved before the alpha: the code now comes from the last 35 bits, which are
+random, and SPEC section 5 says so.
