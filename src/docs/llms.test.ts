@@ -1,0 +1,47 @@
+import { describe, expect, it } from 'vitest';
+import { parseBank } from '../domain/bank';
+import { fieldReference } from './bank-reference';
+import { renderLlmsTxt } from './llms';
+
+const text = renderLlmsTxt('1.2.3');
+
+/** Every fenced ```json block in the document. */
+function jsonBlocks(markdown: string): string[] {
+  return [...markdown.matchAll(/```json\n([\s\S]*?)\n```/g)].map((match) => match[1] ?? '');
+}
+
+describe('llms.txt', () => {
+  it('follows the llmstxt.org shape: an H1, then a blockquote summary', () => {
+    const [title, blank, summary] = text.split('\n');
+    expect(title).toMatch(/^# \S/);
+    expect(blank).toBe('');
+    expect(summary).toMatch(/^> \S/);
+  });
+
+  it('names the app version it describes', () => {
+    expect(text).toContain('1.2.3');
+  });
+
+  it.each([
+    ['bank', fieldReference.bank],
+    ['question', fieldReference.question],
+    ['option', fieldReference.option],
+  ] as const)('documents every %s field', (_, fields) => {
+    for (const field of fields) expect(text).toContain(`\`${field.name}\``);
+  });
+
+  it('carries at least one complete example, and every example is a valid bank', () => {
+    const blocks = jsonBlocks(text);
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) expect(parseBank(block)).toMatchObject({ ok: true });
+  });
+
+  it('warns that LaTeX backslashes must be doubled in JSON', () => {
+    expect(text).toMatch(/\\\\times/);
+    expect(text).toMatch(/double/i);
+  });
+
+  it('ends with a checklist an agent can run before handing back a bank', () => {
+    expect(text).toMatch(/## Checklist[\s\S]*- \[ \]/);
+  });
+});

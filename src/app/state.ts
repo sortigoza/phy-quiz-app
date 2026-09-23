@@ -10,11 +10,17 @@ import type { StoredBank } from '../storage/db';
  * what lets one build run unchanged at any subpath. Every transition is an
  * action here, so the flow can be read in one place.
  */
-export type AppState =
+type WorkScreen =
   | { screen: 'library' }
   | { screen: 'start'; bank: StoredBank }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
   | { screen: 'review'; attempt: Attempt; selection: Selection };
+
+/**
+ * Help sits over whichever screen opened it and returns there on close, so
+ * reading it mid-attempt loses nothing.
+ */
+export type AppState = WorkScreen | { screen: 'help'; back: WorkScreen };
 
 export type AppAction =
   | { type: 'open-library' }
@@ -22,7 +28,9 @@ export type AppAction =
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'choose'; questionId: string; optionId: string }
   | { type: 'go-to'; index: number }
-  | { type: 'submitted'; attempt: Attempt };
+  | { type: 'submitted'; attempt: Attempt }
+  | { type: 'open-help' }
+  | { type: 'close-help' };
 
 export const initialState: AppState = { screen: 'library' };
 
@@ -52,6 +60,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
       const last = state.inProgress.selection.length - 1;
       return { ...state, index: Math.min(Math.max(action.index, 0), last) };
     }
+
+    case 'open-help':
+      return state.screen === 'help' ? state : { screen: 'help', back: state };
+
+    case 'close-help':
+      return state.screen === 'help' ? state.back : state;
 
     case 'submitted':
       if (state.screen !== 'attempt') return state;

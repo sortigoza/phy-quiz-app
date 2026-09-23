@@ -70,6 +70,13 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .app__header h1 {
   font-size: 1.5rem;
   margin: 1.5rem 0 1rem;
@@ -482,4 +489,81 @@ fieldset {
 .reviewed__explanation {
   margin: 0.5rem 0 0;
   font-size: 0.9375rem;
+}
+
+/* Help */
+
+.help h2 {
+  font-size: 1.125rem;
+}
+
+.help h3 {
+  font-size: 1.0625rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.help h4 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.375rem;
+}
+
+.help li + li {
+  margin-top: 0.25rem;
+}
+
+.help a {
+  color: var(--accent);
+}
+
+.help code,
+.example {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+}
+
+.example {
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.fields {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.fields caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 0.375rem;
+}
+
+.fields th,
+.fields td {
+  padding: 0.375rem 0.5rem;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.fields thead th {
+  border-top: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.prompt {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  overflow-wrap: anywhere;
 }

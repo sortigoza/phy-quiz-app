@@ -4,10 +4,20 @@ A local-first progressive web app for multiple-choice physics quizzes.
 
 **Live: <https://sortigoza.github.io/phy-quiz-app/>**
 
-> **Status: early.** Ticket 01 of 14 is done. What is deployed today is a walking
-> skeleton: the build, tests and deployment work end to end, and the app shell
-> renders its version. It cannot load a question bank or run a quiz yet.
-> Follow along in [docs/tickets](./docs/tickets/README.md).
+> **Status: early.** Tickets 01 to 03 are done. You can load a JSON question
+> bank by upload, take a quiz from it, and read the review. Loading by URL,
+> rendered maths, history and the leaderboard are still to come. Follow along
+> in [docs/tickets](./docs/tickets/README.md).
+
+## Getting started
+
+- **Taking a quiz or writing a bank:** open the app and press **Help**. It walks
+  through a quiz, documents the bank format, and offers an
+  [example bank](https://sortigoza.github.io/phy-quiz-app/examples/kinematics.json)
+  to download.
+- **Writing a bank with an AI assistant:** point it at
+  [llms.txt](https://sortigoza.github.io/phy-quiz-app/llms.txt), which describes
+  the format, the rules, and how to write good distractors and explanations.
 
 ## The idea
 
@@ -30,7 +40,9 @@ needs the network.
 | [docs/tickets](./docs/tickets/README.md) | The fourteen vertical slices, with their dependency graph and status |
 | [docs/adr](./docs/adr) | Decisions worth explaining later |
 
-Teacher-facing guides to writing question banks arrive with ticket 13.
+Until ticket 13 adds full teacher guides, the in-app Help and `llms.txt` are the
+bank format documentation. Both are built from `src/docs/bank-reference.ts`,
+and a test holds that file to the validator.
 
 ## Development
 

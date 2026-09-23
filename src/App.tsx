@@ -1,6 +1,7 @@
 import { useReducer } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
 import { AttemptScreen } from './ui/AttemptScreen';
+import { Help } from './ui/Help';
 import { Library } from './ui/Library';
 import { Review } from './ui/Review';
 import { Start } from './ui/Start';
@@ -19,6 +20,23 @@ export function App() {
     <div className="app">
       <header className="app__header">
         <h1>Physics Quiz</h1>
+        {state.screen === 'help' ? (
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => dispatch({ type: 'close-help' })}
+          >
+            Close help
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => dispatch({ type: 'open-help' })}
+          >
+            Help
+          </button>
+        )}
       </header>
 
       <main className="app__main">
@@ -57,6 +75,9 @@ function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAc
           onSubmitted={(attempt) => dispatch({ type: 'submitted', attempt })}
         />
       );
+
+    case 'help':
+      return <Help />;
 
     case 'review':
       return (

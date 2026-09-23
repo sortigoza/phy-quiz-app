@@ -17,13 +17,16 @@ export const BANK_FORMAT_VERSION = 1;
 const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const bankIdPattern = /^[a-z0-9][a-z0-9._-]*$/;
 
-const optionSchema = z.strictObject({
+// The three schemas are exported so documentation can be checked against them.
+// Everything else should go through `parseBank`, which reports errors by path.
+
+export const optionSchema = z.strictObject({
   id: z.string().min(1).max(16),
   text: z.string().min(1).max(1000),
   why: z.string().min(1).max(2000).optional(),
 });
 
-const questionSchema = z
+export const questionSchema = z
   .strictObject({
     id: z.string().min(1).max(128),
     type: z.literal('single-choice').default('single-choice'),
@@ -56,7 +59,7 @@ const questionSchema = z
     }
   });
 
-const bankSchema = z
+export const bankSchema = z
   .strictObject({
     $schema: z.string().max(500).optional(),
     formatVersion: z.literal(BANK_FORMAT_VERSION, {

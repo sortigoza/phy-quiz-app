@@ -10,6 +10,7 @@ Tracking is local and in git: tick the checkboxes in a ticket as you go, and com
 01 walking skeleton, deployed
 └── 02 load a bank by upload
     ├── 03 take a quiz end to end
+    │   ├── 03a in-app help and llms.txt
     │   ├── 04 maths and Markdown rendering
     │   ├── 07 resume an interrupted attempt
     │   ├── 08 history, export and import
@@ -32,6 +33,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 01 | Walking skeleton, deployed | none | [x] |
 | 02 | Load a bank by upload | 01 | [x] |
 | 03 | Take a quiz end to end | 02 | [x] |
+| 03a | In-app help and llms.txt | 03 | [x] |
 | 04 | Maths and Markdown rendering | 03 | [ ] |
 | 05 | Load a bank from a URL | 02 | [ ] |
 | 06 | Author ergonomics | 02 | [ ] |
