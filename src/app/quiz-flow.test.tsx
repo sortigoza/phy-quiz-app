@@ -74,6 +74,8 @@ async function startQuiz(user: UserEvent, name = 'Anna'): Promise<void> {
   await user.type(nameField, name);
   await user.click(screen.getByRole('radio', { name: /all/i }));
   await user.click(screen.getByRole('button', { name: /begin/i }));
+  // Beginning saves the name first, so the attempt screen arrives asynchronously.
+  await screen.findByText(/question 1 of/i);
 }
 
 /** Answers every question according to the plan, then presses submit. */

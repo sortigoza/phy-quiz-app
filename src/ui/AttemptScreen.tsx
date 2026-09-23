@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import type { Attempt } from '../domain/attempt';
+import { bankLanguage } from '../domain/bank';
 import { submitAttempt, type InProgressAttempt } from '../quiz';
+import { BankText } from './BankText';
 
 /**
  * One question per screen, in exam mode: nothing on this screen says whether
  * an answer is right. All of that waits for the review.
  *
- * Options are native radios in a fieldset legended by the prompt, so keyboard
- * use and screen reader semantics come from the platform rather than from us.
+ * Options are native radios in a fieldset named by the prompt, so keyboard use
+ * and screen reader semantics come from the platform rather than from us. The
+ * prompt names the fieldset through `aria-labelledby` rather than a `<legend>`,
+ * because a prompt may hold a table or a list and a legend may not.
  */
 
 type Props = {
@@ -26,6 +30,8 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
   const current = inProgress.selection[index];
   if (!current) throw new Error(`No question at position ${index}`);
   const { question, options } = current;
+  const lang = bankLanguage(inProgress.bank);
+  const promptId = `prompt-${index}`;
 
   const total = inProgress.selection.length;
   const isLast = index === total - 1;
@@ -58,8 +64,8 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
       </p>
 
       {/* Keyed by question so each question starts with fresh, unshared radio state. */}
-      <fieldset key={question.id} className="card question">
-        <legend className="question__prompt">{question.prompt}</legend>
+      <fieldset key={question.id} className="card question" aria-labelledby={promptId}>
+        <BankText id={promptId} className="question__prompt" text={question.prompt} lang={lang} />
         {options.map((option) => (
           <label key={option.id} className="radio-card option">
             <input
@@ -71,7 +77,7 @@ export function AttemptScreen({ inProgress, index, onChoose, onGoTo, onSubmitted
                 onChoose(question.id, option.id);
               }}
             />
-            <span>{option.text}</span>
+            <BankText inline text={option.text} lang={lang} />
           </label>
         ))}
       </fieldset>

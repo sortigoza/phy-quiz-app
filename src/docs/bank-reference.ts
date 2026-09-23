@@ -49,7 +49,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: 'description',
       type: 'string',
       required: false,
-      rules: 'Up to 2000 characters. Recorded, not shown yet.',
+      rules: 'Up to 2000 characters, with maths and Markdown. Shown on the start screen.',
     },
     { name: 'author', type: 'string', required: false, rules: 'Up to 200 characters.' },
     {
@@ -62,7 +62,8 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: 'language',
       type: 'string',
       required: false,
-      rules: 'A BCP 47 tag such as en or sv. Recorded, not used yet.',
+      rules:
+        'A BCP 47 tag such as en or sv; en when absent. Marks up the bank text so screen readers pronounce it in that language.',
     },
     {
       name: 'tags',
@@ -98,7 +99,12 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       required: false,
       rules: '"single-choice", the default and the only type there is.',
     },
-    { name: 'prompt', type: 'string', required: true, rules: '1 to 4000 characters.' },
+    {
+      name: 'prompt',
+      type: 'string',
+      required: true,
+      rules: '1 to 4000 characters, with maths and Markdown.',
+    },
     {
       name: 'options',
       type: 'Option[]',
@@ -116,7 +122,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       type: 'string',
       required: true,
       rules:
-        '1 to 4000 characters. Why the correct option is correct. Shown in the review after submission.',
+        '1 to 4000 characters, with maths and Markdown. Why the correct option is correct. Shown in the review after submission.',
     },
     {
       name: 'tags',
@@ -138,13 +144,19 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       required: true,
       rules: '1 to 16 characters, unique within the question. a, b, c, d is conventional.',
     },
-    { name: 'text', type: 'string', required: true, rules: '1 to 1000 characters.' },
+    {
+      name: 'text',
+      type: 'string',
+      required: true,
+      rules:
+        '1 to 1000 characters, with maths and inline Markdown. Kept to one line: lists and tables do not render in an option.',
+    },
     {
       name: 'why',
       type: 'string',
       required: false,
       rules:
-        'Up to 2000 characters. Why this option is wrong. Shown in the review only to a participant who chose it.',
+        'Up to 2000 characters, with maths and Markdown. Why this option is wrong. Shown in the review only to a participant who chose it.',
     },
   ],
 };
@@ -168,10 +180,18 @@ export const quizSteps: string[] = [
   'Read the review: every question with the correct option, the option you chose, the explanation, and a note on why your option was wrong when the author wrote one.',
 ];
 
+/** How bank text is written: maths, Markdown, and what is refused. */
+export const textFormatting: string[] = [
+  'Write inline maths as $...$ and display maths as $$...$$, in LaTeX that KaTeX understands. A formula KaTeX cannot read is shown as its source, marked as an error.',
+  'KaTeX has no siunitx. Write units as 9.81\\,\\mathrm{m/s^2} (with every backslash doubled inside JSON), not \\SI{9.81}{m/s^2}. mhchem (\\ce{...}) is available.',
+  'A dollar sign followed by a space, or a closing one followed by a digit, is not maths, so "between $5 and $10" stays text. Write \\$ for a literal dollar sign anywhere else.',
+  "Prompts, explanations, descriptions and an option's why may use Markdown emphasis, code, lists, links and tables. Options take emphasis, code and links on one line.",
+  'Raw HTML is shown as text, never run. Images, headings and other Markdown are reduced to their text.',
+];
+
 /** Current limits, stated plainly so nobody is surprised by them. */
 export const currentLimits: string[] = [
   'Banks are JSON files, loaded by upload. Loading by URL and writing banks in YAML are planned.',
-  'Maths and Markdown show as raw text for now. Write them anyway: $...$ maths and basic Markdown will render in a later version.',
   'Results are saved in this browser, but there is no history screen to browse them yet.',
 ];
 

@@ -4,6 +4,7 @@ import {
   fullExample,
   minimalExample,
   rejectionRules,
+  textFormatting,
   type FieldDoc,
 } from './bank-reference';
 
@@ -79,9 +80,7 @@ JSON treats a backslash as the start of an escape, which silently corrupts LaTeX
 
 ## Maths and Markdown
 
-- Write inline maths as \`$...$\` and display maths as \`$$...$$\`, in LaTeX that KaTeX understands.
-- KaTeX has no \`siunitx\`. Write units as \`9.81\\\\,\\\\mathrm{m/s^2}\`, not \`\\\\SI{9.81}{m/s^2}\`. \`mhchem\` (\`\\\\ce{...}\`) is available.
-- Prompts, options, explanations and notes may use Markdown emphasis, code, lists, links and tables. Do not use raw HTML: it will be stripped.
+${list(textFormatting)}
 
 Current limits of the app, which do not change what you should write:
 

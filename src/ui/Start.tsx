@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { normaliseName } from '../domain/attempt';
+import { bankLanguage } from '../domain/bank';
 import { defaultQuestionCount } from '../domain/selection';
 import { beginAttempt, readStoredBank, type InProgressAttempt } from '../quiz';
 import { getLastParticipantName, type StoredBank } from '../storage/db';
+import { BankText } from './BankText';
 
 /**
  * The start screen: who is taking the quiz, and how many questions.
@@ -23,6 +25,7 @@ type Props = {
 export function Start({ stored, onBegin, onCancel }: Props) {
   const bank = useMemo(() => readStoredBank(stored), [stored]);
   const size = bank.questions.length;
+  const lang = bankLanguage(bank);
   const suggested = defaultQuestionCount(bank);
 
   // Every count smaller than the bank, plus the bank's own default; "All"
@@ -57,8 +60,11 @@ export function Start({ stored, onBegin, onCancel }: Props) {
 
   return (
     <section className="start">
-      <h2>{bank.title}</h2>
+      <h2 lang={lang}>{bank.title}</h2>
       {bank.author && <p className="start__author">{bank.author}</p>}
+      {bank.description && (
+        <BankText className="start__description" text={bank.description} lang={lang} />
+      )}
 
       <form className="card start__form" onSubmit={(event) => void handleSubmit(event)}>
         <div className="field">

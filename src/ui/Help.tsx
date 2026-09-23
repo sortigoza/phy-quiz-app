@@ -4,6 +4,7 @@ import {
   minimalExample,
   quizSteps,
   rejectionRules,
+  textFormatting,
   type FieldDoc,
 } from '../docs/bank-reference';
 
@@ -108,6 +109,13 @@ export function Help() {
         <code>&quot;$5 \\times 10^&#123;3&#125;$&quot;</code> and{' '}
         <code>&quot;$9.81\\,\\mathrm&#123;m/s^2&#125;$&quot;</code>.
       </p>
+
+      <h4>Maths and Markdown</h4>
+      <ul>
+        {textFormatting.map((rule) => (
+          <li key={rule}>{rule}</li>
+        ))}
+      </ul>
 
       <h4>What works today</h4>
       <ul>

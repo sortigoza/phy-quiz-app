@@ -1,4 +1,5 @@
 import type { Attempt } from '../domain/attempt';
+import { bankLanguage } from '../domain/bank';
 import type { Selection } from '../domain/selection';
 import type { InProgressAttempt } from '../quiz';
 import type { StoredBank } from '../storage/db';
@@ -14,7 +15,7 @@ type WorkScreen =
   | { screen: 'library' }
   | { screen: 'start'; bank: StoredBank }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
-  | { screen: 'review'; attempt: Attempt; selection: Selection };
+  | { screen: 'review'; attempt: Attempt; selection: Selection; language: string };
 
 /**
  * Help sits over whichever screen opened it and returns there on close, so
@@ -73,6 +74,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
         screen: 'review',
         attempt: action.attempt,
         selection: state.inProgress.selection,
+        language: bankLanguage(state.inProgress.bank),
       };
   }
 }

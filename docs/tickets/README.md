@@ -34,7 +34,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 02 | Load a bank by upload | 01 | [x] |
 | 03 | Take a quiz end to end | 02 | [x] |
 | 03a | In-app help and llms.txt | 03 | [x] |
-| 04 | Maths and Markdown rendering | 03 | [ ] |
+| 04 | Maths and Markdown rendering | 03 | [x] |
 | 05 | Load a bank from a URL | 02 | [ ] |
 | 06 | Author ergonomics | 02 | [ ] |
 | 07 | Resume an interrupted attempt | 03 | [ ] |

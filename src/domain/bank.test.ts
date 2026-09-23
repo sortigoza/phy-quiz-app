@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fingerprint, parseBank } from './bank';
+import { bankLanguage, fingerprint, parseBank } from './bank';
 
 /** A minimal bank that satisfies every rule. Tests mutate copies of this. */
 function validBank(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -222,5 +222,21 @@ describe('fingerprint', () => {
     const compact = await fingerprint(JSON.stringify(bank));
     const pretty = await fingerprint(JSON.stringify(bank, null, 2));
     expect(compact).not.toBe(pretty);
+  });
+});
+
+describe('bankLanguage', () => {
+  function languageOf(overrides: Record<string, unknown>): string {
+    const result = parse(validBank(overrides));
+    if (!result.ok) throw new Error(issueText(result));
+    return bankLanguage(result.bank);
+  }
+
+  it("is the bank's declared language", () => {
+    expect(languageOf({ language: 'sv' })).toBe('sv');
+  });
+
+  it('is English when the bank declares none', () => {
+    expect(languageOf({})).toBe('en');
   });
 });

@@ -1,6 +1,7 @@
 import type { Attempt } from '../domain/attempt';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
 import type { Selection } from '../domain/selection';
+import { BankText } from './BankText';
 
 /**
  * The review: where all the teaching happens.
@@ -14,6 +15,8 @@ import type { Selection } from '../domain/selection';
 type Props = {
   attempt: Attempt;
   selection: Selection;
+  /** The bank's language, for its text. */
+  language: string;
   onDone: () => void;
 };
 
@@ -23,7 +26,7 @@ const outcomeLabel: Record<Outcome, string> = {
   unanswered: 'Not answered',
 };
 
-export function Review({ attempt, selection, onDone }: Props) {
+export function Review({ attempt, selection, language, onDone }: Props) {
   const answerById = new Map(attempt.answers.map((answer) => [answer.questionId, answer]));
 
   return (
@@ -58,9 +61,13 @@ export function Review({ attempt, selection, onDone }: Props) {
             <li key={question.id}>
               <article className={`card reviewed reviewed--${result}`} aria-labelledby={promptId}>
                 <p className={`outcome outcome--${result}`}>{outcomeLabel[result]}</p>
-                <h3 id={promptId} className="reviewed__prompt">
-                  {question.prompt}
-                </h3>
+                <h3 className="reviewed__number">Question {index + 1}</h3>
+                <BankText
+                  id={promptId}
+                  className="reviewed__prompt"
+                  text={question.prompt}
+                  lang={language}
+                />
 
                 <ul className="reviewed__options">
                   {options.map((option) => {
@@ -77,7 +84,7 @@ export function Review({ attempt, selection, onDone }: Props) {
                           .filter(Boolean)
                           .join(' ')}
                       >
-                        <span>{option.text}</span>
+                        <BankText inline text={option.text} lang={language} />
                         {isCorrect && <span className="mark mark--correct">Correct answer</span>}
                         {isChosen && <span className="mark mark--chosen">You chose</span>}
                       </li>
@@ -86,13 +93,15 @@ export function Review({ attempt, selection, onDone }: Props) {
                 </ul>
 
                 {chosenWrong?.why && (
-                  <p className="reviewed__why">
-                    <strong>About the option you chose:</strong> {chosenWrong.why}
-                  </p>
+                  <div className="reviewed__why">
+                    <h4>About the option you chose</h4>
+                    <BankText text={chosenWrong.why} lang={language} />
+                  </div>
                 )}
-                <p className="reviewed__explanation">
-                  <strong>Explanation:</strong> {question.explanation}
-                </p>
+                <div className="reviewed__explanation">
+                  <h4>Explanation</h4>
+                  <BankText text={question.explanation} lang={language} />
+                </div>
               </article>
             </li>
           );

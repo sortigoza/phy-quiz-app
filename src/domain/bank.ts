@@ -167,3 +167,11 @@ export async function fingerprint(text: string): Promise<string> {
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 }
+
+/** The language assumed for a bank that does not declare one. */
+const DEFAULT_BANK_LANGUAGE = 'en';
+
+/** The BCP 47 tag of the language the bank is written in. */
+export function bankLanguage(bank: Bank): string {
+  return bank.language ?? DEFAULT_BANK_LANGUAGE;
+}

@@ -55,11 +55,12 @@ describe('Help', () => {
     }
   });
 
-  it('explains the backslash trap and admits maths is not rendered yet', async () => {
+  it('explains the backslash trap and how maths and Markdown are written', async () => {
     render(<App />);
     const help = await openHelp(userEvent.setup());
     expect(help).toHaveTextContent(/double every backslash/i);
-    expect(help).toHaveTextContent(/raw text/i);
+    expect(help).toHaveTextContent(/display maths as \$\$\.\.\.\$\$/i);
+    expect(help).toHaveTextContent(/raw HTML is shown as text/i);
   });
 
   it('offers the example bank as a download, and points agents at llms.txt', async () => {
@@ -102,7 +103,7 @@ describe('Help', () => {
     await user.click(await screen.findByRole('button', { name: /start help test/i }));
     await user.type(screen.getByLabelText(/your name/i), 'Anna');
     await user.click(screen.getByRole('button', { name: /begin/i }));
-    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(await screen.findByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('radio', { name: /wrong for/i }));
 
     await openHelp(user);

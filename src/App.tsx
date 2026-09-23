@@ -84,6 +84,7 @@ function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAc
         <Review
           attempt={state.attempt}
           selection={state.selection}
+          language={state.language}
           onDone={() => dispatch({ type: 'open-library' })}
         />
       );
