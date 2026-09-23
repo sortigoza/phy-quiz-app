@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+dist
+coverage
+
+# Prose is hand-formatted. Prettier pads Markdown tables, which makes every
+# later edit to the spec or a ticket a noisy diff.
+*.md

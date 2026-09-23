@@ -8,9 +8,25 @@ Deploying on the first ticket rather than the last is deliberate. The GitHub Pag
 
 **Status:** ready-for-agent
 
-- [ ] Repository initialised with pnpm, Vite, React and TypeScript in strict mode
-- [ ] Vite builds with a relative base, so the same artefact works at a domain root or any subpath
-- [ ] Scripts exist for dev, build, preview, typecheck, lint, format and test
+- [x] Repository initialised with pnpm, Vite, React and TypeScript in strict mode
+- [x] Vite builds with a relative base, so the same artefact works at a domain root or any subpath
+- [x] Scripts exist for dev, build, preview, typecheck, lint, format and test
 - [ ] CI runs typecheck, lint, unit tests and the production build on every push
 - [ ] A GitHub Pages workflow publishes the build, and the app is reachable at its Pages URL
-- [ ] The app version comes from the package manifest and is visible in the footer
+- [x] The app version comes from the package manifest and is visible in the footer
+
+## Notes
+
+Verified locally: typecheck, lint, format check, unit tests and the production
+build all pass, and the build was served from a `/phy_quiz_app/` subpath with a
+static file server to confirm that relative asset paths resolve the way they
+will on a GitHub Pages project site.
+
+The two unticked criteria both need a GitHub remote that does not exist yet.
+The workflows are written and committed; they turn green the first time they run.
+Before the deploy workflow can work, repository settings must set the Pages
+source to "GitHub Actions" rather than a branch, which only the repository owner
+can do.
+
+TypeScript is pinned to 6.0.3 rather than the current 7.0.2, because no stable
+release of typescript-eslint supports TypeScript 7 yet. Revisit when one ships.

@@ -29,7 +29,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 
 | # | Ticket | Blocked by | Done |
 | --- | --- | --- | --- |
-| 01 | Walking skeleton, deployed | none | [ ] |
+| 01 | Walking skeleton, deployed | none | [~] |
 | 02 | Load a bank by upload | 01 | [ ] |
 | 03 | Take a quiz end to end | 02 | [ ] |
 | 04 | Maths and Markdown rendering | 03 | [ ] |
@@ -43,3 +43,6 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 12 | Presentation and accessibility | 04, 10 | [ ] |
 | 13 | Documentation and examples | 06, 09 | [ ] |
 | 14 | Release v1.0.0 | 07, 11, 12, 13 | [ ] |
+
+`[~]` means done except for criteria that need a GitHub remote. Ticket 01's
+workflows are committed but have never run, and the app has no public URL yet.
