@@ -31,7 +31,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | --- | --- | --- | --- |
 | 01 | Walking skeleton, deployed | none | [x] |
 | 02 | Load a bank by upload | 01 | [x] |
-| 03 | Take a quiz end to end | 02 | [ ] |
+| 03 | Take a quiz end to end | 02 | [x] |
 | 04 | Maths and Markdown rendering | 03 | [ ] |
 | 05 | Load a bank from a URL | 02 | [ ] |
 | 06 | Author ergonomics | 02 | [ ] |

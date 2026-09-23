@@ -55,12 +55,12 @@ beforeEach(async () => {
 
 describe('Library', () => {
   it('says the library is empty before anything is loaded', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     expect(await screen.findByText(/no question banks yet/i)).toBeInTheDocument();
   });
 
   it('shows an uploaded bank, with what a teacher needs to recognise it', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(bankFile());
 
     const item = within(await bankList()).getByRole('listitem');
@@ -71,17 +71,17 @@ describe('Library', () => {
   });
 
   it('shows banks already held when it opens, so they survive a reload', async () => {
-    const { unmount } = render(<Library />);
+    const { unmount } = render(<Library onStart={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
     unmount();
 
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     expect(await screen.findByText(/kinematics in one dimension/i)).toBeInTheDocument();
   });
 
   it('lists the reasons a bank was rejected, and adds nothing', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(bankFile({ questions: [] }, 'empty.json'));
 
     const problems = await screen.findByRole('alert');
@@ -92,13 +92,13 @@ describe('Library', () => {
   });
 
   it('explains a file that is not JSON at all', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(rawFile('{ not json'));
     expect(await screen.findByRole('alert')).toHaveTextContent(/not valid json/i);
   });
 
   it('clears an earlier rejection once a good bank loads', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(rawFile('{ not json'));
     await screen.findByRole('alert');
 
@@ -108,7 +108,7 @@ describe('Library', () => {
   });
 
   it('says so when the same bank is loaded twice', async () => {
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
 
@@ -119,7 +119,7 @@ describe('Library', () => {
 
   it('removes a bank on request', async () => {
     const user = userEvent.setup();
-    render(<Library />);
+    render(<Library onStart={() => {}} />);
     await uploadFile(bankFile());
     await bankList();
 

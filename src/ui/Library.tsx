@@ -19,7 +19,11 @@ const statusMessage: Record<AddBankStatus, (bank: StoredBank) => string> = {
   unchanged: (bank) => `${bank.title} is already in your library.`,
 };
 
-export function Library() {
+type Props = {
+  onStart: (bank: StoredBank) => void;
+};
+
+export function Library({ onStart }: Props) {
   // Dexie pushes a new value whenever the table changes, so adding or removing
   // a bank updates this list without anything having to remember to refresh it.
   // Undefined means the first read has not resolved yet.
@@ -119,14 +123,24 @@ export function Library() {
                   </span>
                 </p>
               </div>
-              <button
-                type="button"
-                className="button button--quiet"
-                aria-label={`Remove ${bank.title}`}
-                onClick={() => void handleRemove(bank)}
-              >
-                Remove
-              </button>
+              <div className="bank__actions">
+                <button
+                  type="button"
+                  className="button"
+                  aria-label={`Start ${bank.title}`}
+                  onClick={() => onStart(bank)}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  className="button button--quiet"
+                  aria-label={`Remove ${bank.title}`}
+                  onClick={() => void handleRemove(bank)}
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ul>

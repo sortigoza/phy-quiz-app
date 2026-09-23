@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { Attempt } from '../domain/attempt';
 
 /**
  * Where a bank came from. Recorded so the library can show it, and so ticket 05
@@ -29,12 +30,22 @@ export type StoredBank = {
   raw: string;
 };
 
+/** Small preferences remembered in this browser, one row per setting. */
+type Setting = { key: 'lastParticipantName'; value: string };
+
 const database = new Dexie('physics-quiz') as Dexie & {
   banks: EntityTable<StoredBank, 'key'>;
+  attempts: EntityTable<Attempt, 'id'>;
+  settings: EntityTable<Setting, 'key'>;
 };
 
 database.version(1).stores({
   banks: 'key, id, addedAt',
+});
+
+database.version(2).stores({
+  attempts: 'id, bankId, name, submittedAt',
+  settings: 'key',
 });
 
 export const db = database;
@@ -58,4 +69,22 @@ export async function listBanks(): Promise<StoredBank[]> {
 
 export async function deleteBank(key: string): Promise<void> {
   await db.banks.delete(key);
+}
+
+export async function putAttempt(attempt: Attempt): Promise<void> {
+  await db.attempts.put(attempt);
+}
+
+/** Every attempt held in this browser, newest first. */
+export async function listAttempts(): Promise<Attempt[]> {
+  return db.attempts.orderBy('submittedAt').reverse().toArray();
+}
+
+/** The name last used to start an attempt here, so the start screen can offer it. */
+export async function getLastParticipantName(): Promise<string | undefined> {
+  return (await db.settings.get('lastParticipantName'))?.value;
+}
+
+export async function setLastParticipantName(name: string): Promise<void> {
+  await db.settings.put({ key: 'lastParticipantName', value: name });
 }

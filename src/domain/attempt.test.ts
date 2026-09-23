@@ -1,0 +1,146 @@
+import { describe, expect, it } from 'vitest';
+import type { Bank } from './bank';
+import { attemptCode, createAttempt, normaliseName, uuidv7 } from './attempt';
+import { drawSelection } from './selection';
+
+const bank: Bank = {
+  formatVersion: 1,
+  id: 'test.bank',
+  version: '2.1.0',
+  title: 'Test bank',
+  questions: [
+    {
+      id: 'q1',
+      type: 'single-choice',
+      prompt: 'One?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      answer: 'b',
+      explanation: 'Because.',
+    },
+    {
+      id: 'q2',
+      type: 'single-choice',
+      prompt: 'Two?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      answer: 'a',
+      explanation: 'Because.',
+    },
+    {
+      id: 'q3',
+      type: 'single-choice',
+      prompt: 'Three?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      answer: 'a',
+      explanation: 'Because.',
+    },
+  ],
+};
+
+describe('attemptCode', () => {
+  it('renders the first 35 bits of the id in Crockford base32, grouped for reading aloud', () => {
+    // 0x01890a5dac = 00000 00110 00100 10000 10100 10111 01101 | 01100 (dropped)
+    //              =   0     6     4     G     M     Q     D
+    expect(attemptCode('01890a5d-ac96-774b-bcce-b302099a8057')).toBe('064-GMQD');
+  });
+
+  it('never uses the letters Crockford base32 leaves out', () => {
+    expect(attemptCode('ffffffff-ff00-7000-8000-000000000000')).toBe('ZZZ-ZZZZ');
+  });
+});
+
+describe('uuidv7', () => {
+  it('produces a version 7, variant 10 UUID', () => {
+    expect(uuidv7(new Date('2026-09-23T10:00:00Z'))).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it('sorts by the time it was made', () => {
+    const earlier = uuidv7(new Date('2026-09-23T10:00:00Z'));
+    const later = uuidv7(new Date('2026-09-23T10:00:01Z'));
+    expect([later, earlier].sort()).toEqual([earlier, later]);
+  });
+
+  it('carries the millisecond timestamp in its first 48 bits', () => {
+    const at = new Date('2026-09-23T10:00:00.123Z');
+    const hex = uuidv7(at).replaceAll('-', '').slice(0, 12);
+    expect(parseInt(hex, 16)).toBe(at.getTime());
+  });
+});
+
+describe('normaliseName', () => {
+  it('trims and collapses whitespace', () => {
+    expect(normaliseName('  Anna   Maria\t Svensson ')).toBe('Anna Maria Svensson');
+  });
+
+  it('does not case-fold, because anna and Anna may be two people', () => {
+    expect(normaliseName('anna')).toBe('anna');
+  });
+});
+
+describe('createAttempt', () => {
+  const selection = drawSelection(bank, 3, 42);
+  const [first, second] = selection.map(({ question }) => question.id);
+
+  const attempt = createAttempt({
+    id: '01890a5d-ac96-774b-bcce-b302099a8057',
+    name: '  Anna  Svensson ',
+    bank,
+    bankFingerprint: 'deadbeef',
+    seed: 42,
+    selection,
+    // Right on the first question, wrong on the second, third left blank.
+    chosen: {
+      [first as string]: bank.questions.find((q) => q.id === first)?.answer as string,
+      [second as string]: bank.questions.find((q) => q.id === second)?.answer === 'a' ? 'b' : 'a',
+    },
+    startedAt: new Date('2026-09-23T10:00:00.000Z'),
+    submittedAt: new Date('2026-09-23T10:04:30.500Z'),
+    appVersion: '0.1.0',
+  });
+
+  it('records the answers in attempt order, with unanswered questions as null', () => {
+    expect(attempt.answers.map((answer) => answer.questionId)).toEqual(
+      selection.map(({ question }) => question.id),
+    );
+    expect(attempt.answers[2]?.chosenOptionId).toBeNull();
+  });
+
+  it('scores the attempt', () => {
+    expect(attempt.questionCount).toBe(3);
+    expect(attempt.correctCount).toBe(1);
+  });
+
+  it('records every field the attempt record carries', () => {
+    expect(attempt).toMatchObject({
+      id: '01890a5d-ac96-774b-bcce-b302099a8057',
+      code: '064-GMQD',
+      name: 'Anna Svensson',
+      bankId: 'test.bank',
+      bankVersion: '2.1.0',
+      bankFingerprint: 'deadbeef',
+      bankTitle: 'Test bank',
+      startedAt: '2026-09-23T10:00:00.000Z',
+      submittedAt: '2026-09-23T10:04:30.500Z',
+      durationMs: 270_500,
+      seed: 42,
+      appVersion: '0.1.0',
+      origin: 'local',
+    });
+  });
+
+  it('records the correct option for every question, so history reads without the bank', () => {
+    expect(attempt.answers.map((answer) => [answer.questionId, answer.correctOptionId])).toEqual(
+      selection.map(({ question }) => [question.id, question.answer]),
+    );
+  });
+});

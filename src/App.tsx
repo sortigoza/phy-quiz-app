@@ -1,14 +1,20 @@
+import { useReducer } from 'react';
+import { initialState, reducer, type AppState, type AppAction } from './app/state';
+import { AttemptScreen } from './ui/AttemptScreen';
 import { Library } from './ui/Library';
+import { Review } from './ui/Review';
+import { Start } from './ui/Start';
 import { APP_VERSION } from './version';
 
 /**
  * The application shell.
  *
  * There is no router: screens are chosen by state, which is what lets the build
- * work unchanged at any subpath. Ticket 03 introduces the state machine when
- * there is more than one screen to choose between.
+ * work unchanged at any subpath. See `app/state.ts` for the transitions.
  */
 export function App() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -16,7 +22,7 @@ export function App() {
       </header>
 
       <main className="app__main">
-        <Library />
+        <Screen state={state} dispatch={dispatch} />
       </main>
 
       <footer className="app__footer">
@@ -25,4 +31,40 @@ export function App() {
       </footer>
     </div>
   );
+}
+
+function Screen({ state, dispatch }: { state: AppState; dispatch: (action: AppAction) => void }) {
+  switch (state.screen) {
+    case 'library':
+      return <Library onStart={(bank) => dispatch({ type: 'open-start', bank })} />;
+
+    case 'start':
+      return (
+        <Start
+          stored={state.bank}
+          onBegin={(inProgress) => dispatch({ type: 'begin', inProgress })}
+          onCancel={() => dispatch({ type: 'open-library' })}
+        />
+      );
+
+    case 'attempt':
+      return (
+        <AttemptScreen
+          inProgress={state.inProgress}
+          index={state.index}
+          onChoose={(questionId, optionId) => dispatch({ type: 'choose', questionId, optionId })}
+          onGoTo={(index) => dispatch({ type: 'go-to', index })}
+          onSubmitted={(attempt) => dispatch({ type: 'submitted', attempt })}
+        />
+      );
+
+    case 'review':
+      return (
+        <Review
+          attempt={state.attempt}
+          selection={state.selection}
+          onDone={() => dispatch({ type: 'open-library' })}
+        />
+      );
+  }
 }
