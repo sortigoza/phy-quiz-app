@@ -4,9 +4,10 @@ A local-first progressive web app for multiple-choice physics quizzes.
 
 **Live: <https://sortigoza.github.io/phy-quiz-app/>**
 
-> **Status: early.** Tickets 01 to 03 are done. You can load a JSON question
-> bank by upload, take a quiz from it, and read the review. Loading by URL,
-> rendered maths, history and the leaderboard are still to come. Follow along
+> **Status: early.** Tickets 01 to 05 are done. You can load a JSON question
+> bank by upload or by URL (a GitHub file link from a public repository works
+> as is), take a quiz from it with rendered maths, and read the review.
+> History, the leaderboard and offline install are still to come. Follow along
 > in [docs/tickets](./docs/tickets/README.md).
 
 ## Getting started

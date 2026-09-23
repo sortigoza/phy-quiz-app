@@ -8,8 +8,8 @@ The failure path matters more than the happy path here. A static app fetching a 
 
 **Status:** ready-for-agent
 
-- [ ] A bank at a cross-origin-friendly URL loads, stores and appears in the library
-- [ ] A cross-origin failure produces a specific, actionable message naming the likely cause and the two workarounds
-- [ ] Other failures (not found, not a bank, invalid bank) each produce their own distinguishable message
-- [ ] Loading a bank whose id and version are already present, but whose fingerprint differs, warns that the bank changed without a version bump and asks whether to replace it
-- [ ] Loading a byte-identical bank that is already present reports that, and changes nothing
+- [x] A bank at a cross-origin-friendly URL loads, stores and appears in the library
+- [x] A cross-origin failure produces a specific, actionable message naming the likely cause and the two workarounds
+- [x] Other failures (not found, not a bank, invalid bank) each produce their own distinguishable message
+- [x] Loading a bank whose id and version are already present, but whose fingerprint differs, warns that the bank changed without a version bump and asks whether to replace it
+- [x] Loading a byte-identical bank that is already present reports that, and changes nothing

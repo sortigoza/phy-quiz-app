@@ -86,6 +86,16 @@ describe('parseBank', () => {
       expect(parseBank('null').ok).toBe(false);
     });
 
+    it('says plainly when valid JSON is not a question bank at all', () => {
+      for (const text of ['{"name": "my-package", "version": "1.0.0"}', '[]', '42']) {
+        const result = parseBank(text);
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.issues).toHaveLength(1);
+        expect(result.issues[0]?.message).toMatch(/not a question bank/i);
+      }
+    });
+
     it('rejects an unknown format version, naming the version it understands', () => {
       const result = parse(validBank({ formatVersion: 2 }));
       expect(result.ok).toBe(false);

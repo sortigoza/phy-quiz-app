@@ -13,15 +13,31 @@ import { bankKey, getBank, putBank, type BankSource, type StoredBank } from './s
 export type AddBankStatus =
   /** Not previously held. */
   | 'added'
-  /** Same id and version, different bytes: the stored copy was overwritten. */
+  /** Same id and version, different bytes, and the caller asked to overwrite the stored copy. */
   | 'replaced'
   /** Byte-identical to the copy already held. Nothing changed. */
   | 'unchanged';
 
 export type AddBankResult =
-  { ok: true; bank: StoredBank; status: AddBankStatus } | { ok: false; issues: BankIssue[] };
+  | { ok: true; bank: StoredBank; status: AddBankStatus }
+  /**
+   * Same id and version as a bank already held, but different bytes: the author
+   * changed it without bumping the version. Nothing was stored; `bank` is what
+   * would replace `existing` if the caller asks again with `replace: true`.
+   */
+  | { ok: true; bank: StoredBank; status: 'conflict'; existing: StoredBank }
+  | { ok: false; issues: BankIssue[] };
 
-export async function addBankFromText(text: string, source: BankSource): Promise<AddBankResult> {
+export type AddBankOptions = {
+  /** Overwrite a held bank with the same id and version but different bytes. */
+  replace?: boolean;
+};
+
+export async function addBankFromText(
+  text: string,
+  source: BankSource,
+  { replace = false }: AddBankOptions = {},
+): Promise<AddBankResult> {
   const parsed = parseBank(text);
   if (!parsed.ok) return { ok: false, issues: parsed.issues };
 
@@ -46,6 +62,8 @@ export async function addBankFromText(text: string, source: BankSource): Promise
     addedAt: new Date().toISOString(),
     raw: text,
   };
+
+  if (existing && !replace) return { ok: true, bank: stored, status: 'conflict', existing };
 
   await putBank(stored);
   return { ok: true, bank: stored, status: existing ? 'replaced' : 'added' };

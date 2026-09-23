@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Library } from './Library';
 import { db } from '../storage/db';
 
-function bankFile(overrides: Record<string, unknown> = {}, filename = 'kinematics.json'): File {
-  const bank = {
+function bankText(overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
     formatVersion: 1,
     id: 'kth.kinematics',
     version: '1.0.0',
@@ -24,8 +24,11 @@ function bankFile(overrides: Record<string, unknown> = {}, filename = 'kinematic
       },
     ],
     ...overrides,
-  };
-  return new File([JSON.stringify(bank)], filename, { type: 'application/json' });
+  });
+}
+
+function bankFile(overrides: Record<string, unknown> = {}, filename = 'kinematics.json'): File {
+  return new File([bankText(overrides)], filename, { type: 'application/json' });
 }
 
 function rawFile(contents: string, filename = 'broken.json'): File {
@@ -49,8 +52,29 @@ function bankCards(): HTMLElement[] {
     .filter((element) => element.closest('[aria-label="Question banks"]') !== null);
 }
 
+/** Makes every fetch answer with the given response, or fail with the given error. */
+function stubFetch(outcome: Response | Error): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn(() =>
+    outcome instanceof Error ? Promise.reject(outcome) : Promise.resolve(outcome),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+async function loadUrl(url: string): Promise<void> {
+  const user = userEvent.setup();
+  const field = screen.getByLabelText(/bank url/i);
+  await user.clear(field);
+  await user.type(field, url);
+  await user.click(screen.getByRole('button', { name: /load from url/i }));
+}
+
 beforeEach(async () => {
   await db.banks.clear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('Library', () => {
@@ -127,5 +151,106 @@ describe('Library', () => {
 
     await waitFor(() => expect(bankCards()).toHaveLength(0));
     expect(await screen.findByText(/no question banks yet/i)).toBeInTheDocument();
+  });
+
+  describe('when a bank changed without a version bump', () => {
+    async function uploadEdited(): Promise<void> {
+      await uploadFile(bankFile());
+      await bankList();
+      await uploadFile(bankFile({ title: 'Kinematics, revised' }));
+    }
+
+    it('warns and asks before replacing, changing nothing yet', async () => {
+      render(<Library onStart={() => {}} />);
+      await uploadEdited();
+
+      const warning = await screen.findByRole('alert');
+      expect(warning).toHaveTextContent(/changed without a version bump/i);
+      expect(within(warning).getByRole('button', { name: /replace/i })).toBeInTheDocument();
+      expect(within(await bankList()).getByText('Kinematics in one dimension')).toBeInTheDocument();
+    });
+
+    it('replaces the held bank on confirmation', async () => {
+      const user = userEvent.setup();
+      render(<Library onStart={() => {}} />);
+      await uploadEdited();
+
+      await user.click(await screen.findByRole('button', { name: /replace/i }));
+      expect(await screen.findByRole('status')).toHaveTextContent(/replaced/i);
+      expect(await within(await bankList()).findByText('Kinematics, revised')).toBeInTheDocument();
+      expect(bankCards()).toHaveLength(1);
+    });
+
+    it('keeps the held bank when told to', async () => {
+      const user = userEvent.setup();
+      render(<Library onStart={() => {}} />);
+      await uploadEdited();
+
+      await user.click(await screen.findByRole('button', { name: /keep/i }));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(within(await bankList()).getByText('Kinematics in one dimension')).toBeInTheDocument();
+    });
+  });
+
+  describe('loading from a URL', () => {
+    const githubPage = 'https://github.com/a-teacher/banks/blob/main/kinematics.json';
+    const githubRaw = 'https://raw.githubusercontent.com/a-teacher/banks/main/kinematics.json';
+
+    it('loads a bank from a GitHub link into the library, reading the raw file', async () => {
+      const fetchMock = stubFetch(new Response(bankText(), { status: 200 }));
+      render(<Library onStart={() => {}} />);
+      await loadUrl(githubPage);
+
+      expect(await screen.findByRole('status')).toHaveTextContent(/added kinematics/i);
+      await bankList();
+      expect(bankCards()).toHaveLength(1);
+      expect(fetchMock).toHaveBeenCalledWith(githubRaw, expect.anything());
+      expect((await db.banks.toArray())[0]?.source).toEqual({ kind: 'url', url: githubRaw });
+    });
+
+    it('explains a cross-origin refusal and both ways round it', async () => {
+      stubFetch(new TypeError('Failed to fetch'));
+      render(<Library onStart={() => {}} />);
+      await loadUrl('https://intranet.example.edu/bank.json');
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/may not allow cross-origin requests/i);
+      expect(alert).toHaveTextContent(/raw GitHub/i);
+      expect(alert).toHaveTextContent(/use Upload/i);
+      expect(bankCards()).toHaveLength(0);
+    });
+
+    it('says when nothing is at the address', async () => {
+      stubFetch(new Response('Not found', { status: 404 }));
+      render(<Library onStart={() => {}} />);
+      await loadUrl(githubRaw);
+      expect(await screen.findByRole('alert')).toHaveTextContent(/nothing was found/i);
+    });
+
+    it('says when the file is not JSON, and when it is an invalid bank, differently', async () => {
+      stubFetch(new Response('{ not json', { status: 200 }));
+      render(<Library onStart={() => {}} />);
+      await loadUrl(githubRaw);
+      expect(await screen.findByRole('alert')).toHaveTextContent(/not valid json/i);
+
+      stubFetch(new Response(bankText({ questions: [] }), { status: 200 }));
+      await loadUrl(githubRaw);
+      const alert = await screen.findByRole('alert');
+      await waitFor(() => expect(alert).toHaveTextContent(/questions/));
+      expect(alert).not.toHaveTextContent(/not valid json/i);
+    });
+
+    it('says so when the bank at the URL is already held, and adds nothing', async () => {
+      stubFetch(new Response(bankText(), { status: 200 }));
+      render(<Library onStart={() => {}} />);
+      await uploadFile(bankFile());
+      await bankList();
+
+      await loadUrl(githubRaw);
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(/already in your library/i),
+      );
+      expect(bankCards()).toHaveLength(1);
+    });
   });
 });

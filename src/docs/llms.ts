@@ -40,7 +40,7 @@ When asked to write a question bank, output one JSON document that follows the r
 
 ## Links
 
-- [The app](./): load a bank with "Load a bank file", then press Start
+- [The app](./): load a bank with "Load a bank file" or "Load from URL", then press Start. Publishing a bank in a public GitHub repository and loading its file link is the easiest way to share one.
 - [Example bank](./examples/kinematics.json): a complete five-question bank on one-dimensional kinematics
 
 ## Vocabulary

@@ -214,6 +214,28 @@ a {
   margin-bottom: 1.25rem;
 }
 
+.library__url {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+
+.library__url label {
+  font-weight: 600;
+}
+
+.library__url-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.library__url input {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
 .library__hint,
 .library__empty {
   color: var(--text-muted);
@@ -334,7 +356,8 @@ a {
   margin: 0 0 1.25rem;
 }
 
-.field input[type='text'] {
+.field input[type='text'],
+.library__url input {
   min-height: 44px;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);

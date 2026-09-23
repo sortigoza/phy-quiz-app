@@ -58,16 +58,31 @@ describe('addBankFromText', () => {
     expect(await listBanks()).toHaveLength(1);
   });
 
-  it('replaces a bank whose id and version match but whose bytes differ', async () => {
-    await addBankFromText(validBankText, upload);
+  it('holds back a bank whose id and version match but whose bytes differ, until told to replace', async () => {
+    const first = await addBankFromText(validBankText, upload);
     const edited = validBankText.replace('Kinematics in one dimension', 'Kinematics, revised');
     const result = await addBankFromText(edited, upload);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.status).toBe('replaced');
+    expect(result).toMatchObject({ ok: true, status: 'conflict' });
+    if (!result.ok || result.status !== 'conflict' || !first.ok) return;
+    expect(result.existing.fingerprint).toBe(first.bank.fingerprint);
+    expect(result.bank.title).toBe('Kinematics, revised');
+    expect((await listBanks())[0]?.title).toBe('Kinematics in one dimension');
+  });
+
+  it('replaces the held bank when told to', async () => {
+    await addBankFromText(validBankText, upload);
+    const edited = validBankText.replace('Kinematics in one dimension', 'Kinematics, revised');
+    const result = await addBankFromText(edited, upload, { replace: true });
+    expect(result).toMatchObject({ ok: true, status: 'replaced' });
     const banks = await listBanks();
     expect(banks).toHaveLength(1);
     expect(banks[0]?.title).toBe('Kinematics, revised');
+  });
+
+  it('records a bank loaded by URL with the URL it came from', async () => {
+    const source = { kind: 'url', url: 'https://example.org/kinematics.json' } as const;
+    const result = await addBankFromText(validBankText, source);
+    expect(result).toMatchObject({ ok: true, status: 'added', bank: { source } });
   });
 
   it('stores nothing at all when the bank is invalid', async () => {

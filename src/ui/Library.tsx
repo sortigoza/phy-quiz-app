@@ -1,17 +1,28 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { addBankFromText, type AddBankStatus } from '../library';
-import { deleteBank, listBanks, type StoredBank } from '../storage/db';
+import { fetchBankText, fetchFailureMessage } from '../bank-url';
+import { addBankFromText, type AddBankOptions, type AddBankStatus } from '../library';
+import { deleteBank, listBanks, type BankSource, type StoredBank } from '../storage/db';
 import type { BankIssue } from '../domain/bank';
 
 /**
  * The library: every question bank held in this browser, and the way to add one.
  *
- * Ticket 02 loads banks by upload only. Loading by URL is ticket 05, and the
- * dedicated validation screen with its richer error reporting is ticket 06.
+ * A bank arrives by upload or by URL, and from then on the two are the same:
+ * both go through `addBankFromText`. The dedicated validation screen with its
+ * richer error reporting is ticket 06.
  */
 
-type Rejection = { filename: string; issues: BankIssue[] };
+/** Why the last bank offered was not added: problems in the file, or a link that failed. */
+type Rejection =
+  { kind: 'invalid'; name: string; issues: BankIssue[] } | { kind: 'unreachable'; message: string };
+
+/** A bank that changed without a version bump, waiting for a decision. */
+type Conflict = { text: string; source: BankSource; existing: StoredBank; incoming: StoredBank };
+
+function sourceName(source: BankSource): string {
+  return source.kind === 'upload' ? source.filename : source.url;
+}
 
 const statusMessage: Record<AddBankStatus, (bank: StoredBank) => string> = {
   added: (bank) => `Added ${bank.title}.`,
@@ -30,25 +41,54 @@ export function Library({ onStart }: Props) {
   const banks = useLiveQuery(() => listBanks());
   const [rejection, setRejection] = useState<Rejection | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<Conflict | null>(null);
+  const [url, setUrl] = useState('');
+  const [fetching, setFetching] = useState(false);
 
-  const handleFiles = useCallback(async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-
-    const result = await addBankFromText(await file.text(), {
-      kind: 'upload',
-      filename: file.name,
-    });
-
-    if (!result.ok) {
+  const addText = useCallback(
+    async (text: string, source: BankSource, options?: AddBankOptions) => {
+      const result = await addBankFromText(text, source, options);
+      setRejection(null);
       setNotice(null);
-      setRejection({ filename: file.name, issues: result.issues });
-      return;
-    }
+      setConflict(null);
 
-    setRejection(null);
-    setNotice(statusMessage[result.status](result.bank));
-  }, []);
+      if (!result.ok) {
+        setRejection({ kind: 'invalid', name: sourceName(source), issues: result.issues });
+      } else if (result.status === 'conflict') {
+        setConflict({ text, source, existing: result.existing, incoming: result.bank });
+      } else {
+        setNotice(statusMessage[result.status](result.bank));
+      }
+    },
+    [],
+  );
+
+  const handleFiles = useCallback(
+    async (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      await addText(await file.text(), { kind: 'upload', filename: file.name });
+    },
+    [addText],
+  );
+
+  async function handleUrl(event: FormEvent) {
+    event.preventDefault();
+    if (fetching) return;
+    setFetching(true);
+    try {
+      const fetched = await fetchBankText(url);
+      if (fetched.ok) {
+        await addText(fetched.text, { kind: 'url', url: fetched.url });
+      } else {
+        setNotice(null);
+        setConflict(null);
+        setRejection({ kind: 'unreachable', message: fetchFailureMessage(fetched.failure) });
+      }
+    } finally {
+      setFetching(false);
+    }
+  }
 
   const handleRemove = useCallback(async (bank: StoredBank) => {
     await deleteBank(bank.key);
@@ -82,10 +122,32 @@ export function Library({ onStart }: Props) {
         <span className="library__hint">JSON only for now.</span>
       </div>
 
-      {rejection && (
+      <form className="library__url" onSubmit={(event) => void handleUrl(event)}>
+        <label htmlFor="bank-url">Or load a bank URL</label>
+        <div className="library__url-row">
+          <input
+            id="bank-url"
+            type="url"
+            inputMode="url"
+            placeholder="https://raw.githubusercontent.com/…/bank.json"
+            required
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+          />
+          <button type="submit" className="button" disabled={fetching}>
+            {fetching ? 'Loading…' : 'Load from URL'}
+          </button>
+        </div>
+        <span className="library__hint">
+          A GitHub file link works from a public repository. Other hosts must allow cross-origin
+          requests.
+        </span>
+      </form>
+
+      {rejection?.kind === 'invalid' && (
         <div className="panel panel--error" role="alert">
           <h3>
-            Could not load <code>{rejection.filename}</code>
+            Could not load <code>{rejection.name}</code>
           </h3>
           <p>Nothing was added. Fix these and try again:</p>
           <ul className="issues">
@@ -95,6 +157,43 @@ export function Library({ onStart }: Props) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {rejection?.kind === 'unreachable' && (
+        <p className="panel panel--error" role="alert">
+          {rejection.message}
+        </p>
+      )}
+
+      {conflict && (
+        <div className="panel panel--error" role="alert">
+          <h3>
+            {conflict.existing.title} v{conflict.existing.version} changed without a version bump
+          </h3>
+          <p>
+            Your library already holds this bank at this version, but{' '}
+            <code>{sourceName(conflict.source)}</code> is different (fingerprint{' '}
+            <code>{conflict.existing.fingerprint}</code> held,{' '}
+            <code>{conflict.incoming.fingerprint}</code> new). Replace the copy you have? Attempts
+            already taken keep the old fingerprint.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="button button--quiet"
+              onClick={() => setConflict(null)}
+            >
+              Keep the one I have
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void addText(conflict.text, conflict.source, { replace: true })}
+            >
+              Replace
+            </button>
+          </div>
         </div>
       )}
 

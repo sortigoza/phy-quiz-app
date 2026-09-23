@@ -119,6 +119,20 @@ function formatPath(path: ReadonlyArray<PropertyKey>): string {
 }
 
 /**
+ * Whether a parsed document is at least trying to be a bank. Anything else
+ * (another project's JSON file, say) gets one plain sentence instead of a list
+ * of every field it lacks.
+ */
+function looksLikeABank(document: unknown): boolean {
+  return (
+    typeof document === 'object' &&
+    document !== null &&
+    !Array.isArray(document) &&
+    ('formatVersion' in document || 'questions' in document)
+  );
+}
+
+/**
  * Parses and validates the text of a bank file.
  *
  * Either the whole bank is valid or none of it is returned: a partially
@@ -135,6 +149,19 @@ export function parseBank(text: string): ParseBankResult {
         {
           path: '',
           message: `this file is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+        },
+      ],
+    };
+  }
+
+  if (!looksLikeABank(document)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          path: '',
+          message:
+            'this is JSON, but not a question bank: a bank is an object with formatVersion, id, version, title and questions',
         },
       ],
     };
