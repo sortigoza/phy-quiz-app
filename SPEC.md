@@ -422,6 +422,6 @@ Anything not on this list is v1.1.
 
 ### Deployment
 
-Primary target **GitHub Pages**, via an Actions workflow on tag push. Because `base: './'` makes every asset path relative, the same artefact also works on Vercel, Netlify, S3 or any subpath with no rebuild.
+Primary target **GitHub Pages**, via an Actions workflow on tag push. Until v1.0.0 the workflow publishes on every push to `main` instead, so there is always a live build to look at; ticket 14 makes the switch. Because `base: './'` makes every asset path relative, the same artefact also works on Vercel, Netlify, S3 or any subpath with no rebuild.
 
 The one sharp edge to verify during implementation: a service worker on a GitHub Pages **project** site is scoped to `/<repo>/`. The manifest must use relative `start_url: "."` and `scope: "./"`, and offline behaviour must be tested on the deployed Pages URL, not only on `localhost`.

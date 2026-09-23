@@ -1,5 +1,7 @@
 name: Deploy to GitHub Pages
 
+# Until v1.0.0 every push to main publishes, so there is always something live
+# to look at. Ticket 14 switches this to tag pushes for the release.
 on:
   push:
     branches: [main]
@@ -30,6 +32,12 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Deploy runs as its own workflow, in parallel with CI, so it cannot rely
+      # on CI having passed. It re-verifies rather than publishing blind.
+      - run: pnpm lint
+
+      - run: pnpm test
 
       - run: pnpm build
 
