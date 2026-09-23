@@ -1,0 +1,739 @@
+{
+  "formatVersion": 1,
+  "id": "physics.quantum.advanced-qm",
+  "version": "1.0.0",
+  "title": "Advanced quantum mechanics: conceptual questions",
+  "description": "Calculation-free conceptual questions on the formal structure of quantum mechanics, dynamics, symmetries, angular momentum, identical particles and approximation methods, following the topics of an advanced quantum mechanics course.",
+  "author": "Physics Quiz examples",
+  "license": "CC-BY-4.0",
+  "language": "en",
+  "tags": ["quantum-mechanics", "advanced", "conceptual"],
+  "defaultQuestionCount": 5,
+  "questions": [
+    {
+      "id": "density-matrix-coherences",
+      "prompt": "Ensemble $P$: every spin-½ particle is in the pure state $(|{\\uparrow}\\rangle + |{\\downarrow}\\rangle)/\\sqrt{2}$. Ensemble $M$: a 50/50 classical mixture of $|{\\uparrow}\\rangle$ and $|{\\downarrow}\\rangle$. Which measurement, repeated many times, distinguishes $P$ from $M$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$S_z$",
+          "why": "Both density matrices have the same diagonal in the $S_z$ basis, so $S_z$ statistics are identical."
+        },
+        {
+          "id": "b",
+          "text": "$S_z^2$",
+          "why": "For spin-½, $S_z^2 = (\\hbar^2/4)\\,\\mathbb{1}$ in every state, so it carries no information at all."
+        },
+        {
+          "id": "c",
+          "text": "$S_x$"
+        },
+        {
+          "id": "d",
+          "text": "None: the two ensembles give identical statistics for every observable",
+          "why": "Different density matrices always differ for some observable. Here the difference sits in the off-diagonal elements."
+        }
+      ],
+      "answer": "c",
+      "explanation": "In the $S_z$ basis, $\\rho_P = \\tfrac12\\begin{pmatrix}1&1\\\\1&1\\end{pmatrix}$ and $\\rho_M = \\tfrac12\\mathbb{1}$. They share a diagonal but differ in their **coherences** (off-diagonal elements). $S_x$ mixes $|{\\uparrow}\\rangle$ and $|{\\downarrow}\\rangle$, so it reads the coherences: $P$ gives $+\\hbar/2$ every time, while $M$ gives $\\pm\\hbar/2$ at random.",
+      "tags": ["density-matrix", "measurement"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "bell-chsh-violation",
+      "prompt": "An experiment violates the CHSH inequality with all loopholes closed. What is ruled out?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Every hidden-variable theory that is also local"
+        },
+        {
+          "id": "b",
+          "text": "Every hidden-variable theory",
+          "why": "Bohmian mechanics is a **nonlocal** hidden-variable theory that reproduces quantum mechanics exactly, so not all hidden-variable theories are excluded."
+        },
+        {
+          "id": "c",
+          "text": "Special relativity, since the violation permits faster-than-light signalling",
+          "why": "By the no-signalling theorem, Alice's outcome statistics do not depend on Bob's setting, so no message can be sent."
+        },
+        {
+          "id": "d",
+          "text": "Only deterministic theories; stochastic local theories survive",
+          "why": "A stochastic local model is a convex mixture of deterministic ones (Fine's theorem), so the same CHSH bound applies to it."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Bell's theorem assumes locality **and** hidden variables together. Any such theory obeys $|S| \\le 2$, while quantum mechanics reaches $2\\sqrt{2}$ (Tsirelson's bound). A violation refutes the conjunction, not either assumption alone.",
+      "tags": ["bell-inequalities", "interpretations"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "time-reversal-antiunitary",
+      "prompt": "The time-reversal operator $\\Theta$ must be antiunitary. What goes wrong if we assume $\\Theta$ is linear and unitary, and require $\\Theta e^{-iHt/\\hbar} = e^{iHt/\\hbar}\\Theta$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$\\Theta$ would fail to commute with $\\hat{x}$",
+          "why": "A linear $\\Theta$ can leave position unchanged without trouble. The problem lies with $H$."
+        },
+        {
+          "id": "b",
+          "text": "Kramers degeneracy would then also apply to integer-spin systems",
+          "why": "Kramers degeneracy follows from $\\Theta^2 = -1$ for an antiunitary $\\Theta$ acting on half-integer spin. It is not the failure mode of a unitary $\\Theta$."
+        },
+        {
+          "id": "c",
+          "text": "Nothing: antiunitarity is only a convenient convention",
+          "why": "Antiunitarity is forced by a sign argument; see the explanation."
+        },
+        {
+          "id": "d",
+          "text": "We would get $\\Theta H = -H\\Theta$, so the spectrum would be symmetric about zero and unbounded below for a free particle"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Expand to first order in $t$: $-i\\Theta H = iH\\Theta$. If $\\Theta$ is linear, the $i$ passes through, giving $\\Theta H = -H\\Theta$, so every eigenstate of energy $E$ has a partner at $-E$. If $\\Theta$ is antiunitary ($\\Theta i = -i\\Theta$), the sign flips and $\\Theta H = H\\Theta$, as physically required. The price is that time reversal must complex-conjugate.",
+      "tags": ["symmetries", "time-reversal"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "identical-bosons-relative-l",
+      "prompt": "Two identical spin-0 bosons (for example two $^4$He nuclei) are in a state of definite relative orbital angular momentum $L$. Which values of $L$ are allowed?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Any $L$",
+          "why": "Exchange symmetry constrains the relative wavefunction, so not every $L$ survives."
+        },
+        {
+          "id": "b",
+          "text": "Only even $L$"
+        },
+        {
+          "id": "c",
+          "text": "Only odd $L$",
+          "why": "That would make the spatial wavefunction antisymmetric under exchange, which spinless bosons forbid."
+        },
+        {
+          "id": "d",
+          "text": "Only $L = 0$",
+          "why": "Identical does not mean \"in the same state\". $L = 2, 4, \\dots$ are allowed; only odd $L$ is forbidden."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Exchange leaves the centre-of-mass coordinate unchanged and sends the relative coordinate $\\mathbf{r} \\to -\\mathbf{r}$. That is parity on the relative wavefunction: $Y_L^m \\to (-1)^L Y_L^m$. With spin 0 the spin part is trivially symmetric, so Bose symmetry requires $(-1)^L = +1$. Experimentally, odd partial waves are absent from $\\alpha$–$\\alpha$ scattering.",
+      "tags": ["identical-particles", "angular-momentum"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "second-order-ground-state",
+      "prompt": "A system has a non-degenerate ground state, and a perturbation $V$ is added. What can you say about the second-order energy correction $E_0^{(2)}$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It is always $\\le 0$"
+        },
+        {
+          "id": "b",
+          "text": "It is always $\\ge 0$",
+          "why": "For the ground state every denominator $E_0 - E_n$ is negative, while every numerator is non-negative."
+        },
+        {
+          "id": "c",
+          "text": "Its sign depends on the sign of $V$",
+          "why": "$V$ enters squared, as $|\\langle n|V|0\\rangle|^2$, so its sign drops out."
+        },
+        {
+          "id": "d",
+          "text": "It vanishes whenever the first-order correction vanishes",
+          "why": "Counterexample: $V = \\lambda x$ on a harmonic oscillator has $E^{(1)} = 0$, but completing the square gives an exact shift of $-\\lambda^2/(2m\\omega^2)$."
+        }
+      ],
+      "answer": "a",
+      "explanation": "$E_0^{(2)} = \\sum_{n\\ne 0} \\frac{|\\langle n|V|0\\rangle|^2}{E_0 - E_n}$. Every numerator is $\\ge 0$ and every denominator is $< 0$, so each term is $\\le 0$: mixing with higher states pushes the ground state **down** (level repulsion). Independently, the variational principle with trial state $|0\\rangle$ gives $E_{\\text{true}} \\le E_0 + E_0^{(1)}$, so all higher corrections together must lower the energy.",
+      "tags": ["perturbation-theory", "approximation-methods"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "path-integral-classical-limit",
+      "prompt": "In the path integral $K = \\int \\mathcal{D}x\\, e^{iS[x]/\\hbar}$, why does the classical trajectory dominate as $\\hbar \\to 0$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The classical path has the largest weight $|e^{iS/\\hbar}|$; other paths are exponentially suppressed",
+          "why": "$|e^{iS/\\hbar}| = 1$ for every path. Exponential suppression belongs to imaginary time, where the weight is $e^{-S_E/\\hbar}$."
+        },
+        {
+          "id": "b",
+          "text": "Non-classical paths drop out of the sum as $\\hbar \\to 0$",
+          "why": "No path is ever excluded. Non-classical paths cancel; they are not removed."
+        },
+        {
+          "id": "c",
+          "text": "Every path contributes with equal magnitude; away from stationary action, neighbouring phases oscillate rapidly and cancel"
+        },
+        {
+          "id": "d",
+          "text": "The classical path is the only smooth one, and non-smooth paths have measure zero",
+          "why": "The opposite is true: typical paths in the measure are continuous but nowhere differentiable."
+        }
+      ],
+      "answer": "c",
+      "explanation": "This is stationary phase. Far from the classical path, small deformations change $S$ by much more than $\\hbar$, so the phases wash out. Paths inside a \"tube\" around the classical path, where $\\delta S \\lesssim \\hbar$, add coherently. As $\\hbar \\to 0$ the tube shrinks onto the path satisfying $\\delta S = 0$: Hamilton's principle emerges from interference.",
+      "tags": ["path-integrals", "dynamics"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "ehrenfest-exact",
+      "prompt": "For which class of potentials $V(x)$ does $\\langle x\\rangle(t)$ obey Newton's equation $m\\,\\mathrm{d}^2\\langle x\\rangle/\\mathrm{d}t^2 = -V'(\\langle x\\rangle)$ **exactly**, for every initial state?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Any $V$: this is Ehrenfest's theorem",
+          "why": "Ehrenfest gives $-\\langle V'(x)\\rangle$, which equals $-V'(\\langle x\\rangle)$ only when $V'$ is linear in $x$."
+        },
+        {
+          "id": "b",
+          "text": "Only the harmonic oscillator",
+          "why": "Free and linearly varying potentials also qualify, since their $V'$ is constant."
+        },
+        {
+          "id": "c",
+          "text": "Any $V$, provided the initial state is a minimum-uncertainty wave packet",
+          "why": "That makes it approximately true at short times, before the packet spreads, but not exactly true."
+        },
+        {
+          "id": "d",
+          "text": "Potentials at most quadratic in $x$ (free, linear, harmonic)"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Ehrenfest's theorem gives $m\\,\\mathrm{d}^2\\langle x\\rangle/\\mathrm{d}t^2 = -\\langle V'(x)\\rangle$. In general $\\langle V'(x)\\rangle \\ne V'(\\langle x\\rangle)$, but the two agree for every state exactly when $V'$ is linear. For such Hamiltonians, the Heisenberg equations for $\\hat{x}$ and $\\hat{p}$ are linear and identical in form to the classical ones.",
+      "tags": ["heisenberg-picture", "dynamics"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "aharonov-bohm-periodicity",
+      "prompt": "Electron beams pass on either side of a long, ideal solenoid carrying flux $\\Phi$. The field $\\mathbf{B}$ is zero everywhere the electrons go. How does the interference pattern depend on $\\Phi$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It shifts by a relative phase $e\\Phi/\\hbar$, so the pattern is periodic in $\\Phi$ with period $h/e$"
+        },
+        {
+          "id": "b",
+          "text": "Not at all, because the electrons never encounter a field",
+          "why": "The effect is real and was measured by Tonomura et al. (1986). The phase depends on $\\oint \\mathbf{A}\\cdot\\mathrm{d}\\mathbf{l}$, which is nonzero even where $\\mathbf{B} = 0$."
+        },
+        {
+          "id": "c",
+          "text": "It shifts by an amount that depends on the gauge chosen for $\\mathbf{A}$",
+          "why": "$\\mathbf{A}$ is gauge-dependent, but the closed-loop integral $\\oint \\mathbf{A}\\cdot\\mathrm{d}\\mathbf{l} = \\Phi$ is not."
+        },
+        {
+          "id": "d",
+          "text": "It shifts linearly with $\\Phi$, without bound",
+          "why": "Shifting $\\Phi$ by $h/e$ is equivalent to a large gauge transformation, so the pattern repeats."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The relative phase between the paths is $(e/\\hbar)\\oint \\mathbf{A}\\cdot\\mathrm{d}\\mathbf{l} = e\\Phi/\\hbar$ by Stokes' theorem, which is gauge-invariant. Outside the solenoid the region is not simply connected, so gauge functions may wind as long as $e^{ie\\chi/\\hbar}$ stays single-valued; such large gauge transformations shift $\\Phi$ by multiples of $h/e$. The physical object is the phase factor $e^{ie\\oint \\mathbf{A}\\cdot\\mathrm{d}\\mathbf{l}/\\hbar}$, neither $\\mathbf{A}$ nor $\\mathbf{B}$ locally.",
+      "tags": ["aharonov-bohm", "gauge"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "edm-j-zero",
+      "prompt": "A weak interaction violates parity, so an atom's non-degenerate $J = 0$ ground state no longer has definite parity. Can this state have a permanent electric dipole moment, $\\langle J{=}0|\\mathbf{d}|J{=}0\\rangle \\ne 0$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Yes, since parity was the only thing forbidding it",
+          "why": "Rotational invariance forbids it independently of parity."
+        },
+        {
+          "id": "b",
+          "text": "Yes, but only if time reversal is also violated",
+          "why": "That is the correct rule for $J \\ge \\tfrac12$, where Wigner–Eckart gives $\\mathbf{d} \\propto \\mathbf{J}$. For $J = 0$, even P and T violation together cannot help."
+        },
+        {
+          "id": "c",
+          "text": "No: rotational invariance alone makes any vector operator's expectation value vanish in a $J = 0$ state"
+        },
+        {
+          "id": "d",
+          "text": "Only if the $J = 0$ level is accidentally degenerate with a $J = 1$ level",
+          "why": "That would break the premise of a non-degenerate $J = 0$ state. For the state as stated, the answer is no."
+        }
+      ],
+      "answer": "c",
+      "explanation": "By the triangle rule, a rank-1 operator between $j = 0$ states needs $0 \\otimes 1$ to contain $j = 0$, which it does not, so every matrix element vanishes. Physically, a $J = 0$ state looks the same in every direction, so there is nothing for a vector to point along. This is why real EDM searches use systems with $J \\ne 0$.",
+      "tags": ["wigner-eckart", "symmetries", "angular-momentum"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "berry-phase-spin",
+      "prompt": "A spin-½ starts aligned with a magnetic field of fixed magnitude. The field's direction is rotated slowly (compared with the Larmor frequency) around a cone and returned to its starting orientation. What is the final state?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Exactly the initial state",
+          "why": "A phase accumulates: at minimum the dynamical phase $-\\frac{1}{\\hbar}\\int E\\,\\mathrm{d}t$."
+        },
+        {
+          "id": "b",
+          "text": "The initial state times a dynamical phase and a geometric phase $-\\tfrac12\\Omega$, where $\\Omega$ is the solid angle swept by the field"
+        },
+        {
+          "id": "c",
+          "text": "The initial state times the dynamical phase only",
+          "why": "Berry (1984) showed that the geometric phase on a closed loop is gauge-invariant and cannot be removed."
+        },
+        {
+          "id": "d",
+          "text": "A superposition with a spin-down admixture that grows with $\\Omega$",
+          "why": "That describes non-adiabatic transitions, which are exponentially small for slow rotation."
+        }
+      ],
+      "answer": "b",
+      "explanation": "By the adiabatic theorem the spin follows the field, acquiring the dynamical phase plus a geometric (Berry) phase $\\gamma = -m\\Omega$; for $m = \\tfrac12$ this is $-\\Omega/2$. It depends only on the loop traced by the field, not on how fast it was traversed. The Aharonov–Bohm phase is the same kind of object: a holonomy.",
+      "tags": ["adiabatic", "berry-phase", "spin"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "golden-rule-linear-growth",
+      "prompt": "First-order perturbation theory gives a transition probability to a **single** final state that grows like $t^2$ at short times. Yet Fermi's golden rule predicts a constant rate $\\Gamma = (2\\pi/\\hbar)|V_{fi}|^2\\rho(E)$. Where does linear-in-$t$ growth come from?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$|V_{fi}|^2$ is small, so higher orders are negligible",
+          "why": "Smallness justifies stopping at first order, but first order for a single state still grows like $t^2$."
+        },
+        {
+          "id": "b",
+          "text": "The interaction picture removes the unperturbed evolution",
+          "why": "The interaction picture is bookkeeping; it does not change the time dependence of probabilities."
+        },
+        {
+          "id": "c",
+          "text": "Coupling to an environment causes decoherence",
+          "why": "No environment is needed: a closed system coupled to a continuum suffices."
+        },
+        {
+          "id": "d",
+          "text": "Summing over a continuum of final states"
+        }
+      ],
+      "answer": "d",
+      "explanation": "For one final state, $P(t) \\propto |V_{fi}|^2 \\frac{\\sin^2(\\omega t/2)}{(\\omega/2)^2}$ with $\\omega = (E_f - E_i)/\\hbar$. The peak grows like $t^2$ but its width shrinks like $1/t$, so its **area** grows like $t$ and tends to $2\\pi t\\,\\delta(\\omega)$. Summing over a smooth continuum picks up that area. Valid for $t$ long compared with $\\hbar$ over the energy scale on which $\\rho|V|^2$ varies, but short compared with $1/\\Gamma$.",
+      "tags": ["time-dependent-perturbation", "fermi-golden-rule"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "coherent-state-properties",
+      "prompt": "Let $|\\alpha\\rangle$ be a coherent state of a harmonic oscillator, defined by $a|\\alpha\\rangle = \\alpha|\\alpha\\rangle$. Which statement is true?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It remains a coherent state under the oscillator's evolution, with $\\alpha \\to \\alpha e^{-i\\omega t}$, and its number distribution is Poissonian"
+        },
+        {
+          "id": "b",
+          "text": "Coherent states form an orthonormal basis",
+          "why": "$\\langle\\beta|\\alpha\\rangle \\ne 0$ for $\\beta \\ne \\alpha$: coherent states are overcomplete."
+        },
+        {
+          "id": "c",
+          "text": "$|\\alpha\\rangle$ is also an eigenstate of $a^\\dagger$",
+          "why": "$a^\\dagger$ has no normalizable eigenstates: it pushes every number-state component upward."
+        },
+        {
+          "id": "d",
+          "text": "It spreads over time like a free Gaussian wave packet",
+          "why": "The oscillator Hamiltonian is quadratic, so a Gaussian with the ground-state width orbits phase space rigidly."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Since $a(t) = a\\,e^{-i\\omega t}$ in the Heisenberg picture, the eigenvalue simply rotates. The number distribution is $|\\langle n|\\alpha\\rangle|^2 = e^{-|\\alpha|^2}|\\alpha|^{2n}/n!$, a Poisson distribution with mean $|\\alpha|^2$, and $\\Delta x\\,\\Delta p = \\hbar/2$ at all times.",
+      "tags": ["harmonic-oscillator", "coherent-states"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "variational-error-order",
+      "prompt": "A trial state differs from the true ground state by a small admixture of excited states, of size $\\epsilon$ in norm. How large is the error in the variational energy?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$O(\\epsilon)$, of either sign",
+          "why": "The linear term vanishes because the energy functional is stationary at eigenstates, and the variational principle forbids undershooting."
+        },
+        {
+          "id": "b",
+          "text": "$O(\\epsilon^2)$, always an overestimate"
+        },
+        {
+          "id": "c",
+          "text": "$O(\\epsilon^2)$, of either sign",
+          "why": "The variational principle guarantees $E[\\psi] \\ge E_0$ for every trial state."
+        },
+        {
+          "id": "d",
+          "text": "$O(\\epsilon)$, always an overestimate",
+          "why": "The cross terms $\\epsilon\\langle 0|H|\\chi\\rangle$ vanish because $H|0\\rangle = E_0|0\\rangle$ is orthogonal to $|\\chi\\rangle$."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Write $|\\psi\\rangle = |0\\rangle + \\epsilon|\\chi\\rangle$ with $\\langle 0|\\chi\\rangle = 0$. Then $E[\\psi] = E_0 + \\epsilon^2(\\langle\\chi|H|\\chi\\rangle - E_0) + O(\\epsilon^4)$, and the coefficient is positive since $\\langle\\chi|H|\\chi\\rangle \\ge E_1 > E_0$. Moral: a mediocre wavefunction gives an excellent energy, but other observables such as $\\langle x^2\\rangle$ are only $O(\\epsilon)$ accurate.",
+      "tags": ["variational-method", "approximation-methods"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "wkb-maslov-half",
+      "prompt": "The WKB quantization rule is $\\oint p\\,\\mathrm{d}x = (n + \\tfrac12)h$. Where does the $\\tfrac12$ come from?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Zero-point energy, inserted to match the harmonic oscillator",
+          "why": "The oscillator comes out exact by coincidence; the $\\tfrac12$ has a general geometric origin."
+        },
+        {
+          "id": "b",
+          "text": "The first term of a series in $\\hbar$, different for every potential",
+          "why": "It is the same for every smooth potential with two simple turning points."
+        },
+        {
+          "id": "c",
+          "text": "The particle's intrinsic spin",
+          "why": "WKB here treats a spinless particle; spin plays no role."
+        },
+        {
+          "id": "d",
+          "text": "Matching to Airy functions at each smooth turning point costs a phase of $\\pi/2$; two turning points per cycle give $\\pi$"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Near a smooth turning point $V$ is approximately linear, so the Schrödinger equation becomes the Airy equation, and reflection there costs a phase of $\\pi/2$. A round trip loses $\\pi$, and single-valuedness requires $\\oint p\\,\\mathrm{d}x/\\hbar = 2\\pi n + \\pi$. The $\\tfrac12$ counts turning points (a Maslov index). A hard wall reflects with phase $\\pi$ instead, so the infinite square well gives $\\oint p\\,\\mathrm{d}x = (n+1)h$, which is exact.",
+      "tags": ["wkb", "approximation-methods"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "quantum-zeno",
+      "prompt": "An unstable state is measured $N$ times at equal intervals over a total time $T$. As $N \\to \\infty$, the survival probability tends to 1. Why?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Each measurement injects energy that stabilizes the state",
+          "why": "Nothing about the effect relies on energy transfer; it follows from the short-time form of unitary evolution."
+        },
+        {
+          "id": "b",
+          "text": "Each measurement projects the system onto an energy eigenstate, which is stationary",
+          "why": "The measurement projects onto eigenstates of the **measured** observable (\"still undecayed?\"), not of $H$. The unstable state decays precisely because it is not an energy eigenstate."
+        },
+        {
+          "id": "c",
+          "text": "At short times the survival probability falls quadratically in $t$, not linearly"
+        },
+        {
+          "id": "d",
+          "text": "It doesn't: exponential decay is exact and memoryless, so measurement has no effect",
+          "why": "Exponential decay fails at short times, and that failure is the whole effect. A truly memoryless decay would be immune to measurement."
+        }
+      ],
+      "answer": "c",
+      "explanation": "$P(t) = |\\langle\\psi|e^{-iHt/\\hbar}|\\psi\\rangle|^2 = 1 - (\\Delta H)^2 t^2/\\hbar^2 + O(t^4)$; the linear term cancels by unitarity. With $N$ measurements at intervals $T/N$, $P \\approx [1 - (\\Delta H)^2 T^2/(\\hbar^2 N^2)]^N \\to 1$. By contrast, $(e^{-\\Gamma T/N})^N = e^{-\\Gamma T}$ for every $N$. Demonstrated by Itano et al. (1990).",
+      "tags": ["measurement", "dynamics"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "simultaneous-angular-momentum",
+      "prompt": "Can a state have sharp (definite) values of $L_x$, $L_y$ and $L_z$ simultaneously?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Yes, in any state with large enough $l$",
+          "why": "$[L_x, L_y] = i\\hbar L_z$ holds for every $l$. Large $l$ makes the spread small **relative** to $|\\mathbf{L}|$, never zero."
+        },
+        {
+          "id": "b",
+          "text": "Never, not even for $l = 0$",
+          "why": "For $l = 0$, $L_x$, $L_y$ and $L_z$ all annihilate the state: all three are sharp, and all equal zero."
+        },
+        {
+          "id": "c",
+          "text": "Only in an $l = 0$ state, where all three vanish"
+        },
+        {
+          "id": "d",
+          "text": "Yes, in the state $|l, m{=}l\\rangle$",
+          "why": "There $\\langle L_x^2\\rangle + \\langle L_y^2\\rangle = \\hbar^2[l(l+1) - l^2] = \\hbar^2 l > 0$, so the transverse components are not sharp for $l > 0$."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Suppose $|\\psi\\rangle$ is a common eigenstate of $L_x$ and $L_y$. Applying $[L_x, L_y] = i\\hbar L_z$ to it gives zero on the left, so $L_z|\\psi\\rangle = 0$. Repeating with the cyclic relations forces $L_x|\\psi\\rangle = L_y|\\psi\\rangle = 0$ as well, hence $\\mathbf{L}^2|\\psi\\rangle = 0$ and $l = 0$. Pure algebra, no representation needed.",
+      "tags": ["angular-momentum", "uncertainty"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "spin-2pi-rotation",
+      "prompt": "A spin-½ state is rotated by $2\\pi$ about some axis. What happens to it?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Nothing: a rotation by $2\\pi$ is the identity",
+          "why": "True for integer spin. For spin-½, $e^{-i\\pi\\,\\mathbf{n}\\cdot\\boldsymbol{\\sigma}} = -\\mathbb{1}$."
+        },
+        {
+          "id": "b",
+          "text": "It flips the spin",
+          "why": "$-\\mathbb{1}$ leaves every spin expectation value unchanged: the state is the same ray, just with a sign."
+        },
+        {
+          "id": "c",
+          "text": "It is multiplied by $-1$, but this can never be observed",
+          "why": "A **global** phase is unobservable, but rotating only one arm of an interferometer makes it a **relative** phase."
+        },
+        {
+          "id": "d",
+          "text": "It is multiplied by $-1$, which is observable as a relative phase in interferometry"
+        }
+      ],
+      "answer": "d",
+      "explanation": "The rotation operator is $U(\\theta) = e^{-i\\theta\\,\\mathbf{n}\\cdot\\mathbf{S}/\\hbar}$ with $\\mathbf{S} = \\tfrac{\\hbar}{2}\\boldsymbol{\\sigma}$, so $U(2\\pi) = -\\mathbb{1}$ and it takes $4\\pi$ to return to the identity. Neutron interferometry experiments in 1975 (Rauch et al.; Werner et al.) precessed neutrons in one arm with a magnetic field and observed the sign change.",
+      "tags": ["spin", "rotations", "symmetries"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "addition-l1-s-half",
+      "prompt": "An orbital angular momentum $l = 1$ is coupled to a spin $s = \\tfrac12$. Which total $j$ values result, and how many states in total?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$j = \\tfrac12$ and $\\tfrac32$; 6 states"
+        },
+        {
+          "id": "b",
+          "text": "$j = \\tfrac12$, $1$ and $\\tfrac32$; 9 states",
+          "why": "$j$ runs from $|l - s|$ to $l + s$ in **integer** steps, so integer and half-integer $j$ never mix. The count must also be $3 \\times 2 = 6$."
+        },
+        {
+          "id": "c",
+          "text": "$j = \\tfrac32$ only; 4 states",
+          "why": "The product space has dimension $3 \\times 2 = 6$, so 2 states are missing."
+        },
+        {
+          "id": "d",
+          "text": "$j = 0$, $1$ and $2$; 9 states",
+          "why": "That is the decomposition $1 \\otimes 1$, for two spin-1 objects."
+        }
+      ],
+      "answer": "a",
+      "explanation": "$1 \\otimes \\tfrac12 = \\tfrac32 \\oplus \\tfrac12$, and the dimensions check: $3 \\times 2 = 4 + 2$. In atoms this is the fine-structure splitting of a $p$ level into $p_{3/2}$ and $p_{1/2}$.",
+      "tags": ["angular-momentum", "spin"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "singlet-reduced-density-matrix",
+      "prompt": "Two spins are in the singlet state $(|{\\uparrow\\downarrow}\\rangle - |{\\downarrow\\uparrow}\\rangle)/\\sqrt{2}$. What is the reduced density matrix of spin $A$?",
+      "options": [
+        {
+          "id": "a",
+          "text": "A pure state, $|{\\uparrow}\\rangle$ or $|{\\downarrow}\\rangle$; we just don't know which",
+          "why": "If $A$ were secretly in a pure state, some axis would give it a sharp outcome. For a singlet, $A$ gives 50/50 along **every** axis."
+        },
+        {
+          "id": "b",
+          "text": "$\\tfrac12\\mathbb{1}$: maximally mixed, even though the pair is in a pure state"
+        },
+        {
+          "id": "c",
+          "text": "The pure state $(|{\\uparrow}\\rangle - |{\\downarrow}\\rangle)/\\sqrt{2}$",
+          "why": "That state is sharp along $-x$. The singlet is rotationally invariant, so no direction can be singled out."
+        },
+        {
+          "id": "d",
+          "text": "Undefined: an entangled subsystem has no state of its own",
+          "why": "The partial trace always gives a valid density matrix, and it correctly predicts every measurement on $A$ alone."
+        }
+      ],
+      "answer": "b",
+      "explanation": "$\\rho_A = \\mathrm{Tr}_B\\,|\\psi\\rangle\\langle\\psi| = \\tfrac12\\mathbb{1}$, with purity $\\mathrm{Tr}\\,\\rho_A^2 = \\tfrac12$. The whole is pure while each part is maximally mixed: for a pure global state, the mixedness of a subsystem measures its entanglement with the rest.",
+      "tags": ["density-matrix", "entanglement"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pictures-invariant",
+      "prompt": "Which of the following is the same in the Schrödinger and Heisenberg pictures?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The state vector",
+          "why": "States evolve in the Schrödinger picture but are frozen at $t = 0$ in the Heisenberg picture."
+        },
+        {
+          "id": "b",
+          "text": "The operators representing observables",
+          "why": "The reverse: operators are fixed in the Schrödinger picture (absent explicit time dependence) and evolve in the Heisenberg picture."
+        },
+        {
+          "id": "c",
+          "text": "Nothing measurable in general: the pictures disagree for time-dependent $H$",
+          "why": "The pictures are related by the unitary $U(t)$ at every time, even when $H$ depends on time, so their predictions always agree."
+        },
+        {
+          "id": "d",
+          "text": "All probabilities and expectation values"
+        }
+      ],
+      "answer": "d",
+      "explanation": "$\\langle\\psi(t)|A|\\psi(t)\\rangle = \\langle\\psi(0)|U^\\dagger A U|\\psi(0)\\rangle$. The time evolution operator can be attached to the state (Schrödinger) or to the operator (Heisenberg); the pictures differ only in how the bracket is grouped.",
+      "tags": ["dynamics", "heisenberg-picture"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "propagator-meaning",
+      "prompt": "The propagator is $K(x, t; x', 0) = \\langle x|e^{-iHt/\\hbar}|x'\\rangle$. Which statement is correct?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It is the amplitude to find the particle at $x$ at time $t$, given it was at $x'$ at time 0; as $t \\to 0^+$ it tends to $\\delta(x - x')$"
+        },
+        {
+          "id": "b",
+          "text": "It is a probability density that integrates to 1 over $x$",
+          "why": "It is an amplitude. For a free particle $|K|$ does not even depend on $x$, so it is not normalizable."
+        },
+        {
+          "id": "c",
+          "text": "It depends on the initial state of the particle",
+          "why": "$K$ is a property of $H$ alone; the state enters through $\\psi(x, t) = \\int K(x, t; x', 0)\\,\\psi(x', 0)\\,\\mathrm{d}x'$."
+        },
+        {
+          "id": "d",
+          "text": "To compose two propagators you sum **probabilities** over intermediate positions",
+          "why": "You integrate **amplitudes**: $K(x, t_2; x', 0) = \\int K(x, t_2; y, t_1)\\,K(y, t_1; x', 0)\\,\\mathrm{d}y$. Summing probabilities would destroy interference."
+        }
+      ],
+      "answer": "a",
+      "explanation": "$K$ is the position-space matrix element of the time evolution operator, so it propagates any initial wavefunction forward. Its composition law, iterated over many small time slices, is exactly how the path integral is built.",
+      "tags": ["propagator", "path-integrals", "dynamics"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "parity-expectation-x",
+      "prompt": "A particle moves in one dimension in a symmetric potential, $V(-x) = V(x)$. What is $\\langle x\\rangle$ in a bound energy eigenstate?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Zero only in the ground state",
+          "why": "In 1D every bound level is non-degenerate, so every bound eigenstate has definite parity, not just the ground state."
+        },
+        {
+          "id": "b",
+          "text": "Generally nonzero: the symmetry of $V$ says nothing about individual states",
+          "why": "When $[H, \\Pi] = 0$ and a level is non-degenerate, its eigenstate must also be a parity eigenstate."
+        },
+        {
+          "id": "c",
+          "text": "Zero only if $V$ is harmonic",
+          "why": "Nothing specific to the oscillator is used; any symmetric potential works."
+        },
+        {
+          "id": "d",
+          "text": "Zero in every bound eigenstate"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Bound states in 1D are non-degenerate (a Wronskian argument). If $H\\psi = E\\psi$, then $\\Pi\\psi$ has the same energy, so $\\Pi\\psi = \\pm\\psi$. Then $|\\psi|^2$ is even and $\\langle x\\rangle = 0$. In higher dimensions degeneracy can break this: hydrogen's $2s$ and $2p$ states mix into states with $\\langle z\\rangle \\ne 0$, which is the linear Stark effect.",
+      "tags": ["symmetries", "parity"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "discrete-translation-bloch",
+      "prompt": "A Hamiltonian is invariant under translations by a lattice constant $a$, but not under arbitrary translations. What follows?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Momentum $p$ is conserved",
+          "why": "$p$ generates **continuous** translations. $H$ commutes only with $e^{-ipa/\\hbar}$ and its powers, not with $p$ itself."
+        },
+        {
+          "id": "b",
+          "text": "Eigenstates can be chosen with $\\psi(x + a) = e^{ika}\\psi(x)$, and crystal momentum $\\hbar k$ is conserved modulo $2\\pi\\hbar/a$"
+        },
+        {
+          "id": "c",
+          "text": "Energy eigenstates are periodic, $\\psi(x + a) = \\psi(x)$",
+          "why": "Only the $k = 0$ states. In general the translation eigenvalue is a phase $e^{ika}$."
+        },
+        {
+          "id": "d",
+          "text": "No conservation law, since Noether's theorem requires a continuous symmetry",
+          "why": "In quantum mechanics any unitary symmetry that commutes with $H$ yields a conserved quantity: its eigenvalue, here $e^{ika}$."
+        }
+      ],
+      "answer": "b",
+      "explanation": "$H$ commutes with the unitary $T_a = e^{-ipa/\\hbar}$, so they share eigenstates. Its eigenvalues are phases $e^{ika}$, which is Bloch's theorem. Because $k$ and $k + 2\\pi/a$ give the same phase, crystal momentum is conserved only modulo a reciprocal lattice vector.",
+      "tags": ["symmetries", "translation"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "degenerate-perturbation-basis",
+      "prompt": "Why must you diagonalize $V$ within a degenerate subspace before applying perturbation theory?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Otherwise the restricted operator would not be Hermitian",
+          "why": "Restricting a Hermitian operator to a subspace, $PVP$, keeps it Hermitian. Hermiticity is not the issue."
+        },
+        {
+          "id": "b",
+          "text": "To make the second-order corrections vanish",
+          "why": "Diagonalizing selects the zeroth-order states and gives the first-order energies; it does not make higher orders vanish."
+        },
+        {
+          "id": "c",
+          "text": "$H_0$ does not fix the zeroth-order states; unless they diagonalize $V$ in the subspace, the first-order state correction has zero denominators with nonzero numerators"
+        },
+        {
+          "id": "d",
+          "text": "It is only a computational shortcut; any basis gives the same results",
+          "why": "In the wrong basis the series breaks down term by term. The limits of the true eigenstates as $V \\to 0$ are specific combinations, not any basis."
+        }
+      ],
+      "answer": "c",
+      "explanation": "The first-order state correction contains $\\frac{\\langle m|V|n\\rangle}{E_n - E_m}$. Within a degenerate level the denominator vanishes, so the numerator must vanish too: the zeroth-order states must diagonalize $V$ there. Physically, the perturbation chooses them. In hydrogen's $n = 2$ level under a uniform electric field, they are $(2s \\pm 2p_0)/\\sqrt{2}$.",
+      "tags": ["perturbation-theory", "approximation-methods"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sudden-approximation-tritium",
+      "prompt": "A tritium nucleus β-decays, changing the nuclear charge from $Z = 1$ to $Z = 2$ in a time much shorter than the electron's orbital period. The electron was in the 1s state. What happens to it?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It adjusts smoothly into the He$^+$ 1s state",
+          "why": "That is the adiabatic limit, which requires a change slow compared with $\\hbar/\\Delta E$. This is the opposite limit."
+        },
+        {
+          "id": "b",
+          "text": "Its wavefunction is momentarily unchanged, and it ends up in He$^+$ eigenstates with probabilities given by overlaps, so $|\\langle 1s_{\\mathrm{He}^+}|1s_{\\mathrm{H}}\\rangle|^2 < 1$"
+        },
+        {
+          "id": "c",
+          "text": "It is always ejected",
+          "why": "Ionization has some probability, but most of the old wavefunction overlaps He$^+$ bound states."
+        },
+        {
+          "id": "d",
+          "text": "Energy is conserved, so it stays at $-13.6\\,\\mathrm{eV}$",
+          "why": "$H$ depends on time during the decay, so energy is not conserved. The energy afterwards is $\\langle H_{\\text{new}}\\rangle$ evaluated in the old state."
+        }
+      ],
+      "answer": "b",
+      "explanation": "In the sudden approximation, the state has no time to change while $H$ jumps. It is then expanded in eigenstates of the new Hamiltonian. The probability of landing in the He$^+$ 1s state is $|\\langle 1s_{Z=2}|1s_{Z=1}\\rangle|^2 = 512/729 \\approx 0.70$; the rest goes to excited and continuum states.",
+      "tags": ["sudden-approximation", "time-dependent-perturbation"],
+      "difficulty": "medium"
+    }
+  ]
+}
