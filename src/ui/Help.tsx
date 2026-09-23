@@ -2,6 +2,7 @@ import {
   currentLimits,
   fieldReference,
   minimalExample,
+  privateBanks,
   quizSteps,
   rejectionRules,
   textFormatting,
@@ -78,6 +79,13 @@ export function Help() {
         </a>
         , five questions on kinematics, then load it from the library.
       </p>
+
+      <h4>Private banks</h4>
+      <ul>
+        {privateBanks.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
 
       <h3>Write a question bank</h3>
       <p>

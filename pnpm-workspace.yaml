@@ -1,0 +1,4 @@
+allowBuilds:
+  # tsx runs on esbuild, whose platform binary arrives as an optional
+  # dependency. Its install script only double-checks that binary.
+  esbuild: false

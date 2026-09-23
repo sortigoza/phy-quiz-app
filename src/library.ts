@@ -1,11 +1,26 @@
 import { fingerprint, parseBank, type BankIssue } from './domain/bank';
-import { bankKey, getBank, putBank, type BankSource, type StoredBank } from './storage/db';
+import {
+  bankKeyId,
+  decryptBank,
+  importBankKey,
+  readPrivateBankHeader,
+} from './domain/private-bank';
+import {
+  bankKey,
+  getBank,
+  getBankKey,
+  putBank,
+  putBankKey,
+  type BankSource,
+  type StoredBank,
+  type StoredBankKey,
+} from './storage/db';
 
 /**
- * Adding a bank to the library: parse, fingerprint, store.
+ * Adding a bank to the library: decrypt if private, parse, fingerprint, store.
  *
- * This is the only entry point the UI needs. Keeping the three steps together
- * is what guarantees a stored bank is always one that validated, and that its
+ * This is the only entry point the UI needs. Keeping the steps together is
+ * what guarantees a stored bank is always one that validated, and that its
  * fingerprint always describes the bytes actually held.
  */
 
@@ -26,28 +41,91 @@ export type AddBankResult =
    * would replace `existing` if the caller asks again with `replace: true`.
    */
   | { ok: true; bank: StoredBank; status: 'conflict'; existing: StoredBank }
-  | { ok: false; issues: BankIssue[] };
+  /** Not a valid bank. `private` when it was a private bank that decrypted to this. */
+  | { ok: false; reason: 'invalid'; issues: BankIssue[]; private: boolean }
+  /** A private bank, and no stored key opens it. */
+  | { ok: false; reason: 'no-key' }
+  /** A private bank that did not decrypt: damaged, altered, or the wrong key. */
+  | { ok: false; reason: 'undecryptable' };
 
 export type AddBankOptions = {
   /** Overwrite a held bank with the same id and version but different bytes. */
   replace?: boolean;
+  /**
+   * The key to open a private bank with, rather than the stored key its `kid`
+   * names. A bank link passes its own key, so a link whose key belongs to a
+   * different bank says so rather than asking for the link.
+   */
+  key?: StoredBankKey;
 };
+
+/** What to tell the person when a private bank cannot be opened. SPEC section 3.4.4. */
+export const privateBankMessage = {
+  'no-key': 'This is a private bank. Open the link your teacher sent to unlock it.',
+  undecryptable:
+    'This private bank could not be opened. The file is damaged or was changed after it was encrypted, or the link’s key belongs to a different bank.',
+} as const;
+
+/**
+ * Imports a bank key from a bank link and keeps it, so this bank and its later
+ * editions open without the link, including from a file uploaded by hand.
+ */
+export async function storeBankKey(raw: Uint8Array): Promise<StoredBankKey> {
+  const stored: StoredBankKey = {
+    kid: await bankKeyId(raw),
+    key: await importBankKey(raw),
+    addedAt: new Date().toISOString(),
+  };
+  await putBankKey(stored);
+  return stored;
+}
+
+type Opened =
+  | { ok: true; plaintext: string; kid: string | undefined }
+  | { ok: false; reason: 'no-key' | 'undecryptable' };
+
+/** The plaintext of a bank file, decrypting it first if it is a private bank. */
+async function readPlaintext(text: string, givenKey: StoredBankKey | undefined): Promise<Opened> {
+  const header = readPrivateBankHeader(text);
+  if (header === null) return { ok: true, plaintext: text, kid: undefined };
+
+  const key = givenKey ?? (header.kid === undefined ? undefined : await getBankKey(header.kid));
+  if (!key) return { ok: false, reason: 'no-key' };
+
+  const decrypted = await decryptBank(text, key.key);
+  if (!decrypted.ok) return { ok: false, reason: 'undecryptable' };
+  return { ok: true, plaintext: decrypted.plaintext, kid: key.kid };
+}
 
 export async function addBankFromText(
   text: string,
   source: BankSource,
-  { replace = false }: AddBankOptions = {},
+  { replace = false, key: givenKey }: AddBankOptions = {},
 ): Promise<AddBankResult> {
-  const parsed = parseBank(text);
-  if (!parsed.ok) return { ok: false, issues: parsed.issues };
+  const opened = await readPlaintext(text, givenKey);
+  if (!opened.ok) return opened;
+  const { plaintext, kid } = opened;
+
+  const parsed = parseBank(plaintext);
+  if (!parsed.ok) {
+    return { ok: false, reason: 'invalid', issues: parsed.issues, private: kid !== undefined };
+  }
 
   const { bank } = parsed;
   const key = bankKey(bank.id, bank.version);
-  const digest = await fingerprint(text);
+  // Over the plaintext: the ciphertext of a private bank differs every time it is encrypted.
+  const digest = await fingerprint(plaintext);
   const existing = await getBank(key);
 
   if (existing?.fingerprint === digest) {
-    return { ok: true, bank: existing, status: 'unchanged' };
+    // The same bank, now opened with a key: record it, so the bank is badged
+    // and the key is let go with it. A plaintext copy never strips a key.
+    if (kid === undefined || existing.kid === kid) {
+      return { ok: true, bank: existing, status: 'unchanged' };
+    }
+    const keyed = { ...existing, kid };
+    await putBank(keyed);
+    return { ok: true, bank: keyed, status: 'unchanged' };
   }
 
   const stored: StoredBank = {
@@ -60,7 +138,8 @@ export async function addBankFromText(
     fingerprint: digest,
     source,
     addedAt: new Date().toISOString(),
-    raw: text,
+    raw: plaintext,
+    kid,
   };
 
   if (existing && !replace) return { ok: true, bank: stored, status: 'conflict', existing };

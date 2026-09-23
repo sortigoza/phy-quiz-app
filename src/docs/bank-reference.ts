@@ -181,6 +181,18 @@ export const quizSteps: string[] = [
   'Read the review: every question with the correct option, the option you chose, the explanation, and a note on why your option was wrong when the author wrote one.',
 ];
 
+/**
+ * Private banks, from the participant's side. How a teacher publishes one is
+ * the teacher guide's job (ticket 13); this says they exist and how to open one.
+ */
+export const privateBanks: string[] = [
+  'A teacher can publish a private bank: an encrypted file that nobody can read without its bank link. The file itself shows nothing, not even its title.',
+  'To open one, open the bank link your teacher sent. The bank is added to your library, marked 🔒, and is taken like any other.',
+  'This browser keeps the bank’s key, so later editions open without the link: load them by URL or upload as usual. On a new device, open the link again.',
+  'If the file will not load from the link, download it and upload it. The key from the link is already kept, so it opens.',
+  'A bank link opens the bank for anyone who has it. Do not post it publicly.',
+];
+
 /** How bank text is written: maths, Markdown, and what is refused. */
 export const textFormatting: string[] = [
   'Write inline maths as $...$ and display maths as $$...$$, in LaTeX that KaTeX understands. A formula KaTeX cannot read is shown as its source, marked as an error.',

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addBankFromText } from './library';
+import { bankKeyId, encryptBank, generateBankKey } from './domain/private-bank';
+import { addBankFromText, storeBankKey } from './library';
 import { db, listBanks } from './storage/db';
 
 const validBankText = JSON.stringify({
@@ -88,7 +89,7 @@ describe('addBankFromText', () => {
   it('stores nothing at all when the bank is invalid', async () => {
     const result = await addBankFromText('{"formatVersion": 1}', upload);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok || result.reason !== 'invalid') return;
     expect(result.issues.length).toBeGreaterThan(0);
     expect(await listBanks()).toHaveLength(0);
   });
@@ -96,8 +97,108 @@ describe('addBankFromText', () => {
   it('reports malformed JSON without storing anything', async () => {
     const result = await addBankFromText('{ not json', upload);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok || result.reason !== 'invalid') return;
     expect(result.issues[0]?.message).toMatch(/not valid json/i);
     expect(await listBanks()).toHaveLength(0);
+  });
+});
+
+describe('addBankFromText with a private bank', () => {
+  const key = generateBankKey();
+  const encrypted = () => encryptBank(validBankText, key);
+
+  beforeEach(async () => {
+    await db.bankKeys.clear();
+  });
+
+  it('opens it with the stored key whose kid matches, and stores the plaintext', async () => {
+    const { kid } = await storeBankKey(key);
+    const result = await addBankFromText(await encrypted(), upload);
+
+    expect(result).toMatchObject({ ok: true, status: 'added' });
+    if (!result.ok) return;
+    expect(result.bank.raw).toBe(validBankText);
+    expect(result.bank.kid).toBe(kid);
+    expect(result.bank.title).toBe('Kinematics in one dimension');
+  });
+
+  it('fingerprints the plaintext, so a re-encrypted copy of the same bank changes nothing', async () => {
+    await storeBankKey(key);
+    const plain = await addBankFromText(validBankText, upload);
+    await db.banks.clear();
+
+    const first = await addBankFromText(await encrypted(), upload);
+    const second = await addBankFromText(await encrypted(), upload);
+    expect(first.ok && second.ok && plain.ok).toBe(true);
+    if (!first.ok || !second.ok || !plain.ok) return;
+    expect(first.bank.fingerprint).toBe(plain.bank.fingerprint);
+    expect(second.status).toBe('unchanged');
+  });
+
+  it('records the key on a bank already held when the same bank arrives private', async () => {
+    await addBankFromText(validBankText, upload);
+    const { kid } = await storeBankKey(key);
+
+    const result = await addBankFromText(await encrypted(), upload);
+    expect(result).toMatchObject({ ok: true, status: 'unchanged', bank: { kid } });
+    expect((await listBanks())[0]?.kid).toBe(kid);
+  });
+
+  it('keeps the key on a private bank when its plaintext is uploaded again', async () => {
+    const { kid } = await storeBankKey(key);
+    await addBankFromText(await encrypted(), upload);
+
+    await addBankFromText(validBankText, upload);
+    expect((await listBanks())[0]?.kid).toBe(kid);
+  });
+
+  it('asks for the link when no stored key matches', async () => {
+    const result = await addBankFromText(await encrypted(), upload);
+    expect(result).toEqual({ ok: false, reason: 'no-key' });
+    expect(await listBanks()).toHaveLength(0);
+  });
+
+  it('refuses a file that fails to decrypt, storing nothing', async () => {
+    await storeBankKey(key);
+    const document = JSON.parse(await encrypted()) as { ciphertext: string };
+    const flipped = document.ciphertext.startsWith('A') ? 'B' : 'A';
+    const tampered = JSON.stringify({
+      ...document,
+      ciphertext: flipped + document.ciphertext.slice(1),
+    });
+
+    expect(await addBankFromText(tampered, upload)).toEqual({ ok: false, reason: 'undecryptable' });
+    expect(await listBanks()).toHaveLength(0);
+  });
+
+  it('refuses a file when the key it is given belongs to a different bank', async () => {
+    const otherKey = await storeBankKey(generateBankKey());
+    const result = await addBankFromText(await encrypted(), upload, { key: otherKey });
+    expect(result).toEqual({ ok: false, reason: 'undecryptable' });
+  });
+
+  it('reports the bank problems of one that decrypts but is not valid, marked as private', async () => {
+    await storeBankKey(key);
+    const result = await addBankFromText(await encryptBank('{"formatVersion": 1}', key), upload);
+    expect(result).toMatchObject({ ok: false, reason: 'invalid', private: true });
+    if (result.ok || result.reason !== 'invalid') return;
+    expect(result.issues.length).toBeGreaterThan(0);
+    expect(await listBanks()).toHaveLength(0);
+  });
+
+  it('does not mark the problems of a plaintext bank as private', async () => {
+    const result = await addBankFromText('{"formatVersion": 1}', upload);
+    expect(result).toMatchObject({ ok: false, reason: 'invalid', private: false });
+  });
+});
+
+describe('storeBankKey', () => {
+  it('holds the key under its thumbprint, where no script can read it back', async () => {
+    const key = generateBankKey();
+    const stored = await storeBankKey(key);
+    expect(stored.kid).toBe(await bankKeyId(key));
+
+    const held = await db.bankKeys.get(stored.kid);
+    expect(held?.key.extractable).toBe(false);
   });
 });

@@ -27,7 +27,25 @@ export type StoredBank = {
   source: BankSource;
   /** ISO 8601. */
   addedAt: string;
+  /** For a private bank, the decrypted text: the ciphertext is never kept. */
   raw: string;
+  /**
+   * Set only on a private bank: the id of the bank key it was opened with,
+   * which is what keeps that key in the key store. See SPEC section 3.4.6.
+   */
+  kid?: string | undefined;
+};
+
+/**
+ * A bank key, held so later editions of a private bank open without the link.
+ * `key` is non-extractable: once stored, no script can read the raw bytes back.
+ */
+export type StoredBankKey = {
+  /** The key's RFC 7638 thumbprint, matched against an encrypted file's `kid`. */
+  kid: string;
+  key: CryptoKey;
+  /** ISO 8601. */
+  addedAt: string;
 };
 
 /**
@@ -67,6 +85,7 @@ const database = new Dexie('physics-quiz') as Dexie & {
   attempts: EntityTable<Attempt, 'id'>;
   settings: EntityTable<Setting, 'key'>;
   inProgress: EntityTable<StoredInProgress, 'key'>;
+  bankKeys: EntityTable<StoredBankKey, 'kid'>;
 };
 
 database.version(1).stores({
@@ -82,14 +101,34 @@ database.version(3).stores({
   inProgress: 'key',
 });
 
+// Private banks (v1.1). Banks gain a `kid` index so the key store can tell
+// when a key's last bank has gone.
+database.version(4).stores({
+  banks: 'key, id, addedAt, kid',
+  bankKeys: 'kid',
+});
+
 export const db = database;
 
 export function bankKey(id: string, version: string): string {
   return `${id}@${version}`;
 }
 
+/**
+ * Deletes a bank key once no bank in the library was opened with it. Must run
+ * inside a transaction over both tables.
+ */
+async function releaseKeyIfUnused(kid: string | undefined): Promise<void> {
+  if (kid === undefined) return;
+  if ((await db.banks.where('kid').equals(kid).count()) === 0) await db.bankKeys.delete(kid);
+}
+
 export async function putBank(bank: StoredBank): Promise<void> {
-  await db.banks.put(bank);
+  await db.transaction('rw', db.banks, db.bankKeys, async () => {
+    const previous = await db.banks.get(bank.key);
+    await db.banks.put(bank);
+    if (previous?.kid !== bank.kid) await releaseKeyIfUnused(previous?.kid);
+  });
 }
 
 export async function getBank(key: string): Promise<StoredBank | undefined> {
@@ -101,8 +140,26 @@ export async function listBanks(): Promise<StoredBank[]> {
   return db.banks.orderBy('addedAt').reverse().toArray();
 }
 
+/** Deletes a bank, and with it the bank key it was opened with if no other bank uses that key. */
 export async function deleteBank(key: string): Promise<void> {
-  await db.banks.delete(key);
+  await db.transaction('rw', db.banks, db.bankKeys, async () => {
+    const bank = await db.banks.get(key);
+    await db.banks.delete(key);
+    await releaseKeyIfUnused(bank?.kid);
+  });
+}
+
+/** Deletes a bank key unless some bank in the library was opened with it. */
+export async function releaseBankKey(kid: string): Promise<void> {
+  await db.transaction('rw', db.banks, db.bankKeys, () => releaseKeyIfUnused(kid));
+}
+
+export async function putBankKey(key: StoredBankKey): Promise<void> {
+  await db.bankKeys.put(key);
+}
+
+export async function getBankKey(kid: string): Promise<StoredBankKey | undefined> {
+  return db.bankKeys.get(kid);
 }
 
 /**

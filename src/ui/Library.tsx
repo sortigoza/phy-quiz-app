@@ -1,7 +1,14 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { openBankLink, type OpenBankLinkResult } from '../bank-link';
 import { fetchBankText, fetchFailureMessage } from '../bank-url';
-import { addBankFromText, type AddBankOptions, type AddBankStatus } from '../library';
+import {
+  addBankFromText,
+  privateBankMessage,
+  type AddBankOptions,
+  type AddBankResult,
+  type AddBankStatus,
+} from '../library';
 import { findInProgress, openStoredBank, type InProgressAttempt } from '../quiz';
 import {
   deleteBank,
@@ -11,24 +18,28 @@ import {
   type StoredBank,
 } from '../storage/db';
 import type { Bank, BankIssue } from '../domain/bank';
+import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
 
 /**
  * The library: every question bank held in this browser, and the way to add one.
  *
- * A bank arrives by upload or by URL, and from then on the two are the same:
- * both go through `addBankFromText`. The dedicated validation screen with its
- * richer error reporting is ticket 06.
+ * A bank arrives by upload, by URL or by bank link, and from then on they are
+ * all the same: each goes through `addBankFromText`. The dedicated validation
+ * screen with its richer error reporting is ticket 06.
  */
 
 /**
- * Why the last thing asked of the library did not happen: a file with problems,
- * a link that failed, or a bank already held that no longer opens.
+ * Why the last thing asked of the library did not happen: a file with problems
+ * (`private` when it was a private bank that decrypted to them), a link that
+ * failed, a private bank that would not open, or a bank already held that no
+ * longer opens.
  */
 type Rejection =
-  | { kind: 'invalid'; name: string; issues: BankIssue[] }
+  | { kind: 'invalid'; name: string; issues: BankIssue[]; private: boolean }
   | { kind: 'unreachable'; message: string }
+  | { kind: 'private-bank'; message: string }
   | { kind: 'storage'; message: string }
   | { kind: 'unopenable'; bank: StoredBank; issues: BankIssue[] };
 
@@ -36,7 +47,16 @@ type Rejection =
 type OpenedBank = { stored: StoredBank; bank: Bank };
 
 /** A bank that changed without a version bump, waiting for a decision. */
-type Conflict = { text: string; source: BankSource; existing: StoredBank; incoming: StoredBank };
+type Conflict = {
+  text: string;
+  source: BankSource;
+  options: AddBankOptions;
+  existing: StoredBank;
+  incoming: StoredBank;
+};
+
+const BROKEN_LINK_MESSAGE =
+  'This bank link is incomplete, perhaps cut short by the app that carried it. Ask for the link again, and open all of it.';
 
 function sourceName(source: BankSource): string {
   return source.kind === 'upload' ? source.filename : source.url;
@@ -51,9 +71,15 @@ const statusMessage: Record<AddBankStatus, (bank: StoredBank) => string> = {
 type Props = {
   onStart: (stored: StoredBank, bank: Bank) => void;
   onResume: (inProgress: InProgressAttempt, index: number) => void;
+  /** A bank link the app was opened with, already cleared from the address bar. */
+  bankLink?: ParsedBankLink;
+  /** Called once the bank link's outcome is on screen, so it is not opened again. */
+  onBankLinkHandled?: () => void;
 };
 
-export function Library({ onStart, onResume }: Props) {
+const noBankLink: ParsedBankLink = { kind: 'none' };
+
+export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHandled }: Props) {
   // Dexie pushes a new value whenever the table changes, so adding or removing
   // a bank updates this list without anything having to remember to refresh it.
   // Undefined means the first read has not resolved yet.
@@ -113,24 +139,83 @@ export function Library({ onStart, onResume }: Props) {
     });
   }
 
-  const addText = useCallback(
-    (text: string, source: BankSource, options?: AddBankOptions) =>
-      guard(async () => {
-        const result = await addBankFromText(text, source, options);
-        setRejection(null);
-        setNotice(null);
-        setConflict(null);
+  const showResult = useCallback(
+    (result: AddBankResult, text: string, source: BankSource, options: AddBankOptions) => {
+      setRejection(null);
+      setNotice(null);
+      setConflict(null);
 
-        if (!result.ok) {
-          setRejection({ kind: 'invalid', name: sourceName(source), issues: result.issues });
-        } else if (result.status === 'conflict') {
-          setConflict({ text, source, existing: result.existing, incoming: result.bank });
+      if (!result.ok) {
+        if (result.reason === 'invalid') {
+          setRejection({
+            kind: 'invalid',
+            name: sourceName(source),
+            issues: result.issues,
+            private: result.private,
+          });
         } else {
-          setNotice(statusMessage[result.status](result.bank));
+          setRejection({ kind: 'private-bank', message: privateBankMessage[result.reason] });
         }
-      }),
-    [guard],
+      } else if (result.status === 'conflict') {
+        setConflict({ text, source, options, existing: result.existing, incoming: result.bank });
+      } else {
+        setNotice(statusMessage[result.status](result.bank));
+      }
+    },
+    [],
   );
+
+  const addText = useCallback(
+    (text: string, source: BankSource, options: AddBankOptions = {}) =>
+      guard(async () => {
+        showResult(await addBankFromText(text, source, options), text, source, options);
+      }),
+    [guard, showResult],
+  );
+
+  // Opened once per link, even though React may run this effect twice: the
+  // promise is kept, and only a live effect shows what it settles to.
+  const opening = useRef<{ link: ParsedBankLink; result: Promise<OpenBankLinkResult> }>(null);
+  const [shownLink, setShownLink] = useState<ParsedBankLink | null>(null);
+  useEffect(() => {
+    if (bankLink.kind === 'none') return;
+    if (opening.current?.link !== bankLink) {
+      opening.current = { link: bankLink, result: openBankLink(bankLink) };
+    }
+
+    let live = true;
+    const settle = (next: () => void) => {
+      if (!live) return;
+      next();
+      setShownLink(bankLink);
+      onBankLinkHandled?.();
+    };
+    opening.current.result.then(
+      (opened) =>
+        settle(() => {
+          if (opened.kind === 'fetched') {
+            showResult(opened.result, opened.text, opened.source, opened.options);
+            return;
+          }
+          setNotice(null);
+          setConflict(null);
+          setRejection({
+            kind: 'unreachable',
+            message:
+              opened.kind === 'broken' ? BROKEN_LINK_MESSAGE : fetchFailureMessage(opened.failure),
+          });
+        }),
+      (error: unknown) =>
+        settle(() => {
+          setNotice(null);
+          setConflict(null);
+          setRejection({ kind: 'storage', message: storageProblem(error) });
+        }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [bankLink, onBankLinkHandled, showResult]);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -235,7 +320,11 @@ export function Library({ onStart, onResume }: Props) {
           <h3>
             Could not load <code>{rejection.name}</code>
           </h3>
-          <p>Nothing was added. Fix these and try again:</p>
+          <p>
+            {rejection.private
+              ? 'This private bank opened, but it is not a valid bank:'
+              : 'Nothing was added. Fix these and try again:'}
+          </p>
           <IssueList issues={rejection.issues} />
         </div>
       )}
@@ -273,7 +362,9 @@ export function Library({ onStart, onResume }: Props) {
         </p>
       )}
 
-      {(rejection?.kind === 'unreachable' || rejection?.kind === 'storage') && (
+      {(rejection?.kind === 'unreachable' ||
+        rejection?.kind === 'private-bank' ||
+        rejection?.kind === 'storage') && (
         <p className="panel panel--error" role="alert">
           {rejection.message}
         </p>
@@ -302,12 +393,20 @@ export function Library({ onStart, onResume }: Props) {
             <button
               type="button"
               className="button"
-              onClick={() => void addText(conflict.text, conflict.source, { replace: true })}
+              onClick={() =>
+                void addText(conflict.text, conflict.source, { ...conflict.options, replace: true })
+              }
             >
               Replace
             </button>
           </div>
         </div>
+      )}
+
+      {bankLink.kind === 'bank-link' && shownLink !== bankLink && (
+        <p className="panel panel--notice" role="status">
+          Opening the bank from your link…
+        </p>
       )}
 
       {notice && (
@@ -330,6 +429,11 @@ export function Library({ onStart, onResume }: Props) {
                     {bank.questionCount} question{bank.questionCount === 1 ? '' : 's'}
                   </span>
                   <span>v{bank.version}</span>
+                  {bank.kid !== undefined && (
+                    <span className="bank__private" title="Opened with a bank link">
+                      🔒 Private
+                    </span>
+                  )}
                   <span className="bank__fingerprint" title="Fingerprint of the exact file loaded">
                     {bank.fingerprint}
                   </span>

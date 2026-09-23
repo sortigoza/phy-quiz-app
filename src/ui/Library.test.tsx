@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Library } from './Library';
+import { encryptBank, generateBankKey } from '../domain/private-bank';
 import { db } from '../storage/db';
 
 function bankText(overrides: Record<string, unknown> = {}): string {
@@ -251,6 +252,164 @@ describe('Library', () => {
         expect(screen.getByRole('status')).toHaveTextContent(/already in your library/i),
       );
       expect(bankCards()).toHaveLength(1);
+    });
+  });
+
+  describe('private banks', () => {
+    const fileUrl = 'https://a-teacher.github.io/banks/kinematics.bank.jwe.json';
+
+    function encryptedFile(jwe: string): File {
+      // Named nothing like a private bank: it is recognised by content.
+      return rawFile(jwe, 'download.json');
+    }
+
+    function linkTo(key: Uint8Array) {
+      return { kind: 'bank-link', url: fileUrl, key } as const;
+    }
+
+    beforeEach(async () => {
+      await db.bankKeys.clear();
+    });
+
+    it('opens a bank link into the library, with a lock badge, and says it is done', async () => {
+      const key = generateBankKey();
+      stubFetch(new Response(await encryptBank(bankText(), key)));
+      const handled = vi.fn();
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(key)}
+          onBankLinkHandled={handled}
+        />,
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent(/opening the bank from your link/i);
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(/added kinematics/i),
+      );
+      const card = within(await bankList()).getByRole('listitem');
+      expect(within(card).getByText(/private/i)).toHaveTextContent('🔒');
+      expect(handled).toHaveBeenCalled();
+    });
+
+    it('shows no lock on a plaintext bank', async () => {
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await uploadFile(bankFile());
+      const card = within(await bankList()).getByRole('listitem');
+      expect(within(card).queryByText(/private/i)).not.toBeInTheDocument();
+    });
+
+    it('says what went wrong when the link’s file cannot be fetched, then opens an uploaded copy', async () => {
+      const key = generateBankKey();
+      stubFetch(new TypeError('Failed to fetch'));
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(key)}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/cross-origin/i);
+
+      await uploadFile(encryptedFile(await encryptBank(bankText(), key)));
+      expect(await screen.findByRole('status')).toHaveTextContent(/added kinematics/i);
+      expect(bankCards()).toHaveLength(1);
+    });
+
+    it('asks for the link when an uploaded private bank has no stored key', async () => {
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await uploadFile(encryptedFile(await encryptBank(bankText(), generateBankKey())));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'This is a private bank. Open the link your teacher sent to unlock it.',
+      );
+      expect(bankCards()).toHaveLength(0);
+    });
+
+    it('says a file that fails to decrypt is damaged or has the wrong key', async () => {
+      stubFetch(new Response(await encryptBank(bankText(), generateBankKey())));
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(generateBankKey())}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/damaged or was changed/i);
+      expect(alert).toHaveTextContent(/different bank/i);
+    });
+
+    it('introduces the problems of a private bank that opened but is invalid', async () => {
+      const key = generateBankKey();
+      stubFetch(new Response(await encryptBank(bankText({ questions: [] }), key)));
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(key)}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/this private bank opened, but it is not a valid bank:/i);
+      expect(alert).toHaveTextContent(/questions/);
+    });
+
+    it('says a truncated bank link is incomplete', async () => {
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={{ kind: 'broken' }}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+      expect(await screen.findByRole('alert')).toHaveTextContent(/link is incomplete/i);
+    });
+
+    it('opens a later edition from the stored key alone, without the link', async () => {
+      const key = generateBankKey();
+      stubFetch(new Response(await encryptBank(bankText(), key)));
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(key)}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+      await screen.findByText(/added kinematics/i);
+
+      stubFetch(new Response(await encryptBank(bankText({ version: '1.1.0' }), key)));
+      await loadUrl(fileUrl);
+      await waitFor(() => expect(bankCards()).toHaveLength(2));
+    });
+
+    it('forgets the key once its last bank is removed', async () => {
+      const user = userEvent.setup();
+      const key = generateBankKey();
+      stubFetch(new Response(await encryptBank(bankText(), key)));
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={linkTo(key)}
+          onBankLinkHandled={() => {}}
+        />,
+      );
+      await bankList();
+      expect(await db.bankKeys.count()).toBe(1);
+
+      await user.click(screen.getByRole('button', { name: /remove kinematics in one dimension/i }));
+      await waitFor(() => expect(bankCards()).toHaveLength(0));
+      expect(await db.bankKeys.count()).toBe(0);
     });
   });
 });

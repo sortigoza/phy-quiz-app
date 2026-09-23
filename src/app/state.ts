@@ -7,8 +7,9 @@ import type { StoredBank } from '../storage/db';
 /**
  * Which screen is showing, and the data it needs.
  *
- * There is no router: the app reads no URL but the share fragment, which is
- * what lets one build run unchanged at any subpath. Every transition is an
+ * There is no router: the app reads no URL but the share fragment and, once
+ * on boot, a bank link (`main.tsx`), which is what lets one build run
+ * unchanged at any subpath. Every transition is an
  * action here, so the flow can be read in one place.
  */
 type WorkScreen =

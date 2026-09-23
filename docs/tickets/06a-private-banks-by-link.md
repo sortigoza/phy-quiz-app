@@ -8,31 +8,31 @@ This is v1.1 work. Nothing in v1.0.0 depends on it. The design is SPEC section 3
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 ### Author CLI
 
-- [ ] `pnpm bank-crypto encrypt <bank-file> --out <file> --url <public URL> [--app-url <url>] [--rotate]` validates the bank with the app's own parser and refuses an invalid one, printing the same field-path errors as the app
-- [ ] `encrypt` creates `keys/<bank-id>.key.json` on first use and reuses it afterwards, so every edition of a bank shares one key; `--rotate` replaces it and warns that earlier links will not open new editions
-- [ ] The output is a General JSON JWE with `alg: dir`, `enc: A256GCM`, our `cty`, and `kid` set to the key's RFC 7638 thumbprint, all in the protected header, and no bank metadata readable without the key
-- [ ] `encrypt` prints the bank link; `--app-url` defaults to the live Pages URL
-- [ ] `pnpm bank-crypto decrypt <file> --key <key-file>` prints the plaintext bank
+- [x] `pnpm bank-crypto encrypt <bank-file> --out <file> --url <public URL> [--app-url <url>] [--rotate]` validates the bank with the app's own parser and refuses an invalid one, printing the same field-path errors as the app
+- [x] `encrypt` creates `keys/<bank-id>.key.json` on first use and reuses it afterwards, so every edition of a bank shares one key; `--rotate` replaces it and warns that earlier links will not open new editions
+- [x] The output is a General JSON JWE with `alg: dir`, `enc: A256GCM`, our `cty`, and `kid` set to the key's RFC 7638 thumbprint, all in the protected header, and no bank metadata readable without the key
+- [x] `encrypt` prints the bank link; `--app-url` defaults to the live Pages URL
+- [x] `pnpm bank-crypto decrypt <file> --key <key-file>` prints the plaintext bank
 
 ### In the app
 
-- [ ] Opening a bank link stores the key, clears the fragment from the address bar, fetches the file through the ticket 05 path, decrypts it and adds the bank to the library
-- [ ] When that fetch fails, the key is still stored, so downloading the file and uploading it opens the bank without the link
-- [ ] Upload and URL loading recognise an encrypted bank by its content, not its file name, and open it with the stored key whose `kid` matches
-- [ ] An encrypted bank with no matching key, one that fails to decrypt, and one that decrypts to an invalid bank each produce their own message, as listed in SPEC section 3.4.4
-- [ ] The library stores the decrypted text, fingerprints the plaintext, records the `kid` the bank was opened with, and shows a 🔒 badge on private banks
-- [ ] Keys live in a Dexie `bankKeys` table as non-extractable `CryptoKey`s, and a key is deleted when the last bank opened with it leaves the library
-- [ ] Attempts, history exports and share links never contain a bank key
+- [x] Opening a bank link stores the key, clears the fragment from the address bar, fetches the file through the ticket 05 path, decrypts it and adds the bank to the library
+- [x] When that fetch fails, the key is still stored, so downloading the file and uploading it opens the bank without the link
+- [x] Upload and URL loading recognise an encrypted bank by its content, not its file name, and open it with the stored key whose `kid` matches
+- [x] An encrypted bank with no matching key, one that fails to decrypt, and one that decrypts to an invalid bank each produce their own message, as listed in SPEC section 3.4.4
+- [x] The library stores the decrypted text, fingerprints the plaintext, records the `kid` the bank was opened with, and shows a 🔒 badge on private banks
+- [x] Keys live in a Dexie `bankKeys` table as non-extractable `CryptoKey`s, and a key is deleted when the last bank opened with it leaves the library
+- [x] Attempts, history exports and share links never contain a bank key (proven for attempts; exports and share links are built from attempts by tickets 08 and 09, which must keep it so)
 
 ### Proof
 
-- [ ] A round-trip test encrypts a bank with the CLI's code and opens it with the app's code, and a second edition encrypted with the same key opens from the stored key alone
-- [ ] A test proves that a tampered ciphertext is rejected, not partially loaded
-- [ ] Help and `llms.txt` say that private banks exist and how a student opens one; the teacher guide for publishing them is left to ticket 13
+- [x] A round-trip test encrypts a bank with the CLI's code and opens it with the app's code, and a second edition encrypted with the same key opens from the stored key alone
+- [x] A test proves that a tampered ciphertext is rejected, not partially loaded
+- [x] Help and `llms.txt` say that private banks exist and how a student opens one; the teacher guide for publishing them is left to ticket 13
 
 ## Notes for whoever picks this up
 

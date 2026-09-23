@@ -1,5 +1,6 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
+import type { ParsedBankLink } from './domain/private-bank';
 import { saveInProgress } from './quiz';
 import { storageProblem } from './storage/problems';
 import { AttemptScreen } from './ui/AttemptScreen';
@@ -16,8 +17,16 @@ import { APP_VERSION } from './version';
  * There is no router: screens are chosen by state, which is what lets the build
  * work unchanged at any subpath. See `app/state.ts` for the transitions.
  */
-export function App() {
+type Props = {
+  /** A bank link the page was opened with, already cleared from the address bar. */
+  bankLink?: ParsedBankLink;
+};
+
+export function App({ bankLink: initialBankLink = { kind: 'none' } }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Held until the library has shown its outcome, so returning there later does not open it again.
+  const [bankLink, setBankLink] = useState(initialBankLink);
+  const bankLinkHandled = useCallback(() => setBankLink({ kind: 'none' }), []);
   useLeaveWarning(isAttemptInProgress(state));
   const unsaved = usePersistAttempt(state);
 
@@ -49,7 +58,13 @@ export function App() {
           screen={state.screen}
           onBackToLibrary={() => dispatch({ type: 'open-library' })}
         >
-          <Screen state={state} dispatch={dispatch} unsaved={unsaved} />
+          <Screen
+            state={state}
+            dispatch={dispatch}
+            unsaved={unsaved}
+            bankLink={bankLink}
+            onBankLinkHandled={bankLinkHandled}
+          />
         </ErrorBoundary>
       </main>
 
@@ -104,15 +119,20 @@ type ScreenProps = {
   dispatch: (action: AppAction) => void;
   /** Why the attempt in progress is not being saved, or null. */
   unsaved: string | null;
+  /** A bank link still to be opened, shown by the library. */
+  bankLink: ParsedBankLink;
+  onBankLinkHandled: () => void;
 };
 
-function Screen({ state, dispatch, unsaved }: ScreenProps) {
+function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: ScreenProps) {
   switch (state.screen) {
     case 'library':
       return (
         <Library
           onStart={(stored, bank) => dispatch({ type: 'open-start', stored, bank })}
           onResume={(inProgress, index) => dispatch({ type: 'resume', inProgress, index })}
+          bankLink={bankLink}
+          onBankLinkHandled={onBankLinkHandled}
         />
       );
 

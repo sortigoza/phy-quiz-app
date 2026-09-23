@@ -3,6 +3,7 @@ import {
   fieldReference,
   fullExample,
   minimalExample,
+  privateBanks,
   rejectionRules,
   textFormatting,
   type FieldDoc,
@@ -85,6 +86,12 @@ ${list(textFormatting)}
 Current limits of the app, which do not change what you should write:
 
 ${list(currentLimits)}
+
+## Private banks
+
+A teacher can publish a bank encrypted, so its file can sit on a public host. Encryption is done afterwards by the teacher with the app's author tool, never by you: write the plaintext bank exactly as described here. What participants need to know:
+
+${list(privateBanks)}
 
 ## Writing good questions
 

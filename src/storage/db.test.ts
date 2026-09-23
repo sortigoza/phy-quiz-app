@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { bankKey, db, deleteBank, getBank, listBanks, putBank, type StoredBank } from './db';
+import {
+  bankKey,
+  db,
+  deleteBank,
+  getBank,
+  getBankKey,
+  listBanks,
+  putBank,
+  putBankKey,
+  type StoredBank,
+} from './db';
 
 function storedBank(overrides: Partial<StoredBank> = {}): StoredBank {
   const id = overrides.id ?? 'kth.kinematics';
@@ -66,5 +76,62 @@ describe('the bank store', () => {
 
   it('reports nothing for a bank that was never stored', async () => {
     expect(await getBank('missing@1.0.0')).toBeUndefined();
+  });
+});
+
+describe('the bank key store', () => {
+  async function storedKey(kid: string) {
+    return {
+      kid,
+      key: await crypto.subtle.importKey('raw', new Uint8Array(32), 'AES-GCM', false, ['decrypt']),
+      addedAt: '2026-09-23T10:00:00.000Z',
+    };
+  }
+
+  beforeEach(async () => {
+    await db.bankKeys.clear();
+  });
+
+  it('holds a key as a non-extractable CryptoKey, looked up by kid', async () => {
+    await putBankKey(await storedKey('kid-a'));
+    const held = await getBankKey('kid-a');
+    expect(held?.key).toBeInstanceOf(CryptoKey);
+    expect(held?.key.extractable).toBe(false);
+    expect(await getBankKey('kid-b')).toBeUndefined();
+  });
+
+  it('deletes a key when the last bank opened with it leaves the library', async () => {
+    await putBankKey(await storedKey('kid-a'));
+    await putBank(storedBank({ version: '1.0.0', kid: 'kid-a' }));
+    await putBank(storedBank({ version: '1.1.0', kid: 'kid-a' }));
+
+    await deleteBank(bankKey('kth.kinematics', '1.0.0'));
+    expect(await getBankKey('kid-a')).toBeDefined();
+
+    await deleteBank(bankKey('kth.kinematics', '1.1.0'));
+    expect(await getBankKey('kid-a')).toBeUndefined();
+  });
+
+  it('keeps keys that belong to other banks', async () => {
+    await putBankKey(await storedKey('kid-a'));
+    await putBankKey(await storedKey('kid-b'));
+    await putBank(storedBank({ id: 'first', kid: 'kid-a' }));
+    await putBank(storedBank({ id: 'second', kid: 'kid-b' }));
+    await putBank(storedBank({ id: 'plain' }));
+
+    await deleteBank(bankKey('first', '1.0.0'));
+    await deleteBank(bankKey('plain', '1.0.0'));
+    expect(await getBankKey('kid-a')).toBeUndefined();
+    expect(await getBankKey('kid-b')).toBeDefined();
+  });
+
+  it('lets a key go when its bank is replaced by an edition under a rotated key', async () => {
+    await putBankKey(await storedKey('old'));
+    await putBankKey(await storedKey('new'));
+    await putBank(storedBank({ kid: 'old' }));
+
+    await putBank(storedBank({ kid: 'new' }));
+    expect(await getBankKey('old')).toBeUndefined();
+    expect(await getBankKey('new')).toBeDefined();
   });
 });

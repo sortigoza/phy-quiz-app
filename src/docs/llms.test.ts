@@ -41,6 +41,12 @@ describe('llms.txt', () => {
     expect(text).toMatch(/double/i);
   });
 
+  it('says that private banks exist, how a student opens one, and that an agent writes plaintext', () => {
+    expect(text).toMatch(/## Private banks/);
+    expect(text).toMatch(/bank link/i);
+    expect(text).toMatch(/write the plaintext bank/i);
+  });
+
   it('ends with a checklist an agent can run before handing back a bank', () => {
     expect(text).toMatch(/## Checklist[\s\S]*- \[ \]/);
   });

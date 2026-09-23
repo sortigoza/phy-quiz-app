@@ -63,6 +63,15 @@ describe('Help', () => {
     expect(help).toHaveTextContent(/raw HTML is shown as text/i);
   });
 
+  it('says that private banks exist and how a student opens one', async () => {
+    render(<App />);
+    const help = await openHelp(userEvent.setup());
+    const section = within(help).getByRole('heading', { name: /private banks/i });
+    expect(section).toBeInTheDocument();
+    expect(help).toHaveTextContent(/open the bank link your teacher sent/i);
+    expect(help).toHaveTextContent(/later editions open without the link/i);
+  });
+
   it('offers the example bank as a download, and points agents at llms.txt', async () => {
     render(<App />);
     const help = await openHelp(userEvent.setup());
