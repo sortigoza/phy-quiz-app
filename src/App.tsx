@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
 import { takeBankLink } from './bank-link';
 import type { ParsedBankLink } from './domain/private-bank';
+import { backgroundMusic, CRAB_CANON_CREDIT } from './music/background';
+import type { Music } from './music/player';
 import { saveInProgress } from './quiz';
+import { getMusicOn, setMusicOn } from './storage/db';
 import { storageProblem } from './storage/problems';
 import { AttemptScreen } from './ui/AttemptScreen';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -22,9 +25,14 @@ import { APP_VERSION } from './version';
 type Props = {
   /** A bank link the page was opened with, already cleared from the address bar. */
   bankLink?: ParsedBankLink;
+  /** The library's background music. Replaced in tests, which have no Web Audio. */
+  music?: Music;
 };
 
-export function App({ bankLink: initialBankLink = { kind: 'none' } }: Props) {
+export function App({
+  bankLink: initialBankLink = { kind: 'none' },
+  music = backgroundMusic,
+}: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // Held until the library has shown its outcome, so returning there later does not open it again.
   const [bankLink, setBankLink] = useState(initialBankLink);
@@ -32,12 +40,29 @@ export function App({ bankLink: initialBankLink = { kind: 'none' } }: Props) {
   useBankLinksWhileOpen(setBankLink);
   useLeaveWarning(isAttemptInProgress(state));
   const unsaved = usePersistAttempt(state);
+  const [musicOn, toggleMusic] = useMusicSetting();
+  useBackgroundMusic(music, state.screen === 'library' && musicOn === true);
 
   return (
     <div className="app">
       <header className="app__header">
         <h1>Physics Quiz</h1>
         <div className="app__nav">
+          {state.screen === 'library' && musicOn !== undefined && (
+            <button
+              type="button"
+              className="button button--quiet"
+              aria-pressed={musicOn}
+              title={CRAB_CANON_CREDIT}
+              onClick={() => {
+                // Turning music on is a gesture too: with music off, no other listener passed one on.
+                if (!musicOn) music.unlock();
+                toggleMusic();
+              }}
+            >
+              Music
+            </button>
+          )}
           {state.screen === 'library' && (
             <button
               type="button"
@@ -107,6 +132,62 @@ function useLeaveWarning(active: boolean): void {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [active]);
+}
+
+/**
+ * The music setting, and a toggle for it. Undefined until read, so music that
+ * was turned off never starts for the moment it takes to find out.
+ */
+function useMusicSetting(): [boolean | undefined, () => void] {
+  const [on, setOn] = useState<boolean>();
+  useEffect(() => {
+    let cancelled = false;
+    getMusicOn().then(
+      (value) => !cancelled && setOn((held) => held ?? value),
+      // Storage refused: play, since the setting cannot be remembered anyway.
+      () => !cancelled && setOn((held) => held ?? true),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const toggle = useCallback(() => {
+    const next = !on;
+    setOn(next);
+    setMusicOn(next).catch(() => undefined);
+  }, [on]);
+  return [on, toggle];
+}
+
+/**
+ * Plays the music while `active`, and stops it otherwise. The library is the
+ * only screen that sets it: a quiz is no place for a canon.
+ *
+ * Browsers hold sound back until the person interacts with the page, so the
+ * first click or key press anywhere is passed on as permission, including the
+ * click that leaves the library. That is safe because of the order of events:
+ * the listener captures the click before React handles it, React commits the
+ * new screen and runs this layout effect inside the same event, and only
+ * afterwards can the audio context report that it is running. By then music
+ * is no longer wanted, and nothing sounds.
+ */
+function useBackgroundMusic(music: Music, active: boolean): void {
+  useLayoutEffect(() => {
+    if (active) music.play();
+    else music.stop();
+  }, [music, active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const unlock = () => music.unlock();
+    const events = ['click', 'keydown'] as const;
+    for (const event of events) document.addEventListener(event, unlock, { capture: true });
+    return () => {
+      for (const event of events) document.removeEventListener(event, unlock, { capture: true });
+    };
+  }, [music, active]);
+
+  useEffect(() => () => music.stop(), [music]);
 }
 
 /**
