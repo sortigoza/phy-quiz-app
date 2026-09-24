@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bankSchema, optionSchema, parseBank, questionSchema } from '../domain/bank';
-import { fieldReference, minimalExample } from './bank-reference';
+import { parseBankRepository } from '../domain/bank-repository';
+import { fieldReference, minimalExample, repositoryExample } from './bank-reference';
 
 /**
  * The field reference is hand-written prose, but the field names in it are held
@@ -47,5 +48,15 @@ describe('fieldReference', () => {
 describe('minimalExample', () => {
   it('is a valid bank', () => {
     expect(parseBank(minimalExample)).toMatchObject({ ok: true });
+  });
+});
+
+describe('repositoryExample', () => {
+  it('is a valid bank repository', () => {
+    expect(
+      parseBankRepository(repositoryExample, 'https://example.org/banks/index.json'),
+    ).toMatchObject({
+      ok: true,
+    });
   });
 });

@@ -1,10 +1,12 @@
 import {
+  bankRepositories,
   currentLimits,
   fieldReference,
   fullExample,
   minimalExample,
   privateBanks,
   rejectionRules,
+  repositoryExample,
   textFormatting,
   type FieldDoc,
 } from './bank-reference';
@@ -43,6 +45,7 @@ When asked to write a question bank, output one JSON document that follows the r
 
 - [The app](./): load a bank with "Upload a bank file" or "Load from URL", then press Start. Publishing a bank in a public GitHub repository and loading its file link is the easiest way to share one.
 - [Example bank](./examples/kinematics.json): a complete five-question bank on one-dimensional kinematics
+- [Example bank repository](./examples/physics-course.json): one file listing every example bank, loaded with one link
 
 ## Vocabulary
 
@@ -92,6 +95,16 @@ ${list(currentLimits)}
 A teacher can publish a bank encrypted, so its file can sit on a public host. Encryption is done afterwards by the teacher with the app's author tool, never by you: write the plaintext bank exactly as described here. What participants need to know:
 
 ${list(privateBanks)}
+
+## Bank repositories
+
+To hand out several banks with one link, write a bank repository beside them. It is a different file from a bank: never put questions in it.
+
+${list(bankRepositories)}
+
+\`\`\`json
+${repositoryExample}
+\`\`\`
 
 ## Writing good questions
 

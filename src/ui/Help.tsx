@@ -1,9 +1,11 @@
 import {
+  bankRepositories,
   currentLimits,
   fieldReference,
   minimalExample,
   privateBanks,
   quizSteps,
+  repositoryExample,
   rejectionRules,
   textFormatting,
   type FieldDoc,
@@ -19,6 +21,7 @@ import {
 
 /** Paths published beside the app by `vite.config.ts`. Relative, like every other asset. */
 const EXAMPLE_BANK_PATH = 'examples/kinematics.json';
+const EXAMPLE_REPOSITORY_PATH = 'examples/physics-course.json';
 const LLMS_TXT_PATH = 'llms.txt';
 
 function FieldTable({ caption, fields }: { caption: string; fields: FieldDoc[] }) {
@@ -86,6 +89,22 @@ export function Help() {
           <li key={item}>{item}</li>
         ))}
       </ul>
+
+      <h4>Many banks at once</h4>
+      <ul>
+        {bankRepositories.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+      <pre className="example">
+        <code>{repositoryExample}</code>
+      </pre>
+      <p>
+        <a href={EXAMPLE_REPOSITORY_PATH} download="physics-course.json">
+          Download the example repository
+        </a>
+        , which lists every example bank, or load its link in the library.
+      </p>
 
       <h3>Write a question bank</h3>
       <p>

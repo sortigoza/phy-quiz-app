@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Library } from './Library';
 import { encryptBank, generateBankKey } from '../domain/private-bank';
 import { db } from '../storage/db';
+import { addBankFromText } from '../library';
 
 function bankText(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -62,9 +63,31 @@ function stubFetch(outcome: Response | Error): ReturnType<typeof vi.fn> {
   return fetchMock;
 }
 
+/** Answers each URL from a table; anything missing is a 404. */
+function serveFiles(files: Record<string, string>): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const body = files[input instanceof Request ? input.url : input.toString()];
+      return Promise.resolve(
+        body === undefined ? new Response('', { status: 404 }) : new Response(body),
+      );
+    }),
+  );
+}
+
+function repositoryText(urls: string[], overrides: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    formatVersion: 1,
+    title: 'Mechanics, autumn term',
+    banks: urls.map((url) => ({ url })),
+    ...overrides,
+  });
+}
+
 async function loadUrl(url: string): Promise<void> {
   const user = userEvent.setup();
-  const field = screen.getByLabelText(/bank url/i);
+  const field = screen.getByLabelText(/repository url/i);
   await user.clear(field);
   await user.type(field, url);
   await user.click(screen.getByRole('button', { name: /load from url/i }));
@@ -410,6 +433,139 @@ describe('Library', () => {
       await user.click(screen.getByRole('button', { name: /remove kinematics in one dimension/i }));
       await waitFor(() => expect(bankCards()).toHaveLength(0));
       expect(await db.bankKeys.count()).toBe(0);
+    });
+  });
+
+  describe('bank repositories', () => {
+    const base = 'https://raw.githubusercontent.com/t/banks/main/';
+
+    it('keeps upload beside Load from URL, so both ways in sit together', () => {
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      const load = screen.getByRole('button', { name: /load from url/i });
+      expect(load.parentElement).toContainElement(screen.getByText(/upload a bank file/i));
+      expect(screen.getByLabelText(/bank file/i)).toHaveAttribute(
+        'accept',
+        '.json,application/json',
+      );
+    });
+
+    it('loads every bank a repository lists, and reports each one', async () => {
+      await addBankFromText(bankText({ id: 'kth.held', title: 'Held already' }), {
+        kind: 'upload',
+        filename: 'held.json',
+      });
+      serveFiles({
+        [`${base}index.json`]: repositoryText(['a.json', 'held.json', 'missing.json']),
+        [`${base}a.json`]: bankText({ id: 'kth.a', title: 'Forces' }),
+        [`${base}held.json`]: bankText({ id: 'kth.held', title: 'Held already' }),
+      });
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(`${base}index.json`);
+
+      const report = await screen.findByRole('region', { name: /mechanics, autumn term/i });
+      const lines = within(report).getAllByRole('listitem');
+      expect(lines).toHaveLength(3);
+      expect(lines[0]).toHaveTextContent(/added forces/i);
+      expect(lines[1]).toHaveTextContent(/already in your library/i);
+      expect(lines[2]).toHaveTextContent(/missing\.json/);
+      expect(lines[2]).toHaveTextContent(/404/);
+      expect(report).toHaveTextContent(/1 added, 1 already held, 1 failed/i);
+      await waitFor(() => expect(bankCards()).toHaveLength(2));
+    });
+
+    it('offers to replace a listed bank that changed without a version bump', async () => {
+      await addBankFromText(bankText(), { kind: 'upload', filename: 'k.json' });
+      serveFiles({
+        [`${base}index.json`]: repositoryText(['k.json']),
+        [`${base}k.json`]: bankText({ title: 'Kinematics, edited' }),
+      });
+      const user = userEvent.setup();
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(`${base}index.json`);
+
+      const report = await screen.findByRole('region', { name: /mechanics/i });
+      expect(report).toHaveTextContent(/changed without a version bump/i);
+      await user.click(within(report).getByRole('button', { name: /replace/i }));
+
+      await waitFor(() => expect(report).toHaveTextContent(/replaced kinematics, edited/i));
+      expect(within(await bankList()).getByText(/kinematics, edited/i)).toBeInTheDocument();
+    });
+
+    it('rejects an invalid repository whole, fetching none of its banks', async () => {
+      serveFiles({ [`${base}index.json`]: repositoryText(['a.json'], { titel: 'typo' }) });
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(`${base}index.json`);
+
+      const problems = await screen.findByRole('alert');
+      expect(problems).toHaveTextContent(/not a valid bank repository/i);
+      expect(problems).toHaveTextContent(/titel/);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads the absolute entries of an uploaded repository, and explains the relative ones', async () => {
+      serveFiles({ 'https://x.org/a.json': bankText({ id: 'kth.a', title: 'Forces' }) });
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await uploadFile(rawFile(repositoryText(['https://x.org/a.json', 'b.json']), 'index.json'));
+
+      const report = await screen.findByRole('region', { name: /mechanics/i });
+      const lines = within(report).getAllByRole('listitem');
+      expect(lines[0]).toHaveTextContent(/added forces/i);
+      expect(lines[1]).toHaveTextContent(/relative/i);
+    });
+
+    it('reads the entries of a repository pasted as a GitHub file page from the raw host', async () => {
+      serveFiles({
+        [`${base}index.json`]: repositoryText(['a.json']),
+        [`${base}a.json`]: bankText({ id: 'kth.a', title: 'Forces' }),
+      });
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl('https://github.com/t/banks/blob/main/index.json');
+
+      const report = await screen.findByRole('region', { name: /mechanics/i });
+      expect(report).toHaveTextContent(/added forces/i);
+    });
+
+    it('refuses a repository listed inside a repository', async () => {
+      serveFiles({
+        [`${base}index.json`]: repositoryText(['more.json']),
+        [`${base}more.json`]: repositoryText(['a.json']),
+      });
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(`${base}index.json`);
+
+      const report = await screen.findByRole('region', { name: /mechanics/i });
+      expect(report).toHaveTextContent(/not followed/i);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('holds off other loads until a repository has finished, and clears its report on remove', async () => {
+      let release: () => void = () => {};
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = input instanceof Request ? input.url : input.toString();
+          if (url === `${base}index.json`) return new Response(repositoryText(['a.json']));
+          await gate;
+          return new Response(bankText({ id: 'kth.a', title: 'Forces' }));
+        }),
+      );
+      const user = userEvent.setup();
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(`${base}index.json`);
+
+      expect(await screen.findByText(/loading 0 of 1/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /loading/i })).toBeDisabled();
+      expect(screen.getByLabelText(/bank file/i)).toBeDisabled();
+
+      release();
+      await screen.findByRole('region', { name: /mechanics/i });
+      expect(screen.getByRole('button', { name: /load from url/i })).toBeEnabled();
+
+      await user.click(await screen.findByRole('button', { name: /remove forces/i }));
+      await waitFor(() =>
+        expect(screen.queryByRole('region', { name: /mechanics/i })).not.toBeInTheDocument(),
+      );
     });
   });
 });

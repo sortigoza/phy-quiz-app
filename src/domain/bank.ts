@@ -111,7 +111,7 @@ export type BankIssue = {
 export type ParseBankResult = { ok: true; bank: Bank } | { ok: false; issues: BankIssue[] };
 
 /** Renders a Zod path the way a bank author reads their own file. */
-function formatPath(path: ReadonlyArray<PropertyKey>): string {
+export function formatPath(path: ReadonlyArray<PropertyKey>): string {
   return path.reduce<string>((rendered, segment) => {
     if (typeof segment === 'number') return `${rendered}[${segment}]`;
     return rendered === '' ? String(segment) : `${rendered}.${String(segment)}`;

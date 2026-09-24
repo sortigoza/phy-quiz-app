@@ -173,7 +173,7 @@ export const rejectionRules: string[] = [
 
 /** What a participant can do today, in order. */
 export const quizSteps: string[] = [
-  'Load a question bank on the library screen: from your device with "Upload a bank file", or from a link with "Load from URL". A GitHub file link works as it is, from a public repository.',
+  'Load a question bank on the library screen: from your device with "Upload a bank file", or from a link with "Load from URL". A GitHub file link works as it is, from a public repository. A link to a bank repository loads every bank it lists.',
   'Press Start on the bank, type your name, and choose how many questions to answer.',
   'Answer one question per screen. Previous and Next move freely; nothing tells you whether you are right until the end.',
   'Every answer is saved in this browser as you give it. If the page is closed mid-quiz, open the app again and the library offers to resume the quiz where you left off, or to discard it. One quiz can be in progress at a time.',
@@ -192,6 +192,29 @@ export const privateBanks: string[] = [
   'If the file will not load from the link, download it and upload it. The key from the link is already kept, so it opens.',
   'A bank link opens the bank for anyone who has it. Do not post it publicly.',
 ];
+
+/** Bank repositories: one file listing several banks, so one link loads a whole course. SPEC section 3.5. */
+export const bankRepositories: string[] = [
+  'A bank repository is a small JSON file that lists the URLs of several banks, so one link loads a whole course. Paste its link into "Load from URL", or upload it: the app tells a repository from a bank by what is inside.',
+  'It has formatVersion 1, a title, an optional description and author, and banks: a list of 1 to 100 entries, each { "url": ... }. Unknown keys and a bank listed twice reject the repository whole.',
+  'A url may be relative, such as "kinematics.json", and is read from beside the repository file. Relative entries need the repository loaded by URL; uploaded, only its full https:// entries load.',
+  'Each bank loads as if its own link had been pasted, and one that fails does not stop the rest. The library then lists what happened to each, with a Replace button on any bank that changed without a version bump.',
+  'A repository cannot list another repository, and should never list a bank link: the file is public, and the link would give its key away.',
+];
+
+const repository = {
+  formatVersion: 1,
+  title: 'Mechanics, autumn term',
+  description: 'Every bank for the first-year mechanics course.',
+  author: 'A. Teacher',
+  banks: [
+    { url: 'kinematics.json' },
+    { url: 'https://raw.githubusercontent.com/a-teacher/banks/main/forces.json' },
+  ],
+};
+
+/** A bank repository with one relative and one absolute entry. */
+export const repositoryExample = JSON.stringify(repository, null, 2);
 
 /** How bank text is written: maths, Markdown, and what is refused. */
 export const textFormatting: string[] = [

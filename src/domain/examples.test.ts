@@ -2,15 +2,19 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseBank } from './bank';
+import { isBankRepository, parseBankRepository } from './bank-repository';
 
 /**
  * The example banks are documentation, so they have to stay valid against the
- * real schema. Ticket 13 adds the standalone validation script for CI; this
+ * real schema, and the example repository has to list only banks that exist. Ticket 13 adds the standalone validation script for CI; this
  * keeps them honest in the meantime.
  */
 
 const examplesDir = join(import.meta.dirname, '..', '..', 'examples');
-const exampleFiles = readdirSync(examplesDir).filter((name) => name.endsWith('.json'));
+const read = (filename: string) => readFileSync(join(examplesDir, filename), 'utf8');
+const jsonFiles = readdirSync(examplesDir).filter((name) => name.endsWith('.json'));
+const exampleFiles = jsonFiles.filter((name) => !isBankRepository(read(name)));
+const repositoryFiles = jsonFiles.filter((name) => isBankRepository(read(name)));
 
 describe('the example banks', () => {
   it('exist', () => {
@@ -35,5 +39,19 @@ describe('the example banks', () => {
         true,
       );
     }
+  });
+});
+
+describe('the example repository', () => {
+  it('exists', () => {
+    expect(repositoryFiles).toEqual(['physics-course.json']);
+  });
+
+  it.each(repositoryFiles)('%s lists every example bank, and nothing else', (filename) => {
+    const base = 'https://example.org/examples/';
+    const result = parseBankRepository(read(filename), base + filename);
+    if (!result.ok) throw new Error(result.issues.map((issue) => issue.message).join('\n'));
+    const listed = result.repository.entries.map((entry) => entry.url?.slice(base.length));
+    expect(listed.sort()).toEqual([...exampleFiles].sort());
   });
 });

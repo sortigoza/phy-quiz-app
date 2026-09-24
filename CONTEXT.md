@@ -39,6 +39,10 @@ _Avoid_: Password, passphrase, access key
 A link carrying a private bank's location and its Bank Key, which is how a private bank reaches the people meant to read it. Anyone holding it can open the bank.
 _Avoid_: Share link (that carries an attempt), invite link, access link
 
+**Bank Repository**:
+A file listing the URLs of several banks, so that one link loads them all. It is the index file only, not the git repository it may live in, and it never enters the library itself: the banks it lists do.
+_Avoid_: Bank list, catalogue, course file, "repo" on its own
+
 **Question**:
 One prompt with a fixed set of options, exactly one of which is correct.
 

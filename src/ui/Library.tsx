@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { openBankLink, type OpenBankLinkResult } from '../bank-link';
+import {
+  loadBankRepository,
+  replaceRepositoryEntry,
+  type RepositoryOutcome,
+} from '../bank-repository';
 import { fetchBankText, fetchFailureMessage } from '../bank-url';
 import {
   addBankFromText,
@@ -18,6 +23,7 @@ import {
   type StoredBank,
 } from '../storage/db';
 import type { Bank, BankIssue } from '../domain/bank';
+import { isBankRepository, parseBankRepository } from '../domain/bank-repository';
 import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
@@ -26,18 +32,19 @@ import { InProgressOffer } from './InProgressOffer';
  * The library: every question bank held in this browser, and the way to add one.
  *
  * A bank arrives by upload, by URL or by bank link, and from then on they are
- * all the same: each goes through `addBankFromText`. The dedicated validation
+ * all the same: each goes through `addBankFromText`. A bank repository, by
+ * upload or URL, delivers several banks that way at once. The dedicated validation
  * screen with its richer error reporting is ticket 06.
  */
 
 /**
  * Why the last thing asked of the library did not happen: a file with problems
- * (`private` when it was a private bank that decrypted to them), a link that
+ * (`intro` says whether it was a bank, a private bank or a repository), a link that
  * failed, a private bank that would not open, or a bank already held that no
  * longer opens.
  */
 type Rejection =
-  | { kind: 'invalid'; name: string; issues: BankIssue[]; private: boolean }
+  | { kind: 'invalid'; name: string; issues: BankIssue[]; intro: string }
   | { kind: 'unreachable'; message: string }
   | { kind: 'private-bank'; message: string }
   | { kind: 'storage'; message: string }
@@ -54,6 +61,11 @@ type Conflict = {
   existing: StoredBank;
   incoming: StoredBank;
 };
+
+/** What loading a bank repository did, entry by entry. */
+type RepositoryReport = { title: string; outcomes: RepositoryOutcome[] };
+
+const INVALID_BANK_INTRO = 'Nothing was added. Fix these and try again:';
 
 const BROKEN_LINK_MESSAGE =
   'This bank link is incomplete, perhaps cut short by the app that carried it. Ask for the link again, and open all of it.';
@@ -94,7 +106,10 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
   const [notice, setNotice] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [url, setUrl] = useState('');
-  const [fetching, setFetching] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [report, setReport] = useState<RepositoryReport | null>(null);
+  const [progress, setProgress] = useState<{ settled: number; total: number } | null>(null);
   // Live, so removing the bank of an attempt in progress is reflected at once.
   // Null when there is none; undefined until the first read, and the bank list
   // waits for it so that Start cannot skip the question about discarding. A
@@ -107,29 +122,53 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
   );
   const [startingOver, setStartingOver] = useState<OpenedBank | null>(null);
 
-  function requestStart(stored: StoredBank) {
+  /** Clears whatever the last action left on screen, before the next one says anything. */
+  const clearPanels = useCallback(() => {
+    setRejection(null);
     setNotice(null);
     setConflict(null);
+    setReport(null);
+  }, []);
+
+  /**
+   * Runs one load at a time. A second load started mid-repository would share
+   * its progress line and overwrite its report, so it is refused until then.
+   */
+  const exclusive = useCallback(async (load: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await load();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, []);
+
+  function requestStart(stored: StoredBank) {
+    clearPanels();
     const opened = openStoredBank(stored);
     if (!opened.ok) {
       setRejection({ kind: 'unopenable', bank: stored, issues: opened.issues });
       return;
     }
-    setRejection(null);
     if (pending) setStartingOver({ stored, bank: opened.bank });
     else onStart(stored, opened.bank);
   }
 
   /** Runs something that touches storage, explaining a failure rather than dropping it. */
-  const guard = useCallback(async (operation: () => Promise<void>) => {
-    try {
-      await operation();
-    } catch (error) {
-      setNotice(null);
-      setConflict(null);
-      setRejection({ kind: 'storage', message: storageProblem(error) });
-    }
-  }, []);
+  const guard = useCallback(
+    async (operation: () => Promise<void>) => {
+      try {
+        await operation();
+      } catch (error) {
+        clearPanels();
+        setRejection({ kind: 'storage', message: storageProblem(error) });
+      }
+    },
+    [clearPanels],
+  );
 
   async function discardInProgress() {
     setStartingOver(null);
@@ -141,9 +180,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
 
   const showResult = useCallback(
     (result: AddBankResult, text: string, source: BankSource, options: AddBankOptions) => {
-      setRejection(null);
-      setNotice(null);
-      setConflict(null);
+      clearPanels();
 
       if (!result.ok) {
         if (result.reason === 'invalid') {
@@ -151,7 +188,9 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
             kind: 'invalid',
             name: sourceName(source),
             issues: result.issues,
-            private: result.private,
+            intro: result.private
+              ? 'This private bank opened, but it is not a valid bank:'
+              : INVALID_BANK_INTRO,
           });
         } else {
           setRejection({ kind: 'private-bank', message: privateBankMessage[result.reason] });
@@ -162,7 +201,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         setNotice(statusMessage[result.status](result.bank));
       }
     },
-    [],
+    [clearPanels],
   );
 
   const addText = useCallback(
@@ -197,8 +236,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
             showResult(opened.result, opened.text, opened.source, opened.options);
             return;
           }
-          setNotice(null);
-          setConflict(null);
+          clearPanels();
           setRejection({
             kind: 'unreachable',
             message:
@@ -207,51 +245,102 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         }),
       (error: unknown) =>
         settle(() => {
-          setNotice(null);
-          setConflict(null);
+          clearPanels();
           setRejection({ kind: 'storage', message: storageProblem(error) });
         }),
     );
     return () => {
       live = false;
     };
-  }, [bankLink, onBankLinkHandled, showResult]);
+  }, [bankLink, onBankLinkHandled, showResult, clearPanels]);
+
+  /**
+   * Loads every bank a repository lists and reports each. `base` is the address
+   * it was read from; an uploaded repository has none, so its relative entries fail.
+   */
+  const loadRepository = useCallback(
+    async (text: string, name: string, base?: string) => {
+      clearPanels();
+
+      const parsed = parseBankRepository(text, base);
+      if (!parsed.ok) {
+        setRejection({
+          kind: 'invalid',
+          name,
+          issues: parsed.issues,
+          intro:
+            'This is not a valid bank repository, so none of its banks were loaded. Fix these:',
+        });
+        return;
+      }
+
+      const { title, entries } = parsed.repository;
+      setProgress({ settled: 0, total: entries.length });
+      try {
+        const outcomes = await loadBankRepository(parsed.repository, {
+          onProgress: (settled) => setProgress({ settled, total: entries.length }),
+        });
+        setReport({ title, outcomes });
+      } finally {
+        setProgress(null);
+      }
+    },
+    [clearPanels],
+  );
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       const file = files?.[0];
       if (!file) return;
-      await addText(await file.text(), { kind: 'upload', filename: file.name });
+      await exclusive(async () => {
+        const text = await file.text();
+        if (isBankRepository(text)) await loadRepository(text, file.name);
+        else await addText(text, { kind: 'upload', filename: file.name });
+      });
     },
-    [addText],
+    [addText, exclusive, loadRepository],
   );
+
+  async function replaceInReport(index: number) {
+    const outcome = report?.outcomes[index];
+    if (outcome?.kind !== 'conflict') return;
+    await exclusive(() =>
+      guard(async () => {
+        const replaced = await replaceRepositoryEntry(outcome);
+        setReport(
+          (current) =>
+            current && {
+              ...current,
+              outcomes: current.outcomes.map((each, at) => (at === index ? replaced : each)),
+            },
+        );
+      }),
+    );
+  }
 
   async function handleUrl(event: FormEvent) {
     event.preventDefault();
-    if (fetching) return;
-    setFetching(true);
-    try {
+    await exclusive(async () => {
       const fetched = await fetchBankText(url);
-      if (fetched.ok) {
+      if (fetched.ok && isBankRepository(fetched.text)) {
+        await loadRepository(fetched.text, fetched.url, fetched.url);
+      } else if (fetched.ok) {
         await addText(fetched.text, { kind: 'url', url: fetched.url });
       } else {
-        setNotice(null);
-        setConflict(null);
+        clearPanels();
         setRejection({ kind: 'unreachable', message: fetchFailureMessage(fetched.failure) });
       }
-    } finally {
-      setFetching(false);
-    }
+    });
   }
 
   const handleRemove = useCallback(
     (bank: StoredBank) =>
       guard(async () => {
         await deleteBank(bank.key);
-        setRejection(null);
+        clearPanels();
         setNotice(`Removed ${bank.title}.`);
       }),
-    [guard],
+    [clearPanels, guard],
   );
 
   return (
@@ -275,26 +364,8 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         it.
       </p>
 
-      <div className="library__add">
-        <label className="button" htmlFor="bank-file">
-          Upload a bank file
-        </label>
-        <input
-          id="bank-file"
-          className="visually-hidden"
-          type="file"
-          accept=".json,application/json"
-          onChange={(event) => {
-            void handleFiles(event.target.files);
-            // Allow the same file to be chosen twice in a row.
-            event.target.value = '';
-          }}
-        />
-        <span className="library__hint">JSON only for now.</span>
-      </div>
-
       <form className="library__url" onSubmit={(event) => void handleUrl(event)}>
-        <label htmlFor="bank-url">Or load a bank URL</label>
+        <label htmlFor="bank-url">Load a bank or bank repository URL</label>
         <div className="library__url-row">
           <input
             id="bank-url"
@@ -305,13 +376,30 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
             value={url}
             onChange={(event) => setUrl(event.target.value)}
           />
-          <button type="submit" className="button" disabled={fetching}>
-            {fetching ? 'Loading…' : 'Load from URL'}
+          <button type="submit" className="button" disabled={busy}>
+            {busy ? 'Loading…' : 'Load from URL'}
           </button>
+          <span className="library__upload">
+            <label className="button button--quiet" htmlFor="bank-file">
+              Upload a bank file
+            </label>
+            <input
+              id="bank-file"
+              className="visually-hidden"
+              type="file"
+              accept=".json,application/json"
+              disabled={busy}
+              onChange={(event) => {
+                void handleFiles(event.target.files);
+                // Allow the same file to be chosen twice in a row.
+                event.target.value = '';
+              }}
+            />
+          </span>
         </div>
         <span className="library__hint">
-          A GitHub file link works from a public repository. Other hosts must allow cross-origin
-          requests.
+          JSON only for now. A bank repository loads every bank it lists. A GitHub file link works
+          from a public repository; other hosts must allow cross-origin requests.
         </span>
       </form>
 
@@ -320,11 +408,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
           <h3>
             Could not load <code>{rejection.name}</code>
           </h3>
-          <p>
-            {rejection.private
-              ? 'This private bank opened, but it is not a valid bank:'
-              : 'Nothing was added. Fix these and try again:'}
-          </p>
+          <p>{rejection.intro}</p>
           <IssueList issues={rejection.issues} />
         </div>
       )}
@@ -409,6 +493,16 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         </p>
       )}
 
+      {progress && (
+        <p className="panel panel--notice" role="status">
+          Loading {progress.settled} of {progress.total}…
+        </p>
+      )}
+
+      {report && (
+        <RepositoryReportPanel report={report} onReplace={(index) => void replaceInReport(index)} />
+      )}
+
       {notice && (
         <p className="panel panel--notice" role="status">
           {notice}
@@ -474,5 +568,66 @@ function IssueList({ issues }: { issues: BankIssue[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const outcomeLabel: Record<RepositoryOutcome['kind'], string> = {
+  added: 'added',
+  replaced: 'replaced',
+  unchanged: 'already held',
+  conflict: 'changed without a version bump',
+  failed: 'failed',
+};
+
+/** Counts per kind, in a fixed order, leaving out the kinds that did not happen. */
+function reportSummary(outcomes: RepositoryOutcome[]): string {
+  const kinds = Object.keys(outcomeLabel) as RepositoryOutcome['kind'][];
+  return kinds
+    .map((kind) => [kind, outcomes.filter((outcome) => outcome.kind === kind).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${count} ${outcomeLabel[kind]}`)
+    .join(', ');
+}
+
+function outcomeText(outcome: RepositoryOutcome): string {
+  switch (outcome.kind) {
+    case 'added':
+    case 'replaced':
+    case 'unchanged':
+      return statusMessage[outcome.kind](outcome.bank);
+    case 'conflict':
+      return `${outcome.existing.title} v${outcome.existing.version} changed without a version bump (fingerprint ${outcome.existing.fingerprint} held, ${outcome.bank.fingerprint} new). Attempts already taken keep the old fingerprint.`;
+    case 'failed':
+      return outcome.message;
+  }
+}
+
+function RepositoryReportPanel({
+  report,
+  onReplace,
+}: {
+  report: RepositoryReport;
+  onReplace: (index: number) => void;
+}) {
+  return (
+    <section className="panel repository-report" aria-labelledby="repository-report-title">
+      <h3 id="repository-report-title">{report.title}</h3>
+      <p>{reportSummary(report.outcomes)}.</p>
+      <ul className="repository-report__list">
+        {report.outcomes.map((outcome, index) => (
+          <li
+            key={`${index}:${outcome.entry.given}`}
+            className={`repository-report__line repository-report__line--${outcome.kind}`}
+          >
+            <code>{outcome.entry.given}</code> {outcomeText(outcome)}
+            {outcome.kind === 'conflict' && (
+              <button type="button" className="button" onClick={() => onReplace(index)}>
+                Replace
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -279,6 +279,31 @@ Attempts, history exports and share links never carry a bank key. A participant 
 
 A Dexie table `bankKeys` of `{ kid, key, addedAt }`, where `key` is a **non-extractable** `CryptoKey`: once imported, no script on the page can read the raw key back. It has no screen. A key is deleted when the last bank opened with it leaves the library. To move to a new device, the student opens the link again; the app has no key export.
 
+### 3.5 Bank repositories
+
+A **bank repository** is a small JSON file listing the URLs of several banks, so one link can load a whole course. It is recognised by content: a JSON object with a top-level `banks` array and no `questions`. Upload and URL loading both check for it before anything else.
+
+```json
+{
+  "formatVersion": 1,
+  "title": "Mechanics, autumn term",
+  "description": "Every bank for the first-year mechanics course.",
+  "author": "A. Teacher",
+  "banks": [
+    { "url": "kinematics.json" },
+    { "url": "https://raw.githubusercontent.com/someone/banks/main/forces.json" }
+  ]
+}
+```
+
+- `formatVersion` must be `1`; `title` is required; `description` and `author` are optional; `banks` holds 1 to 100 entries, each an object with a `url`.
+- A relative `url` resolves against the address the repository was actually read from (after the GitHub raw rewrite of §3.1). An uploaded repository has no address, so its relative entries fail and say why.
+- Strict like a bank: unknown keys and duplicate URLs (after resolving) reject the repository whole, with field paths, before any bank is fetched.
+- Each entry is fetched and added exactly as if its URL had been pasted alone, with the failure messages of §3.1 and the rules of §3.2 and §3.4. A failing entry never stops the others. An entry that is itself a repository is refused, not followed.
+- When every entry has settled, the library reports each one: added, replaced, already held, changed without a version bump (with its own Replace button), or failed and why.
+- The repository itself is not stored. Each bank records its own URL as its source.
+- Bank links do not belong in a repository: it is a public file, and listing a bank key there would publish it. An encrypted bank listed in a repository opens only with a key already stored.
+
 ---
 
 ## 4. Taking a quiz

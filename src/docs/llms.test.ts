@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isBankRepository, parseBankRepository } from '../domain/bank-repository';
 import { parseBank } from '../domain/bank';
 import { fieldReference } from './bank-reference';
 import { renderLlmsTxt } from './llms';
@@ -30,10 +31,21 @@ describe('llms.txt', () => {
     for (const field of fields) expect(text).toContain(`\`${field.name}\``);
   });
 
-  it('carries at least one complete example, and every example is a valid bank', () => {
+  it('carries at least one complete example, and every example is a valid bank or repository', () => {
     const blocks = jsonBlocks(text);
-    expect(blocks.length).toBeGreaterThan(0);
-    for (const block of blocks) expect(parseBank(block)).toMatchObject({ ok: true });
+    expect(blocks.filter((block) => !isBankRepository(block)).length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      const parsed = isBankRepository(block)
+        ? parseBankRepository(block, 'https://example.org/index.json')
+        : parseBank(block);
+      expect(parsed).toMatchObject({ ok: true });
+    }
+  });
+
+  it('says how to load many banks with one bank repository', () => {
+    expect(text).toMatch(/## Bank repositories/);
+    expect(jsonBlocks(text).some(isBankRepository)).toBe(true);
+    expect(text).toMatch(/never list a bank link/i);
   });
 
   it('warns that LaTeX backslashes must be doubled in JSON', () => {
