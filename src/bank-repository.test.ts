@@ -155,7 +155,7 @@ describe('loadBankRepository', () => {
     });
   });
 
-  it('fetches a few at a time, and reports progress as each settles', async () => {
+  it('fetches a few at a time, and reports progress from the start and as each settles', async () => {
     let inFlight = 0;
     let most = 0;
     const fetchImpl = vi.fn<Fetch>(async (input) => {
@@ -177,6 +177,6 @@ describe('loadBankRepository', () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(10);
     expect(most).toBe(4);
-    expect(progress).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(progress).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });

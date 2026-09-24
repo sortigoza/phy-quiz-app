@@ -20,6 +20,16 @@ const bankIdPattern = /^[a-z0-9][a-z0-9._-]*$/;
 // The three schemas are exported so documentation can be checked against them.
 // Everything else should go through `parseBank`, which reports errors by path.
 
+/** A bank id, also the pattern for a repository id and for an entry naming its bank. */
+export const bankIdSchema = z
+  .string()
+  .min(3)
+  .max(128)
+  .regex(
+    bankIdPattern,
+    'bank id may contain only lowercase letters, digits, dots, dashes and underscores, and must start with a letter or digit',
+  );
+
 export const optionSchema = z.strictObject({
   id: z.string().min(1).max(16),
   text: z.string().min(1).max(1000),
@@ -65,14 +75,7 @@ export const bankSchema = z
     formatVersion: z.literal(BANK_FORMAT_VERSION, {
       error: `formatVersion must be ${BANK_FORMAT_VERSION}; this app cannot read other versions of the bank format`,
     }),
-    id: z
-      .string()
-      .min(3)
-      .max(128)
-      .regex(
-        bankIdPattern,
-        'bank id may contain only lowercase letters, digits, dots, dashes and underscores, and must start with a letter or digit',
-      ),
+    id: bankIdSchema,
     version: z.string().regex(semver, 'bank version must be semver, for example 1.0.0'),
     title: z.string().min(1).max(200),
     description: z.string().min(1).max(2000).optional(),

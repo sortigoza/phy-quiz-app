@@ -48,6 +48,12 @@ describe('llms.txt', () => {
     expect(text).toMatch(/never list a bank link/i);
   });
 
+  it('says one link can open a whole private course, and that an agent never writes keys', () => {
+    expect(text).toMatch(/private repository/i);
+    expect(text).toMatch(/one link opens the whole course/i);
+    expect(text).toMatch(/never write a key/i);
+  });
+
   it('warns that LaTeX backslashes must be doubled in JSON', () => {
     expect(text).toMatch(/\\\\times/);
     expect(text).toMatch(/double/i);

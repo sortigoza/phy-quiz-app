@@ -330,7 +330,7 @@ Built by ticket 06b. A **private repository** is a bank repository encrypted exa
 - validates the repository with the app's parser and refuses an invalid one, or one without an `id`;
 - for every entry with `bank`, reads `keys/<bank>.key.json` and **refuses** if there is none yet (encrypt that bank first);
 - replaces each `bank` with `key`, the base64url of that bank's 32 key bytes, **in memory only**: key-bearing plaintext is never written to disk;
-- encrypts the result under `keys/<repository-id>.key.json`, created on first use and stable across editions, with `--rotate` as for banks;
+- encrypts the result under `keys/repositories/<repository-id>.key.json`, created on first use and stable across editions, with `--rotate` as for banks. Repository keys live apart from bank keys, so a repository whose `id` matches a bank's never shares that bank's key;
 - prints the bank link for the repository.
 
 An entry without `bank` is a public bank, so one course can mix both.
@@ -340,7 +340,8 @@ An entry without `bank` is a public bank, so one course can mix both.
 - The repository key is stored before the fetch, as in §3.4.4, so a downloaded copy of the repository opens by upload.
 - Relative entries resolve against the encrypted file's address.
 - For each entry with a `key`, the key is stored **before** that entry is fetched, so a bank whose fetch fails opens later by upload. The entry's own key is tried first, then the stored key matching the file's `kid`.
-- Each bank opened this way records the `kid` of the repository that delivered it. A repository key is deleted when the last bank it delivered leaves the library, just as a bank key is (§3.4.6).
+- Each bank opened this way records the `kid` of every repository that delivered it (two courses can share a bank). A repository key is deleted when the last bank it delivered leaves the library, just as a bank key is (§3.4.6).
+- An entry's key that this browser did not hold before, and that opens nothing the entry fetched, is let go. A key already held is never deleted by a repository.
 
 Failures per entry, in addition to §3.5:
 
@@ -348,7 +349,7 @@ Failures per entry, in addition to §3.5:
 | --- | --- |
 | The entry's key and every stored key fail to open the bank | "This bank's key in the course list is out of date. Ask your teacher to publish the course again." |
 
-**Keys never travel in plain text.** A plaintext repository with a `key` on any entry is refused whole: "This course list contains bank keys in plain text, so they are now public. Ask your teacher to rotate those keys and publish the course encrypted." The same file arriving encrypted is valid.
+**Keys never travel in plain text.** A plaintext repository with a `key` on any entry is refused whole, with a field error on each such entry: "this repository holds a bank key in plain text, so the key is now public. Rotate it, and publish the repository encrypted with the author tool". The same file arriving encrypted is valid.
 
 The library does not remember repositories. When the teacher adds a bank, students open the course link again; a stored repository with an Update button is future work.
 

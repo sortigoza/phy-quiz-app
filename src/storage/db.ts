@@ -34,6 +34,12 @@ export type StoredBank = {
    * which is what keeps that key in the key store. See SPEC section 3.4.6.
    */
   kid?: string | undefined;
+  /**
+   * Set only on a bank a private repository delivered: the ids of the keys of
+   * every repository that did, which the bank keeps in the key store. Two
+   * courses can share a bank. SPEC section 3.5.1.
+   */
+  repositoryKids?: string[] | undefined;
 };
 
 /**
@@ -108,6 +114,12 @@ database.version(4).stores({
   bankKeys: 'kid',
 });
 
+// Private repositories (v1.1). Banks gain a multi-entry `repositoryKids`
+// index, so a repository's key is let go with the last bank it delivered.
+database.version(5).stores({
+  banks: 'key, id, addedAt, kid, *repositoryKids',
+});
+
 export const db = database;
 
 export function bankKey(id: string, version: string): string {
@@ -115,19 +127,26 @@ export function bankKey(id: string, version: string): string {
 }
 
 /**
- * Deletes a bank key once no bank in the library was opened with it. Must run
- * inside a transaction over both tables.
+ * Deletes a key once no bank in the library was opened with it or delivered
+ * by the repository it opens. Must run inside a transaction over both tables.
  */
 async function releaseKeyIfUnused(kid: string | undefined): Promise<void> {
   if (kid === undefined) return;
-  if ((await db.banks.where('kid').equals(kid).count()) === 0) await db.bankKeys.delete(kid);
+  const opened = await db.banks.where('kid').equals(kid).count();
+  const delivered = await db.banks.where('repositoryKids').equals(kid).count();
+  if (opened + delivered === 0) await db.bankKeys.delete(kid);
+}
+
+/** The keys a stored bank holds on to. */
+function keysHeldBy(bank: StoredBank | undefined): (string | undefined)[] {
+  return [bank?.kid, ...(bank?.repositoryKids ?? [])];
 }
 
 export async function putBank(bank: StoredBank): Promise<void> {
   await db.transaction('rw', db.banks, db.bankKeys, async () => {
     const previous = await db.banks.get(bank.key);
     await db.banks.put(bank);
-    if (previous?.kid !== bank.kid) await releaseKeyIfUnused(previous?.kid);
+    for (const kid of keysHeldBy(previous)) await releaseKeyIfUnused(kid);
   });
 }
 
@@ -140,12 +159,12 @@ export async function listBanks(): Promise<StoredBank[]> {
   return db.banks.orderBy('addedAt').reverse().toArray();
 }
 
-/** Deletes a bank, and with it the bank key it was opened with if no other bank uses that key. */
+/** Deletes a bank, and with it any key it held that no other bank holds. */
 export async function deleteBank(key: string): Promise<void> {
   await db.transaction('rw', db.banks, db.bankKeys, async () => {
     const bank = await db.banks.get(key);
     await db.banks.delete(key);
-    await releaseKeyIfUnused(bank?.kid);
+    for (const kid of keysHeldBy(bank)) await releaseKeyIfUnused(kid);
   });
 }
 

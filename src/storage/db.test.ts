@@ -134,4 +134,35 @@ describe('the bank key store', () => {
     expect(await getBankKey('old')).toBeUndefined();
     expect(await getBankKey('new')).toBeDefined();
   });
+
+  it('keeps a private repository’s key while any bank it delivered remains', async () => {
+    await putBankKey(await storedKey('course'));
+    await putBank(storedBank({ id: 'public-one', repositoryKids: ['course'] }));
+    await putBank(storedBank({ id: 'private-one', kid: 'bank', repositoryKids: ['course'] }));
+
+    await deleteBank(bankKey('public-one', '1.0.0'));
+    expect(await getBankKey('course')).toBeDefined();
+
+    await deleteBank(bankKey('private-one', '1.0.0'));
+    expect(await getBankKey('course')).toBeUndefined();
+  });
+
+  it('lets a repository key go when its last bank is replaced by one from elsewhere', async () => {
+    await putBankKey(await storedKey('course'));
+    await putBank(storedBank({ repositoryKids: ['course'] }));
+
+    await putBank(storedBank());
+    expect(await getBankKey('course')).toBeUndefined();
+  });
+
+  it('keeps each repository’s key while a bank both delivered remains', async () => {
+    await putBankKey(await storedKey('course-a'));
+    await putBankKey(await storedKey('course-b'));
+    await putBank(storedBank({ repositoryKids: ['course-a', 'course-b'] }));
+    expect(await getBankKey('course-a')).toBeDefined();
+    expect(await getBankKey('course-b')).toBeDefined();
+
+    await deleteBank(bankKey('kth.kinematics', '1.0.0'));
+    expect(await db.bankKeys.count()).toBe(0);
+  });
 });

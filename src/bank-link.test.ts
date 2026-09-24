@@ -93,7 +93,7 @@ describe('openBankLink', () => {
       fetchOptions(fetch),
     );
 
-    expect(opened).toMatchObject({ kind: 'fetched', result: { ok: true, status: 'added' } });
+    expect(opened).toMatchObject({ kind: 'bank', result: { ok: true, status: 'added' } });
     expect(fetch).toHaveBeenCalledWith(fileUrl, expect.anything());
     const [bank] = await listBanks();
     expect(bank?.raw).toBe(bankText);
@@ -123,7 +123,7 @@ describe('openBankLink', () => {
       fetchOptions(fetch),
     );
     expect(opened).toMatchObject({
-      kind: 'fetched',
+      kind: 'bank',
       result: { ok: false, reason: 'undecryptable' },
     });
     expect(await listBanks()).toHaveLength(0);
@@ -137,6 +137,41 @@ describe('openBankLink', () => {
       { kind: 'bank-link', url: fileUrl, key: generateBankKey() },
       fetchOptions(fetch),
     );
-    expect(opened).toMatchObject({ kind: 'fetched', result: { ok: true, status: 'added' } });
+    expect(opened).toMatchObject({ kind: 'bank', result: { ok: true, status: 'added' } });
+  });
+
+  it('opens a private repository from its link, and every bank it lists with the keys it carries', async () => {
+    const courseKey = generateBankKey();
+    const bankKey = generateBankKey();
+    const courseUrl = 'https://a-teacher.github.io/banks/course.jwe.json';
+    const files: Record<string, string> = {
+      [courseUrl]: await encryptBank(
+        JSON.stringify({
+          formatVersion: 1,
+          id: 'kth.course',
+          title: 'Mechanics',
+          banks: [{ url: 'kinematics.bank.jwe.json', key: encodeBankKey(bankKey) }],
+        }),
+        courseKey,
+      ),
+      [fileUrl]: await encryptBank(bankText, bankKey),
+    };
+    const fetch = vi.fn((input: string) => Promise.resolve(new Response(files[input])));
+
+    const opened = await openBankLink(
+      { kind: 'bank-link', url: courseUrl, key: courseKey },
+      fetchOptions(fetch as unknown as ReturnType<typeof respondWith>),
+    );
+
+    expect(opened).toMatchObject({
+      kind: 'repository',
+      title: 'Mechanics',
+      private: true,
+      outcomes: [{ kind: 'added' }],
+    });
+    const [bank] = await listBanks();
+    expect(bank?.kid).toBe(await bankKeyId(bankKey));
+    expect(bank?.repositoryKids).toEqual([await bankKeyId(courseKey)]);
+    expect(await db.bankKeys.count()).toBe(2);
   });
 });

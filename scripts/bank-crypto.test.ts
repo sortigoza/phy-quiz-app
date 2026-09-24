@@ -1,10 +1,18 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openBankLink } from '../src/bank-link';
 import { addBankFromText, storeBankKey } from '../src/library';
-import { parseBankLink } from '../src/domain/private-bank';
-import { db, listBanks } from '../src/storage/db';
+import { loadText } from '../src/load-text';
+import {
+  bankKeyFromJwk,
+  decryptBank,
+  encodeBankKey,
+  importBankKey,
+  parseBankLink,
+} from '../src/domain/private-bank';
+import { db, deleteBank, listBanks } from '../src/storage/db';
 import { DEFAULT_APP_URL, run } from './bank-crypto';
 
 function bankText(overrides: Record<string, unknown> = {}): string {
@@ -204,5 +212,216 @@ describe('from the author CLI to the app', () => {
       'Exam preparation',
       'Exam preparation, revised',
     ]);
+  });
+});
+
+describe('bank-crypto with a bank repository', () => {
+  const site = 'https://a-teacher.github.io/banks/';
+
+  function repositoryText(overrides: Record<string, unknown> = {}): string {
+    return JSON.stringify(
+      {
+        formatVersion: 1,
+        id: 'kth.course',
+        title: 'Mechanics',
+        banks: [{ url: 'intro.json' }, { url: 'exam-prep.bank.jwe.json', bank: 'kth.exam-prep' }],
+        ...overrides,
+      },
+      null,
+      2,
+    );
+  }
+
+  async function encryptExamPrep() {
+    await writeBank(bankText());
+    return cli(
+      'encrypt',
+      'exam-prep.json',
+      '--out',
+      'exam-prep.bank.jwe.json',
+      '--url',
+      `${site}exam-prep.bank.jwe.json`,
+    );
+  }
+
+  function encryptCourse(...extra: string[]) {
+    return cli(
+      'encrypt',
+      'course.json',
+      '--out',
+      'course.jwe.json',
+      '--url',
+      `${site}course.jwe.json`,
+      ...extra,
+    );
+  }
+
+  function banksOf(json: string): unknown[] {
+    return (JSON.parse(json) as { banks: unknown[] }).banks;
+  }
+
+  async function keyFile(name: string): Promise<Uint8Array> {
+    const key = bankKeyFromJwk(JSON.parse(await readFile(join(dir, 'keys', name), 'utf8')));
+    if (!key) throw new Error(`no key in ${name}`);
+    return key;
+  }
+
+  it('encrypts the repository under its own key, carrying each listed bank’s key', async () => {
+    await encryptExamPrep();
+    await writeBank(repositoryText(), 'course.json');
+
+    const { code, stdout } = await encryptCourse();
+    expect(code).toBe(0);
+    expect(linkKey(stdout)).toEqual(await keyFile('repositories/kth.course.key.json'));
+
+    const decrypted = await decryptBank(
+      await readFile(join(dir, 'course.jwe.json'), 'utf8'),
+      await importBankKey(await keyFile('repositories/kth.course.key.json')),
+    );
+    if (!decrypted.ok) throw new Error('did not decrypt');
+    expect(banksOf(decrypted.plaintext)).toEqual([
+      { url: 'intro.json' },
+      {
+        url: 'exam-prep.bank.jwe.json',
+        key: encodeBankKey(await keyFile('kth.exam-prep.key.json')),
+      },
+    ]);
+  });
+
+  it('refuses a repository without an id, and one naming a bank with no key yet', async () => {
+    await writeBank(repositoryText({ id: undefined }), 'course.json');
+    const noId = await encryptCourse();
+    expect(noId.code).not.toBe(0);
+    expect(noId.stderr).toMatch(/needs an id/i);
+
+    await writeBank(repositoryText(), 'course.json');
+    const noKey = await encryptCourse();
+    expect(noKey.code).not.toBe(0);
+    expect(noKey.stderr).toMatch(/banks\[1\].*kth\.exam-prep.*encrypt that bank first/is);
+    await expect(readFile(join(dir, 'course.jwe.json'))).rejects.toThrow();
+  });
+
+  it('refuses a repository that already carries keys in plain text', async () => {
+    await writeBank(
+      repositoryText({ banks: [{ url: 'a.json', key: encodeBankKey(new Uint8Array(32)) }] }),
+      'course.json',
+    );
+    const { code, stderr } = await encryptCourse();
+    expect(code).not.toBe(0);
+    expect(stderr).toMatch(/now public/i);
+  });
+
+  it('keeps a repository’s key apart from a bank’s, even when they share an id', async () => {
+    await encryptExamPrep();
+    await writeBank(repositoryText({ id: 'kth.exam-prep' }), 'course.json');
+    const { stdout } = await encryptCourse();
+    expect(linkKey(stdout)).not.toEqual(await keyFile('kth.exam-prep.key.json'));
+  });
+
+  it('warns on rotating a bank that repositories listing it must be encrypted again', async () => {
+    await encryptExamPrep();
+    const { stderr } = await cli(
+      'encrypt',
+      'exam-prep.json',
+      '--out',
+      'x.json',
+      '--url',
+      publicUrl,
+      '--rotate',
+    );
+    expect(stderr).toMatch(/private repository listing this bank/i);
+  });
+
+  it('decrypts a repository showing bank ids, never keys', async () => {
+    await encryptExamPrep();
+    await writeBank(repositoryText(), 'course.json');
+    await encryptCourse();
+    await rm(join(dir, 'keys', 'kth.exam-prep.key.json'));
+    await writeBank(repositoryText({ id: 'kth.other' }), 'other.json');
+
+    const { code, stdout } = await cli(
+      'decrypt',
+      'course.jwe.json',
+      '--key',
+      'keys/repositories/kth.course.key.json',
+    );
+    expect(code).toBe(0);
+    expect(stdout).not.toMatch(/"key"/);
+    expect(banksOf(stdout)[1]).toEqual({
+      url: 'exam-prep.bank.jwe.json',
+      bank: expect.stringMatching(/unknown/i) as unknown,
+    });
+  });
+
+  it('from the CLI to the app: one link opens the whole course, and later editions need no link', async () => {
+    await encryptExamPrep();
+    await writeBank(bankText({ id: 'kth.forces', title: 'Forces' }), 'forces.json');
+    await cli(
+      'encrypt',
+      'forces.json',
+      '--out',
+      'forces.bank.jwe.json',
+      '--url',
+      `${site}forces.bank.jwe.json`,
+    );
+    await writeFile(join(dir, 'intro.json'), bankText({ id: 'kth.intro', title: 'Intro' }));
+    const course = repositoryText({
+      banks: [
+        { url: 'intro.json' },
+        { url: 'exam-prep.bank.jwe.json', bank: 'kth.exam-prep' },
+        { url: 'forces.bank.jwe.json', bank: 'kth.forces' },
+      ],
+    });
+    await writeBank(course, 'course.json');
+    const { stdout } = await encryptCourse();
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      try {
+        return new Response(await readFile(join(dir, url.slice(site.length)), 'utf8'));
+      } catch {
+        return new Response('', { status: 404 });
+      }
+    });
+    const options = { fetch: fetchImpl as typeof fetch, online: () => true };
+
+    const link = parseBankLink(new URL(stdout.trim().split('\n').at(-1) ?? '').hash);
+    if (link.kind !== 'bank-link') throw new Error('no link');
+    const opened = await openBankLink(link, options);
+    expect(opened).toMatchObject({
+      kind: 'repository',
+      outcomes: [{ kind: 'added' }, { kind: 'added' }, { kind: 'added' }],
+    });
+    // The course's key and both private banks' keys.
+    expect(await db.bankKeys.count()).toBe(3);
+
+    // The next edition of the course adds a bank, and opens from the stored key alone.
+    await writeFile(join(dir, 'extra.json'), bankText({ id: 'kth.extra', title: 'Extra' }));
+    await writeBank(
+      repositoryText({
+        banks: [...(JSON.parse(course) as { banks: object[] }).banks, { url: 'extra.json' }],
+      }),
+      'course.json',
+    );
+    await encryptCourse();
+    const second = await loadText(
+      await readFile(join(dir, 'course.jwe.json'), 'utf8'),
+      { kind: 'upload', filename: 'course.jwe.json' },
+      { ...options, base: `${site}course.jwe.json` },
+    );
+    expect(second).toMatchObject({
+      kind: 'repository',
+      outcomes: [
+        { kind: 'unchanged' },
+        { kind: 'unchanged' },
+        { kind: 'unchanged' },
+        { kind: 'added' },
+      ],
+    });
+    expect(await db.bankKeys.count()).toBe(3);
+
+    // Removing everything the course delivered lets every key go.
+    for (const bank of await listBanks()) await deleteBank(bank.key);
+    expect(await db.bankKeys.count()).toBe(0);
   });
 });
