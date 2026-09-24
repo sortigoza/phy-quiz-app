@@ -32,16 +32,20 @@ A bank published encrypted, so its file can sit on a public host while only peop
 _Avoid_: Locked bank, secret bank, encrypted bank
 
 **Bank Key**:
-The secret that opens one private bank. There is one per bank, the same for every edition of it.
+The secret that opens one private bank, or one private repository. There is one per bank and one per repository, the same for every edition of it.
 _Avoid_: Password, passphrase, access key
 
 **Bank Link**:
-A link carrying a private bank's location and its Bank Key, which is how a private bank reaches the people meant to read it. Anyone holding it can open the bank.
+A link carrying the location of a private bank, or of a private repository, and the key that opens it. It is how private banks reach the people meant to read them. Anyone holding it can open what it points at.
 _Avoid_: Share link (that carries an attempt), invite link, access link
 
 **Bank Repository**:
 A file listing the URLs of several banks, so that one link loads them all. It is the index file only, not the git repository it may live in, and it never enters the library itself: the banks it lists do.
 _Avoid_: Bank list, catalogue, course file, "repo" on its own
+
+**Private Repository**:
+A bank repository published encrypted, so its list of banks stays hidden and it can carry the Bank Keys of the private banks it lists. One Bank Link to it opens a whole course.
+_Avoid_: Private course, locked repository, encrypted index
 
 **Question**:
 One prompt with a fixed set of options, exactly one of which is correct.

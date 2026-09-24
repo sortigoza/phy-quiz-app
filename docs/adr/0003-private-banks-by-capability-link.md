@@ -13,3 +13,9 @@ The cost is stated plainly in SPEC §3.4.5, in the spirit of ADR 0001: a bank li
 - **A passphrase (`PBES2`).** Students would type a secret, which is exactly the friction the link removes, and short classroom passphrases are guessable offline against a public file.
 - **A hosted redirect page holding the key.** Whoever finds that page has the key, and static hosts serve and log it, so it is equivalent to publishing the key. The key belongs in a fragment.
 - **The whole encrypted bank in the fragment.** No hosting needed, but real banks are tens of KB, which chat apps truncate and QR codes cannot hold.
+
+## Addendum: private repositories (v1.1, ticket 06b)
+
+A course of private banks needed one link per bank, which is the burden bank repositories exist to remove. We keep one key per bank and add a **private repository**: a bank repository encrypted the same way, under its own key, whose entries carry the keys of the private banks it lists. The ordinary bank link opens it, and the app tells a repository from a bank by the decrypted content. The repository's key is one more capability, not a replacement for the per-bank ones.
+
+A **course key**, one key shared by every bank in a course, was rejected. Rotating it for one bank would rotate it for all, and forwarding the link to any one bank would open the whole course. With a private repository, a bank's link still opens only that bank, and rotating one bank's key means publishing that bank and its repositories again.

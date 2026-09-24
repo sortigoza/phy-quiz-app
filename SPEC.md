@@ -236,6 +236,8 @@ pnpm bank-crypto decrypt <file> --key <key-file>
 
 - `encrypt` validates the bank and **refuses to encrypt an invalid one**, with the same field-path errors as §3.3. It reads `keys/<bank-id>.key.json` if it exists and creates it if not; `--rotate` replaces it and prints a warning that old links will not open new editions. It writes the JWE and prints the bank link. `--app-url` defaults to the live GitHub Pages URL.
 - `decrypt` lets an author check their own output. It prints the plaintext bank.
+- `encrypt` also accepts a bank repository, recognised by content; §3.5.1 says what it does differently.
+- `--rotate` also warns that every private repository listing this bank must be encrypted again, or its entry for the bank goes out of date.
 
 #### 3.4.4 The bank link
 
@@ -302,7 +304,53 @@ A **bank repository** is a small JSON file listing the URLs of several banks, so
 - Each entry is fetched and added exactly as if its URL had been pasted alone, with the failure messages of §3.1 and the rules of §3.2 and §3.4. A failing entry never stops the others. An entry that is itself a repository is refused, not followed.
 - When every entry has settled, the library reports each one: added, replaced, already held, changed without a version bump (with its own Replace button), or failed and why.
 - The repository itself is not stored. Each bank records its own URL as its source.
-- Bank links do not belong in a repository: it is a public file, and listing a bank key there would publish it. An encrypted bank listed in a repository opens only with a key already stored.
+- Bank links do not belong in a repository: a plaintext repository is a public file, and listing a bank key there would publish it. An encrypted bank listed in a plaintext repository opens only with a key already stored; otherwise its line says "This bank is private. Open the private course link or bank link your teacher sent."
+- An optional `id`, with the same pattern as a bank id, names the repository. A plaintext repository may also carry `bank` on an entry (the id of the bank it points at), which the app ignores; it exists for the CLI (§3.5.1).
+
+#### 3.5.1 Private bank repositories (v1.1)
+
+Built by ticket 06b. A **private repository** is a bank repository encrypted exactly as a private bank is (§3.4.1), so its title and its list of URLs are hidden, and its entries can carry the bank keys of the private banks it lists. One bank link then opens a whole course. [ADR 0003](./docs/adr/0003-private-banks-by-capability-link.md) still holds: every bank keeps its own key, and the repository has one more.
+
+**Authoring.** In the private repo, the teacher writes a plaintext repository with an `id`, and marks each private bank's entry with its bank id:
+
+```json
+{
+  "formatVersion": 1,
+  "id": "kth.mechanics.autumn",
+  "title": "Mechanics, autumn term",
+  "banks": [
+    { "url": "kinematics.json" },
+    { "url": "quantum.json", "bank": "physics.qm" }
+  ]
+}
+```
+
+`pnpm bank-crypto encrypt <repository-file> --out <file> --url <public URL>` then:
+
+- validates the repository with the app's parser and refuses an invalid one, or one without an `id`;
+- for every entry with `bank`, reads `keys/<bank>.key.json` and **refuses** if there is none yet (encrypt that bank first);
+- replaces each `bank` with `key`, the base64url of that bank's 32 key bytes, **in memory only**: key-bearing plaintext is never written to disk;
+- encrypts the result under `keys/<repository-id>.key.json`, created on first use and stable across editions, with `--rotate` as for banks;
+- prints the bank link for the repository.
+
+An entry without `bank` is a public bank, so one course can mix both.
+
+**Opening.** The link is an ordinary bank link (§3.4.4). After decrypting, the app recognises the plaintext by content: a bank goes down the bank path, a repository down §3.5. For a private repository:
+
+- The repository key is stored before the fetch, as in §3.4.4, so a downloaded copy of the repository opens by upload.
+- Relative entries resolve against the encrypted file's address.
+- For each entry with a `key`, the key is stored **before** that entry is fetched, so a bank whose fetch fails opens later by upload. The entry's own key is tried first, then the stored key matching the file's `kid`.
+- Each bank opened this way records the `kid` of the repository that delivered it. A repository key is deleted when the last bank it delivered leaves the library, just as a bank key is (§3.4.6).
+
+Failures per entry, in addition to §3.5:
+
+| Case | Line in the report |
+| --- | --- |
+| The entry's key and every stored key fail to open the bank | "This bank's key in the course list is out of date. Ask your teacher to publish the course again." |
+
+**Keys never travel in plain text.** A plaintext repository with a `key` on any entry is refused whole: "This course list contains bank keys in plain text, so they are now public. Ask your teacher to rotate those keys and publish the course encrypted." The same file arriving encrypted is valid.
+
+The library does not remember repositories. When the teacher adds a bank, students open the course link again; a stored repository with an Update button is future work.
 
 ---
 
