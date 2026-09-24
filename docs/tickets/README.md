@@ -17,6 +17,7 @@ Tracking is local and in git: tick the checkboxes in a ticket as you go, and com
     │   ├── 08 history, export and import
     │   │   └── 09 share a result by link
     │   ├── 10 leaderboard
+    │   ├── 15 music on the library
     │   └── 11 installable and offline  (also needs 05)
     ├── 05 load a bank from a URL
     │   ├── 05a bank repositories
@@ -55,5 +56,6 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 12 | Presentation and accessibility | 04, 10 | [ ] |
 | 13 | Documentation and examples | 06, 09 | [ ] |
 | 14 | Release v1.0.0 | 07, 11, 12, 13 | [ ] |
+| 15 | Music on the library | 03 | [ ] |
 
 Live at <https://sortigoza.github.io/phy-quiz-app/>.
