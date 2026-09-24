@@ -537,6 +537,10 @@ public/
 - Dark mode from `prefers-color-scheme`. No toggle.
 - English UI with inline strings. Bank text is wrapped in the bank's `language` tag so screen readers pronounce non-English banks correctly.
 
+### 8.6 Music
+
+The library plays Bach's Crab Canon (The Musical Offering, BWV 1079, Canon 1 a 2) from `music/crab-canon.mid`, synthesised with Web Audio and looped. It plays on the library only, never during a quiz or on any other screen. Browsers allow sound only after the person has interacted with the page, so where autoplay is blocked it starts on the first click or key press. A Music toggle on the library turns it off, and the choice is remembered in the `settings` table. A missing file or a browser without Web Audio leaves the app silent and otherwise unchanged. Ticket 15.
+
 ---
 
 ## 9. Acceptance criteria for v1.0.0
