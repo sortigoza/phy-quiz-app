@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
+import { takeBankLink } from './bank-link';
 import type { ParsedBankLink } from './domain/private-bank';
 import { backgroundMusic, CRAB_CANON_CREDIT } from './music/background';
 import type { Music } from './music/player';
@@ -36,6 +37,7 @@ export function App({
   // Held until the library has shown its outcome, so returning there later does not open it again.
   const [bankLink, setBankLink] = useState(initialBankLink);
   const bankLinkHandled = useCallback(() => setBankLink({ kind: 'none' }), []);
+  useBankLinksWhileOpen(setBankLink);
   useLeaveWarning(isAttemptInProgress(state));
   const unsaved = usePersistAttempt(state);
   const [musicOn, toggleMusic] = useMusicSetting();
@@ -263,4 +265,21 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
     case 'history':
       return <History onDone={() => dispatch({ type: 'open-library' })} />;
   }
+}
+
+/**
+ * Takes a bank link entered while the app is already open. Changing only the
+ * fragment of an open tab's address does not reload the page, so the link read
+ * at start-up would never see it. It is cleared from the address bar at once,
+ * as at start-up, and opens when the library is next on screen.
+ */
+function useBankLinksWhileOpen(open: (link: ParsedBankLink) => void) {
+  useEffect(() => {
+    const onHashChange = () => {
+      const link = takeBankLink();
+      if (link.kind !== 'none') open(link);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [open]);
 }

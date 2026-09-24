@@ -432,6 +432,33 @@ describe('Library', () => {
       expect(alert).toHaveTextContent(/questions/);
     });
 
+    it('opens a bank link pasted into the URL field, and clears the key from the field', async () => {
+      const key = generateBankKey();
+      const fetchMock = stubFetch(new Response(await encryptBank(bankText(), key)));
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+
+      await loadUrl(
+        `https://sortigoza.github.io/phy-quiz-app/#bank=${encodeURIComponent(fileUrl)}&key=${encodeBankKey(key)}`,
+      );
+
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(/added kinematics/i),
+      );
+      // The file the link points at, never the app's own page.
+      expect(fetchMock).toHaveBeenCalledWith(fileUrl, expect.anything());
+      expect(screen.getByLabelText(/repository url/i)).toHaveValue('');
+    });
+
+    it('says a truncated bank link pasted into the URL field is incomplete', async () => {
+      const fetchMock = stubFetch(new Response('<html></html>'));
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await loadUrl(
+        `https://sortigoza.github.io/phy-quiz-app/#bank=${encodeURIComponent(fileUrl)}&key=abc`,
+      );
+      expect(await screen.findByRole('alert')).toHaveTextContent(/link is incomplete/i);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('says a truncated bank link is incomplete', async () => {
       render(
         <Library

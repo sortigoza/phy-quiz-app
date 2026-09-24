@@ -187,7 +187,7 @@ export const quizSteps: string[] = [
  */
 export const privateBanks: string[] = [
   'A teacher can publish a private bank: an encrypted file that nobody can read without its bank link. The file itself shows nothing, not even its title.',
-  'To open one, open the bank link your teacher sent. The bank is added to your library, marked 🔒, and is taken like any other.',
+  'To open one, open the bank link your teacher sent, or paste it into "Load from URL". The bank is added to your library, marked 🔒, and is taken like any other.',
   'This browser keeps the bank’s key, so later editions open without the link: load them by URL or upload as usual. On a new device, open the link again.',
   'If the file will not load from the link, download it and upload it. The key from the link is already kept, so it opens.',
   'A teacher can send one bank link for a whole course of private banks: it opens a private repository, and every bank it lists joins your library.',

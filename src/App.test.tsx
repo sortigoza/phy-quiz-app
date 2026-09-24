@@ -56,7 +56,8 @@ describe('App', () => {
       );
       expect(await screen.findByText(/added kinematics/i)).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: /start kinematics/i }));
+      // The list refreshes after the notice, and on a slow machine noticeably so.
+      await user.click(await screen.findByRole('button', { name: /start kinematics/i }));
       await user.click(await screen.findByRole('button', { name: /^back$/i }));
       await screen.findByRole('heading', { name: /your question banks/i });
 
