@@ -56,6 +56,6 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 12 | Presentation and accessibility | 04, 10 | [ ] |
 | 13 | Documentation and examples | 06, 09 | [ ] |
 | 14 | Release v1.0.0 | 07, 11, 12, 13 | [ ] |
-| 15 | Music on the library | 03 | [ ] |
+| 15 | Music on the library | 03 | [x] |
 
 Live at <https://sortigoza.github.io/phy-quiz-app/>.

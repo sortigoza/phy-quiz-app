@@ -11,7 +11,7 @@ import type { Score } from './midi';
  * anything sounding.
  *
  * Failure is silent on purpose. Music is decoration: a missing file or a
- * browser without Web Audio must never stand between a student and a quiz.
+ * browser without Web Audio must never stand between a participant and a quiz.
  */
 export type Music = {
   play(): void;
@@ -65,23 +65,25 @@ export function createMusic({ load, createContext, gap = 2 }: Options): Music {
   function ensureContext(): AudioContextLike | undefined {
     if (context) return context;
     try {
-      context = createContext();
+      const created = createContext();
+      if (!created) return undefined;
+
+      const filter = created.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 2400;
+      const gain = created.createGain();
+      gain.gain.value = VOLUME;
+      filter.connect(gain).connect(created.destination);
+      output = filter;
+
+      // The single place playback starts: whenever the context comes to life,
+      // whether autoplay allowed it or a gesture did.
+      created.addEventListener('statechange', () => void start());
+      context = created;
     } catch {
+      // A partial Web Audio: stay silent rather than throw from every click.
       return undefined;
     }
-    if (!context) return undefined;
-
-    const filter = context.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 2400;
-    const gain = context.createGain();
-    gain.gain.value = VOLUME;
-    filter.connect(gain).connect(context.destination);
-    output = filter;
-
-    // The single place playback starts: whenever the context comes to life,
-    // whether autoplay allowed it or a gesture did.
-    context.addEventListener('statechange', () => void start());
     return context;
   }
 
@@ -93,7 +95,11 @@ export function createMusic({ load, createContext, gap = 2 }: Options): Music {
     // Anything may have changed while the score loaded.
     if (!loaded || loaded.notes.length === 0 || !wanted || pass || audio.state !== 'running')
       return;
-    schedule(audio, loaded);
+    try {
+      schedule(audio, loaded);
+    } catch {
+      // Web Audio refused a node: stay silent.
+    }
   }
 
   function schedule(audio: AudioContextLike, loaded: Score): void {
@@ -101,7 +107,8 @@ export function createMusic({ load, createContext, gap = 2 }: Options): Music {
     const gain = audio.createGain();
     gain.connect(output!);
 
-    const panners = PAN.map((value) => {
+    // Older Safari has no stereo panner: the voices then share the middle.
+    const panners = (typeof audio.createStereoPanner === 'function' ? PAN : []).map((value) => {
       const panner = audio.createStereoPanner();
       panner.pan.value = value;
       panner.connect(gain);

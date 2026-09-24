@@ -54,7 +54,11 @@ export function App({
               className="button button--quiet"
               aria-pressed={musicOn}
               title={CRAB_CANON_CREDIT}
-              onClick={toggleMusic}
+              onClick={() => {
+                // Turning music on is a gesture too: with music off, no other listener passed one on.
+                if (!musicOn) music.unlock();
+                toggleMusic();
+              }}
             >
               Music
             </button>
@@ -137,14 +141,14 @@ function useLeaveWarning(active: boolean): void {
 function useMusicSetting(): [boolean | undefined, () => void] {
   const [on, setOn] = useState<boolean>();
   useEffect(() => {
-    let current = true;
+    let cancelled = false;
     getMusicOn().then(
-      (value) => current && setOn((held) => held ?? value),
+      (value) => !cancelled && setOn((held) => held ?? value),
       // Storage refused: play, since the setting cannot be remembered anyway.
-      () => current && setOn((held) => held ?? true),
+      () => !cancelled && setOn((held) => held ?? true),
     );
     return () => {
-      current = false;
+      cancelled = true;
     };
   }, []);
   const toggle = useCallback(() => {
