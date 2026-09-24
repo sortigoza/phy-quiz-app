@@ -61,4 +61,24 @@ describe('taking a private bank', () => {
     expect(recorded).not.toContain(encodeBankKey(key));
     expect(recorded).not.toContain('kid');
   });
+
+  it('opens a bank link entered while the app is already open, and clears it from the address bar', async () => {
+    const key = generateBankKey();
+    const jwe = await encryptBank(bankText, key);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(jwe))),
+    );
+    render(<App />);
+    await screen.findByText(/no question banks yet/i);
+
+    // Pasting a link into the address bar of an open tab changes only the fragment.
+    window.location.hash = `bank=${encodeURIComponent('https://example.org/p.json')}&key=${encodeBankKey(key)}`;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(
+      await screen.findByRole('button', { name: /start a private bank/i }),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe('');
+  });
 });

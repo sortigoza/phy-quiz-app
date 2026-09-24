@@ -31,6 +31,18 @@ export function takeBankLink(
   return link;
 }
 
+/**
+ * A bank link in text someone pasted, such as into the URL field. Anything
+ * that is not an address carrying a `#bank=` fragment is not one.
+ */
+export function bankLinkIn(text: string): ParsedBankLink {
+  try {
+    return parseBankLink(new URL(text.trim()).hash);
+  } catch {
+    return { kind: 'none' };
+  }
+}
+
 export type OpenBankLinkResult =
   /** The link was cut short or mangled, so there is nothing to open. */
   | { kind: 'broken' }
