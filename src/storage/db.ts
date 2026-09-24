@@ -191,6 +191,29 @@ export async function listAttempts(): Promise<Attempt[]> {
   return db.attempts.orderBy('submittedAt').reverse().toArray();
 }
 
+/**
+ * Adds attempts from elsewhere, never replacing one already held: on a
+ * collision of ids the existing record wins, which is what makes importing the
+ * same file twice change nothing. Returns how many were added and how many
+ * were duplicates, including repeats within `attempts` itself.
+ */
+export async function addAttempts(
+  attempts: readonly Attempt[],
+): Promise<{ added: number; duplicates: number }> {
+  return db.transaction('rw', db.attempts, async () => {
+    const held = await db.attempts.bulkGet(attempts.map((attempt) => attempt.id));
+    const seen = new Set(held.flatMap((attempt) => (attempt ? [attempt.id] : [])));
+    const fresh: Attempt[] = [];
+    for (const attempt of attempts) {
+      if (seen.has(attempt.id)) continue;
+      seen.add(attempt.id);
+      fresh.push(attempt);
+    }
+    await db.attempts.bulkAdd(fresh);
+    return { added: fresh.length, duplicates: attempts.length - fresh.length };
+  });
+}
+
 /** The name last used to start an attempt here, so the start screen can offer it. */
 export async function getLastParticipantName(): Promise<string | undefined> {
   return (await db.settings.get('lastParticipantName'))?.value;
