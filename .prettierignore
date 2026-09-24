@@ -5,3 +5,6 @@ coverage
 # Prose is hand-formatted. Prettier pads Markdown tables, which makes every
 # later edit to the spec or a ticket a noisy diff.
 *.md
+
+# Encrypted private banks, written by `pnpm bank-crypto encrypt`. Ciphertext, not source.
+banks

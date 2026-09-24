@@ -13,3 +13,6 @@ test-results/
 !.vscode/extensions.json
 .idea/
 *.log
+
+# Bank links carry bank keys. Never commit them.
+bank-links.secret.md
