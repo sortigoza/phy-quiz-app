@@ -48,7 +48,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 06b | Private bank repositories (v1.1) | 05a, 06a | [x] |
 | 07 | Resume an interrupted attempt | 03 | [x] |
 | 07a | Alpha hardening | 03 | [x] |
-| 08 | History, export and import | 03 | [ ] |
+| 08 | History, export and import | 03 | [x] |
 | 09 | Share a result by link | 08 | [ ] |
 | 10 | Leaderboard | 03 | [ ] |
 | 11 | Installable and offline | 03, 05 | [ ] |

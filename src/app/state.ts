@@ -16,7 +16,8 @@ type WorkScreen =
   | { screen: 'library' }
   | { screen: 'start'; stored: StoredBank; bank: Bank }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
-  | { screen: 'review'; attempt: Attempt; selection: Selection; language: string };
+  | { screen: 'review'; attempt: Attempt; selection: Selection; language: string }
+  | { screen: 'history' };
 
 /**
  * Help sits over whichever screen opened it and returns there on close, so
@@ -26,6 +27,7 @@ export type AppState = WorkScreen | { screen: 'help'; back: WorkScreen };
 
 export type AppAction =
   | { type: 'open-library' }
+  | { type: 'open-history' }
   | { type: 'open-start'; stored: StoredBank; bank: Bank }
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'resume'; inProgress: InProgressAttempt; index: number }
@@ -41,6 +43,9 @@ export function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'open-library':
       return { screen: 'library' };
+
+    case 'open-history':
+      return { screen: 'history' };
 
     case 'open-start':
       return { screen: 'start', stored: action.stored, bank: action.bank };
