@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bank-crypto": "tsx scripts/bank-crypto.ts"
+    "bank-crypto": "tsx scripts/bank-crypto.ts",
+    "crab-canon": "tsx scripts/crab-canon.ts"
   },
   "dependencies": {
     "dexie": "^4.4.6",

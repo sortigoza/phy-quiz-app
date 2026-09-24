@@ -84,7 +84,8 @@ export type StoredInProgress = {
 const IN_PROGRESS_KEY = 'current';
 
 /** Small preferences remembered in this browser, one row per setting. */
-type Setting = { key: 'lastParticipantName'; value: string };
+type Setting =
+  { key: 'lastParticipantName'; value: string } | { key: 'music'; value: 'on' | 'off' };
 
 const database = new Dexie('physics-quiz') as Dexie & {
   banks: EntityTable<StoredBank, 'key'>;
@@ -235,7 +236,17 @@ export async function addAttempts(
 
 /** The name last used to start an attempt here, so the start screen can offer it. */
 export async function getLastParticipantName(): Promise<string | undefined> {
-  return (await db.settings.get('lastParticipantName'))?.value;
+  const setting = await db.settings.get('lastParticipantName');
+  return setting?.key === 'lastParticipantName' ? setting.value : undefined;
+}
+
+/** Whether the library plays its music. On until the participant turns it off. */
+export async function getMusicOn(): Promise<boolean> {
+  return (await db.settings.get('music'))?.value !== 'off';
+}
+
+export async function setMusicOn(on: boolean): Promise<void> {
+  await db.settings.put({ key: 'music', value: on ? 'on' : 'off' });
 }
 
 export async function setLastParticipantName(name: string): Promise<void> {
