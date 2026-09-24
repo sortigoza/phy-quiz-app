@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isBankRepository, parseBankRepository } from './bank-repository';
+import { encodeBankKey } from './private-bank';
 
 /**
  * A bank repository: one file listing the URLs of several banks. SPEC section 3.5.
@@ -118,5 +119,53 @@ describe('parseBankRepository', () => {
       repositoryText({ banks: [{ url: 'a.json' }, { url: 'a.json' }] }),
     );
     expect(result.ok).toBe(false);
+  });
+
+  it('accepts an id, and ignores the bank id an author notes on an entry', () => {
+    const result = parseBankRepository(
+      repositoryText({ id: 'kth.mechanics', banks: [{ url: 'qm.json', bank: 'physics.qm' }] }),
+      base,
+    );
+    expect(result.ok && result.repository).toMatchObject({
+      id: 'kth.mechanics',
+      entries: [{ given: 'qm.json', key: undefined }],
+    });
+  });
+
+  it('rejects an id a bank could not have', () => {
+    const result = parseBankRepository(repositoryText({ id: 'Not An Id' }), base);
+    expect(result.ok || result.issues.map((issue) => issue.path)).toEqual(['id']);
+  });
+});
+
+describe('bank keys in a repository', () => {
+  const key = new Uint8Array(32).fill(7);
+  const withKey = repositoryText({ banks: [{ url: 'qm.json', key: encodeBankKey(key) }] });
+
+  it('decodes each entry key when the repository arrived encrypted', () => {
+    const result = parseBankRepository(withKey, base, { encrypted: true });
+    expect(result.ok && result.repository.entries[0]?.key).toEqual(key);
+  });
+
+  it('refuses a plaintext repository carrying keys, since they are now public', () => {
+    const result = parseBankRepository(withKey, base);
+    expect(result).toEqual({
+      ok: false,
+      issues: [
+        {
+          path: 'banks[0].key',
+          message: expect.stringMatching(/plain text.*public.*rotate/i) as unknown,
+        },
+      ],
+    });
+  });
+
+  it('rejects a key that is not 32 bytes of base64url', () => {
+    const result = parseBankRepository(
+      repositoryText({ banks: [{ url: 'qm.json', key: 'short' }] }),
+      base,
+      { encrypted: true },
+    );
+    expect(result.ok || result.issues.map((issue) => issue.path)).toEqual(['banks[0].key']);
   });
 });

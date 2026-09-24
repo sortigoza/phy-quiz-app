@@ -1,34 +1,37 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { parseBank } from '../src/domain/bank';
+import { parseBank, type BankIssue } from '../src/domain/bank';
+import { isBankRepository, parseBankRepository } from '../src/domain/bank-repository';
 import {
   bankKeyFromJwk,
   bankKeyToJwk,
   bankLink,
   decryptBank,
+  encodeBankKey,
   encryptBank,
   generateBankKey,
   readPrivateBankHeader,
 } from '../src/domain/private-bank';
 
 /**
- * The author CLI for private banks. See SPEC section 3.4.3.
+ * The author CLI for private banks and private repositories. See SPEC
+ * sections 3.4.3 and 3.5.1.
  *
- *   pnpm bank-crypto encrypt <bank-file> --out <file> --url <public URL> [--app-url <url>] [--rotate]
+ *   pnpm bank-crypto encrypt <bank-or-repository-file> --out <file> --url <public URL> [--app-url <url>] [--rotate]
  *   pnpm bank-crypto decrypt <file> --key <key-file>
  *
- * A teacher runs it from their private repo, where the plaintext bank and its
- * key live. It validates with the app's own parser, so the two cannot disagree
- * about what a valid bank is.
+ * A teacher runs it from their private repo, where the plaintext banks and
+ * their keys live. It validates with the app's own parsers, so the two cannot
+ * disagree about what a valid bank or repository is.
  */
 
 /** The live app, which bank links open unless `--app-url` says otherwise. */
 export const DEFAULT_APP_URL = 'https://sortigoza.github.io/phy-quiz-app/';
 
 const USAGE = `Usage:
-  pnpm bank-crypto encrypt <bank-file> --out <file> --url <public URL of that file> [--app-url <url>] [--rotate]
+  pnpm bank-crypto encrypt <bank-or-repository-file> --out <file> --url <public URL of that file> [--app-url <url>] [--rotate]
   pnpm bank-crypto decrypt <file> --key <key-file>`;
 
 export type Io = {
@@ -83,6 +86,104 @@ function requireUrl(value: string | undefined, flag: string): string {
   throw new CliError(`${flag} must be a web address starting with https://, not ${value}.`);
 }
 
+function problemList(issues: BankIssue[]): string {
+  return issues
+    .map(({ path, message }) => (path ? `  ${path} ${message}` : `  ${message}`))
+    .join('\n');
+}
+
+const KEY_SUFFIX = '.key.json';
+
+/** What a key is for. Repository keys live apart, so a repository never shares a bank's key by sharing its id. */
+type KeyOwner = { kind: 'bank' | 'repository'; id: string };
+
+function keyPathFor(io: Io, { kind, id }: KeyOwner): string {
+  const folder = kind === 'bank' ? 'keys' : join('keys', 'repositories');
+  return resolve(io.cwd, folder, `${id}${KEY_SUFFIX}`);
+}
+
+function rotationWarning({ kind, id }: KeyOwner): string {
+  const repositories =
+    kind === 'bank'
+      ? ' Encrypt every private repository listing this bank again, or its key there goes out of date.'
+      : '';
+  return `Rotated the key for ${id}. Earlier links will not open new editions: send the new link to everyone who should keep access.${repositories}\n`;
+}
+
+/**
+ * The key for a bank or repository: the one in `keys/<id>.key.json` (or
+ * `keys/repositories/<id>.key.json`), created there on first use, or replaced
+ * when rotating.
+ */
+async function keyFor(io: Io, owner: KeyOwner, rotate: boolean): Promise<Uint8Array> {
+  const keyPath = keyPathFor(io, owner);
+  if ((await exists(keyPath)) && !rotate) return readKeyFile(keyPath);
+  if (rotate && (await exists(keyPath))) io.stderr(rotationWarning(owner));
+  const key = generateBankKey();
+  await mkdir(dirname(keyPath), { recursive: true });
+  await writeFile(keyPath, `${JSON.stringify(bankKeyToJwk(key), null, 2)}\n`, { mode: 0o600 });
+  return key;
+}
+
+type EncryptTarget = {
+  file: string;
+  out: string;
+  fileUrl: string;
+  appUrl: string;
+  rotate: boolean;
+};
+
+/**
+ * Encrypts a repository under its own key, with each entry that names a bank
+ * carrying that bank's key instead. The key-bearing plaintext exists only in
+ * memory: it is encrypted in the same step, and never written.
+ */
+async function encryptRepository(plaintext: string, target: EncryptTarget, io: Io): Promise<void> {
+  const parsed = parseBankRepository(plaintext);
+  if (!parsed.ok) {
+    throw new CliError(
+      `${target.file} is not a valid bank repository. Nothing was encrypted.\n${problemList(parsed.issues)}`,
+    );
+  }
+  const { id, title } = parsed.repository;
+  if (id === undefined) {
+    throw new CliError(
+      `${target.file} needs an id to be encrypted: it names the repository's key file, which every edition shares.`,
+    );
+  }
+
+  // Validated above, so the entries have exactly the shape the schema allows.
+  const document = JSON.parse(plaintext) as { banks: { url: string; bank?: string }[] };
+  const missing: string[] = [];
+  const banks = [];
+  for (const [index, { bank, ...entry }] of document.banks.entries()) {
+    if (bank === undefined) {
+      banks.push(entry);
+      continue;
+    }
+    const keyPath = keyPathFor(io, { kind: 'bank', id: bank });
+    if (!(await exists(keyPath))) {
+      missing.push(
+        `  banks[${index}] names ${bank}, which has no key in keys/ yet; encrypt that bank first.`,
+      );
+      continue;
+    }
+    banks.push({ ...entry, key: encodeBankKey(await readKeyFile(keyPath)) });
+  }
+  if (missing.length > 0) {
+    throw new CliError(`Nothing was encrypted.\n${missing.join('\n')}`);
+  }
+
+  const key = await keyFor(io, { kind: 'repository', id }, target.rotate);
+  const keyed = JSON.stringify({ ...document, banks }, null, 2);
+  await writeFile(resolve(io.cwd, target.out), `${await encryptBank(keyed, key)}\n`);
+  const privateCount = banks.filter((entry) => 'key' in entry).length;
+  io.stdout(
+    `Encrypted ${title}, listing ${banks.length} banks (${privateCount} private), to ${target.out}. Publish it at ${target.fileUrl}, then send this bank link:\n`,
+  );
+  io.stdout(`${bankLink(target.appUrl, target.fileUrl, key)}\n`);
+}
+
 async function encrypt(args: string[], io: Io): Promise<void> {
   const { values, positionals } = parseArgs({
     args,
@@ -101,30 +202,18 @@ async function encrypt(args: string[], io: Io): Promise<void> {
   const appUrl = requireUrl(values['app-url'] ?? DEFAULT_APP_URL, '--app-url');
 
   const plaintext = await readText(resolve(io.cwd, bankFile), 'bank file');
+  if (isBankRepository(plaintext)) {
+    const target = { file: bankFile, out: values.out, fileUrl, appUrl, rotate: values.rotate };
+    return encryptRepository(plaintext, target, io);
+  }
   const parsed = parseBank(plaintext);
   if (!parsed.ok) {
-    const problems = parsed.issues.map(({ path, message }) =>
-      path ? `  ${path} ${message}` : `  ${message}`,
-    );
     throw new CliError(
-      `${bankFile} is not a valid bank. Nothing was encrypted.\n${problems.join('\n')}`,
+      `${bankFile} is not a valid bank. Nothing was encrypted.\n${problemList(parsed.issues)}`,
     );
   }
 
-  const keyPath = resolve(io.cwd, 'keys', `${parsed.bank.id}.key.json`);
-  let key: Uint8Array;
-  if ((await exists(keyPath)) && !values.rotate) {
-    key = await readKeyFile(keyPath);
-  } else {
-    if (values.rotate && (await exists(keyPath))) {
-      io.stderr(
-        `Rotated the key for ${parsed.bank.id}. Earlier links will not open new editions: send the new link to everyone who should keep access.\n`,
-      );
-    }
-    key = generateBankKey();
-    await mkdir(dirname(keyPath), { recursive: true });
-    await writeFile(keyPath, `${JSON.stringify(bankKeyToJwk(key), null, 2)}\n`, { mode: 0o600 });
-  }
+  const key = await keyFor(io, { kind: 'bank', id: parsed.bank.id }, values.rotate);
 
   await writeFile(resolve(io.cwd, values.out), `${await encryptBank(plaintext, key)}\n`);
   io.stdout(
@@ -152,8 +241,35 @@ async function decrypt(args: string[], io: Io): Promise<void> {
       `Could not decrypt ${file} with ${values.key}: the file is damaged, or it belongs to a different key.`,
     );
   }
+  if (isBankRepository(decrypted.plaintext)) {
+    io.stdout(await withBankIds(decrypted.plaintext, io));
+    return;
+  }
   // Byte for byte, so it can be redirected and compared with the original.
   io.stdout(decrypted.plaintext);
+}
+
+/**
+ * A decrypted repository as its author wrote it: each entry's key replaced by
+ * the id of the bank whose key file in `keys/` matches, so no key reaches the
+ * terminal.
+ */
+async function withBankIds(plaintext: string, io: Io): Promise<string> {
+  const idsByKey = new Map<string, string>();
+  const keysDir = resolve(io.cwd, 'keys');
+  const names = await readdir(keysDir).catch(() => []);
+  for (const name of names.filter((each) => each.endsWith(KEY_SUFFIX))) {
+    const key = await readKeyFile(resolve(keysDir, name)).catch(() => null);
+    if (key) idsByKey.set(encodeBankKey(key), name.slice(0, -KEY_SUFFIX.length));
+  }
+
+  const document = JSON.parse(plaintext) as { banks: { url: string; key?: string }[] };
+  const banks = document.banks.map(({ key, ...entry }) =>
+    key === undefined
+      ? entry
+      : { ...entry, bank: idsByKey.get(key) ?? 'unknown: no key file in keys/ matches' },
+  );
+  return `${JSON.stringify({ ...document, banks }, null, 2)}\n`;
 }
 
 /** Runs one command, and returns the process exit code. */

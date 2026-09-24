@@ -190,6 +190,7 @@ export const privateBanks: string[] = [
   'To open one, open the bank link your teacher sent. The bank is added to your library, marked 🔒, and is taken like any other.',
   'This browser keeps the bank’s key, so later editions open without the link: load them by URL or upload as usual. On a new device, open the link again.',
   'If the file will not load from the link, download it and upload it. The key from the link is already kept, so it opens.',
+  'A teacher can send one bank link for a whole course of private banks: it opens a private repository, and every bank it lists joins your library.',
   'A bank link opens the bank for anyone who has it. Do not post it publicly.',
 ];
 
@@ -199,7 +200,9 @@ export const bankRepositories: string[] = [
   'It has formatVersion 1, a title, an optional description and author, and banks: a list of 1 to 100 entries, each { "url": ... }. Unknown keys and a bank listed twice reject the repository whole.',
   'A url may be relative, such as "kinematics.json", and is read from beside the repository file. Relative entries need the repository loaded by URL; uploaded, only its full https:// entries load.',
   'Each bank loads as if its own link had been pasted, and one that fails does not stop the rest. The library then lists what happened to each, with a Replace button on any bank that changed without a version bump.',
-  'A repository cannot list another repository, and should never list a bank link: the file is public, and the link would give its key away.',
+  'A repository cannot list another repository, and a plaintext one should never list a bank link: the file is public, and the link would give its key away.',
+  'A teacher can also publish a private repository: an encrypted course list that carries the keys of the private banks it lists, so one link opens the whole course. It is opened with its bank link, like a private bank, and later editions open without the link.',
+  'An author marks a private bank in a repository with "bank": its bank id, and the author tool fills in the key when it encrypts the repository. Never write a key into a repository by hand: a plaintext repository holding keys is refused, because those keys are now public.',
 ];
 
 const repository = {

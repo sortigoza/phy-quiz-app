@@ -1,11 +1,13 @@
-import { fetchBankText, type FetchBankOptions, type FetchFailure } from './bank-url';
+import { fetchBankText, type FetchFailure } from './bank-url';
 import { parseBankLink, type ParsedBankLink } from './domain/private-bank';
-import { addBankFromText, storeBankKey, type AddBankOptions, type AddBankResult } from './library';
-import { releaseBankKey, type BankSource } from './storage/db';
+import { storeBankKey } from './library';
+import { loadText, type LoadTextOptions, type LoadTextResult } from './load-text';
+import { releaseBankKey } from './storage/db';
 
 /**
- * Opening a bank link: the `#bank=…&key=…` fragment that carries a private
- * bank's address and its key. See SPEC section 3.4.4.
+ * Opening a bank link: the `#bank=…&key=…` fragment that carries the address
+ * of a private bank or private repository, and its key. See SPEC sections
+ * 3.4.4 and 3.5.1.
  */
 
 type AddressBar = {
@@ -34,38 +36,33 @@ export type OpenBankLinkResult =
   | { kind: 'broken' }
   /** The file could not be read. The key is stored regardless. */
   | { kind: 'unreachable'; failure: FetchFailure }
-  /**
-   * The file was read and offered to the library. `text`, `source` and
-   * `options` are what to offer again, should a conflict need replacing.
-   */
-  | {
-      kind: 'fetched';
-      result: AddBankResult;
-      text: string;
-      source: BankSource;
-      options: AddBankOptions;
-    };
+  /** The file was read and loaded: a bank, or a repository and every bank it lists. */
+  | LoadTextResult;
 
 /**
- * Stores the link's key, then fetches and adds the bank it points to. The key
- * is stored first so that if the fetch fails, downloading the file and
- * uploading it opens the bank without the link.
+ * Stores the link's key, then fetches and loads the bank or repository it
+ * points to. The key is stored first so that if the fetch fails, downloading
+ * the file and uploading it opens it without the link.
  */
 export async function openBankLink(
   link: Exclude<ParsedBankLink, { kind: 'none' }>,
-  fetchOptions?: FetchBankOptions,
+  options: Omit<LoadTextOptions, 'key' | 'base'> = {},
 ): Promise<OpenBankLinkResult> {
   if (link.kind === 'broken') return link;
   const key = await storeBankKey(link.key);
 
-  const fetched = await fetchBankText(link.url, fetchOptions);
+  const fetched = await fetchBankText(link.url, options);
   if (!fetched.ok) return { kind: 'unreachable', failure: fetched.failure };
 
-  const source: BankSource = { kind: 'url', url: fetched.url };
-  const options: AddBankOptions = { key };
-  const result = await addBankFromText(fetched.text, source, options);
+  const loaded = await loadText(
+    fetched.text,
+    { kind: 'url', url: fetched.url },
+    { ...options, key, base: fetched.url },
+  );
   // The file is there and the key does not open it, so the key belongs to
   // nothing this link can reach.
-  if (!result.ok && result.reason === 'undecryptable') await releaseBankKey(key.kid);
-  return { kind: 'fetched', result, text: fetched.text, source, options };
+  if (loaded.kind === 'bank' && !loaded.result.ok && loaded.result.reason === 'undecryptable') {
+    await releaseBankKey(key.kid);
+  }
+  return loaded;
 }

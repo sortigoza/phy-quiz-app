@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Library } from './Library';
-import { encryptBank, generateBankKey } from '../domain/private-bank';
+import { encodeBankKey, encryptBank, generateBankKey } from '../domain/private-bank';
 import { db } from '../storage/db';
 import { addBankFromText } from '../library';
 
@@ -314,6 +314,53 @@ describe('Library', () => {
       const card = within(await bankList()).getByRole('listitem');
       expect(within(card).getByText(/private/i)).toHaveTextContent('🔒');
       expect(handled).toHaveBeenCalled();
+    });
+
+    it('opens a private course from one link, showing what happened to each bank', async () => {
+      const courseKey = generateBankKey();
+      const bankKey = generateBankKey();
+      const courseUrl = 'https://a-teacher.github.io/banks/course.jwe.json';
+      serveFiles({
+        [courseUrl]: await encryptBank(
+          repositoryText(['kinematics.bank.jwe.json', 'intro.json'], {
+            banks: [
+              { url: 'kinematics.bank.jwe.json', key: encodeBankKey(bankKey) },
+              { url: 'intro.json' },
+            ],
+          }),
+          courseKey,
+        ),
+        [fileUrl]: await encryptBank(bankText(), bankKey),
+        'https://a-teacher.github.io/banks/intro.json': bankText({
+          id: 'kth.intro',
+          title: 'Intro',
+        }),
+      });
+      render(
+        <Library
+          onStart={() => {}}
+          onResume={() => {}}
+          bankLink={{ kind: 'bank-link', url: courseUrl, key: courseKey }}
+        />,
+      );
+
+      const report = await screen.findByRole('region', { name: /mechanics, autumn term/i });
+      expect(report).toHaveTextContent(/🔒/);
+      expect(report).toHaveTextContent(/2 added/);
+      await waitFor(() => expect(bankCards()).toHaveLength(2));
+    });
+
+    it('refuses a course list with its keys in plain text, and says they are now public', async () => {
+      render(<Library onStart={() => {}} onResume={() => {}} />);
+      await uploadFile(
+        rawFile(
+          repositoryText([], { banks: [{ url: 'a.json', key: encodeBankKey(generateBankKey()) }] }),
+          'course.json',
+        ),
+      );
+      const problems = await screen.findByRole('alert');
+      expect(problems).toHaveTextContent(/not a valid bank repository/i);
+      expect(problems).toHaveTextContent(/now public/i);
     });
 
     it('shows no lock on a plaintext bank', async () => {

@@ -56,7 +56,9 @@ export type AddBankOptions = {
    * names. A bank link passes its own key, so a link whose key belongs to a
    * different bank says so rather than asking for the link.
    */
-  key?: StoredBankKey;
+  key?: StoredBankKey | undefined;
+  /** The key id of the private repository delivering this bank, recorded on it. SPEC section 3.5.1. */
+  repositoryKid?: string | undefined;
 };
 
 /** What to tell the person when a private bank cannot be opened. SPEC section 3.4.4. */
@@ -80,12 +82,19 @@ export async function storeBankKey(raw: Uint8Array): Promise<StoredBankKey> {
   return stored;
 }
 
-type Opened =
+export type OpenedText =
+  /** `kid` is the key it was decrypted with, or undefined when it was never encrypted. */
   | { ok: true; plaintext: string; kid: string | undefined }
   | { ok: false; reason: 'no-key' | 'undecryptable' };
 
-/** The plaintext of a bank file, decrypting it first if it is a private bank. */
-async function readPlaintext(text: string, givenKey: StoredBankKey | undefined): Promise<Opened> {
+/**
+ * The plaintext of a file, decrypting it first if it is encrypted: with the
+ * given key if there is one, otherwise with the stored key its `kid` names.
+ */
+export async function openText(
+  text: string,
+  givenKey: StoredBankKey | undefined,
+): Promise<OpenedText> {
   const header = readPrivateBankHeader(text);
   if (header === null) return { ok: true, plaintext: text, kid: undefined };
 
@@ -97,12 +106,21 @@ async function readPlaintext(text: string, givenKey: StoredBankKey | undefined):
   return { ok: true, plaintext: decrypted.plaintext, kid: key.kid };
 }
 
+/** The repositories holding a bank, with one more; the same array when it adds nothing. */
+function withRepository(
+  held: string[] | undefined,
+  repositoryKid: string | undefined,
+): string[] | undefined {
+  if (repositoryKid === undefined || held?.includes(repositoryKid)) return held;
+  return [...(held ?? []), repositoryKid];
+}
+
 export async function addBankFromText(
   text: string,
   source: BankSource,
-  { replace = false, key: givenKey }: AddBankOptions = {},
+  { replace = false, key: givenKey, repositoryKid }: AddBankOptions = {},
 ): Promise<AddBankResult> {
-  const opened = await readPlaintext(text, givenKey);
+  const opened = await openText(text, givenKey);
   if (!opened.ok) return opened;
   const { plaintext, kid } = opened;
 
@@ -118,12 +136,14 @@ export async function addBankFromText(
   const existing = await getBank(key);
 
   if (existing?.fingerprint === digest) {
-    // The same bank, now opened with a key: record it, so the bank is badged
-    // and the key is let go with it. A plaintext copy never strips a key.
-    if (kid === undefined || existing.kid === kid) {
+    // The same bank, now opened with a key or delivered by a private
+    // repository: record it, so the bank is badged and each key is let go
+    // with it. A plaintext copy never strips a key.
+    const repositoryKids = withRepository(existing.repositoryKids, repositoryKid);
+    const keyed = { ...existing, kid: kid ?? existing.kid, repositoryKids };
+    if (keyed.kid === existing.kid && repositoryKids === existing.repositoryKids) {
       return { ok: true, bank: existing, status: 'unchanged' };
     }
-    const keyed = { ...existing, kid };
     await putBank(keyed);
     return { ok: true, bank: keyed, status: 'unchanged' };
   }
@@ -140,6 +160,8 @@ export async function addBankFromText(
     addedAt: new Date().toISOString(),
     raw: plaintext,
     kid,
+    // A replaced bank stays held by every repository that delivered it.
+    repositoryKids: withRepository(existing?.repositoryKids, repositoryKid),
   };
 
   if (existing && !replace) return { ok: true, bank: stored, status: 'conflict', existing };

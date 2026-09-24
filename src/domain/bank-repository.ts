@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { rawUrlFor } from '../bank-url';
-import { formatPath, type BankIssue } from './bank';
+import { bankIdSchema, formatPath, type BankIssue } from './bank';
+import { decodeBankKey } from './private-bank';
 
 /**
  * The bank repository format, version 1: one file listing the URLs of several
@@ -12,6 +13,7 @@ import { formatPath, type BankIssue } from './bank';
 
 export const repositorySchema = z.strictObject({
   $schema: z.string().max(500).optional(),
+  id: bankIdSchema.optional(),
   formatVersion: z.literal(1, {
     error:
       'formatVersion must be 1; this app cannot read other versions of the bank repository format',
@@ -20,7 +22,18 @@ export const repositorySchema = z.strictObject({
   description: z.string().min(1).max(2000).optional(),
   author: z.string().min(1).max(200).optional(),
   banks: z
-    .array(z.strictObject({ url: z.string().min(1).max(2000) }))
+    .array(
+      z.strictObject({
+        url: z.string().min(1).max(2000),
+        /** The bank this entry points at, for the author CLI to find its key. The app ignores it. */
+        bank: bankIdSchema.optional(),
+        /** The bank's key, only ever inside an encrypted repository. SPEC section 3.5.1. */
+        key: z
+          .string()
+          .refine((key) => decodeBankKey(key) !== null, 'a bank key is 32 bytes of base64url')
+          .optional(),
+      }),
+    )
     .min(1)
     .max(100),
 });
@@ -31,9 +44,12 @@ export type RepositoryEntry = {
   given: string;
   /** Where to fetch it, or null when it is relative and there is nothing to resolve it against. */
   url: string | null;
+  /** The bank's key, carried by a private repository. */
+  key?: Uint8Array | undefined;
 };
 
 export type BankRepository = {
+  id?: string | undefined;
   title: string;
   entries: RepositoryEntry[];
 };
@@ -66,12 +82,21 @@ function resolve(given: string, base: string | undefined): string | null {
   }
 }
 
+/** A key in a plaintext repository has been published with it, so it is refused, not used. */
+const PUBLIC_KEY_MESSAGE =
+  'this repository holds a bank key in plain text, so the key is now public. Rotate it, and publish the repository encrypted with the author tool';
+
 /**
  * Parses and validates a repository, resolving each entry against `base`, the
  * address the repository was read from. Either the whole repository is valid
- * or none of it is returned.
+ * or none of it is returned. `encrypted` says it arrived as a private
+ * repository, the only place a bank key may appear.
  */
-export function parseBankRepository(text: string, base?: string): ParseRepositoryResult {
+export function parseBankRepository(
+  text: string,
+  base?: string,
+  { encrypted = false }: { encrypted?: boolean } = {},
+): ParseRepositoryResult {
   const result = repositorySchema.safeParse(parseJsonObject(text));
   if (!result.success) {
     return {
@@ -83,10 +108,20 @@ export function parseBankRepository(text: string, base?: string): ParseRepositor
     };
   }
 
-  const { title, banks } = result.data;
-  const entries = banks.map(({ url }) => ({ given: url, url: resolve(url, base) }));
+  const { id, title, banks } = result.data;
+  const entries = banks.map(({ url, key }) => ({
+    given: url,
+    url: resolve(url, base),
+    key: key === undefined ? undefined : (decodeBankKey(key) ?? undefined),
+  }));
 
   const issues: BankIssue[] = [];
+  if (!encrypted) {
+    for (const [index, { key }] of banks.entries()) {
+      if (key !== undefined)
+        issues.push({ path: `banks[${index}].key`, message: PUBLIC_KEY_MESSAGE });
+    }
+  }
   const firstSeen = new Map<string, number>();
   for (const [index, { given, url }] of entries.entries()) {
     // Compared as fetched, so a GitHub file page and its raw file are one bank.
@@ -102,5 +137,5 @@ export function parseBankRepository(text: string, base?: string): ParseRepositor
   }
   if (issues.length > 0) return { ok: false, issues };
 
-  return { ok: true, repository: { title, entries } };
+  return { ok: true, repository: { id, title, entries } };
 }

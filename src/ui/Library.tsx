@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { openBankLink, type OpenBankLinkResult } from '../bank-link';
-import {
-  loadBankRepository,
-  replaceRepositoryEntry,
-  type RepositoryOutcome,
-} from '../bank-repository';
+import { replaceRepositoryEntry, type RepositoryOutcome } from '../bank-repository';
 import { fetchBankText, fetchFailureMessage } from '../bank-url';
 import {
   addBankFromText,
@@ -14,6 +10,7 @@ import {
   type AddBankResult,
   type AddBankStatus,
 } from '../library';
+import { loadText, type LoadTextResult } from '../load-text';
 import { findInProgress, openStoredBank, type InProgressAttempt } from '../quiz';
 import {
   deleteBank,
@@ -23,7 +20,6 @@ import {
   type StoredBank,
 } from '../storage/db';
 import type { Bank, BankIssue } from '../domain/bank';
-import { isBankRepository, parseBankRepository } from '../domain/bank-repository';
 import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
@@ -32,8 +28,8 @@ import { InProgressOffer } from './InProgressOffer';
  * The library: every question bank held in this browser, and the way to add one.
  *
  * A bank arrives by upload, by URL or by bank link, and from then on they are
- * all the same: each goes through `addBankFromText`. A bank repository, by
- * upload or URL, delivers several banks that way at once. The dedicated validation
+ * all the same: each goes through `loadText`. A bank repository, public or
+ * private, delivers several banks that way at once. The dedicated validation
  * screen with its richer error reporting is ticket 06.
  */
 
@@ -63,9 +59,11 @@ type Conflict = {
 };
 
 /** What loading a bank repository did, entry by entry. */
-type RepositoryReport = { title: string; outcomes: RepositoryOutcome[] };
+type RepositoryReport = { title: string; private: boolean; outcomes: RepositoryOutcome[] };
 
 const INVALID_BANK_INTRO = 'Nothing was added. Fix these and try again:';
+const INVALID_REPOSITORY_INTRO =
+  'This is not a valid bank repository, so none of its banks were loaded. Fix these:';
 
 const BROKEN_LINK_MESSAGE =
   'This bank link is incomplete, perhaps cut short by the app that carried it. Ask for the link again, and open all of it.';
@@ -204,12 +202,48 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     [clearPanels],
   );
 
-  const addText = useCallback(
-    (text: string, source: BankSource, options: AddBankOptions = {}) =>
+  /** Shows what loading a file did: one bank's outcome, or a repository's report. */
+  const showLoaded = useCallback(
+    (loaded: LoadTextResult, name: string) => {
+      if (loaded.kind === 'bank') {
+        showResult(loaded.result, loaded.text, loaded.source, loaded.options);
+        return;
+      }
+      clearPanels();
+      if (loaded.kind === 'invalid-repository') {
+        setRejection({
+          kind: 'invalid',
+          name,
+          issues: loaded.issues,
+          intro: INVALID_REPOSITORY_INTRO,
+        });
+      } else {
+        setReport({ title: loaded.title, private: loaded.private, outcomes: loaded.outcomes });
+      }
+    },
+    [clearPanels, showResult],
+  );
+
+  const showProgress = useCallback(
+    (settled: number, total: number) => setProgress({ settled, total }),
+    [],
+  );
+
+  /**
+   * Loads a file's text and shows the outcome. `base` is the address it was
+   * read from; an uploaded repository has none, so its relative entries fail.
+   */
+  const load = useCallback(
+    (text: string, source: BankSource, base?: string) =>
       guard(async () => {
-        showResult(await addBankFromText(text, source, options), text, source, options);
+        try {
+          const loaded = await loadText(text, source, { base, onProgress: showProgress });
+          showLoaded(loaded, sourceName(source));
+        } finally {
+          setProgress(null);
+        }
       }),
-    [guard, showResult],
+    [guard, showLoaded, showProgress],
   );
 
   // Opened once per link, even though React may run this effect twice: the
@@ -219,12 +253,16 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
   useEffect(() => {
     if (bankLink.kind === 'none') return;
     if (opening.current?.link !== bankLink) {
-      opening.current = { link: bankLink, result: openBankLink(bankLink) };
+      opening.current = {
+        link: bankLink,
+        result: openBankLink(bankLink, { onProgress: showProgress }),
+      };
     }
 
     let live = true;
     const settle = (next: () => void) => {
       if (!live) return;
+      setProgress(null);
       next();
       setShownLink(bankLink);
       onBankLinkHandled?.();
@@ -232,8 +270,8 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     opening.current.result.then(
       (opened) =>
         settle(() => {
-          if (opened.kind === 'fetched') {
-            showResult(opened.result, opened.text, opened.source, opened.options);
+          if (opened.kind !== 'broken' && opened.kind !== 'unreachable') {
+            showLoaded(opened, bankLink.kind === 'bank-link' ? bankLink.url : '');
             return;
           }
           clearPanels();
@@ -252,53 +290,15 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     return () => {
       live = false;
     };
-  }, [bankLink, onBankLinkHandled, showResult, clearPanels]);
-
-  /**
-   * Loads every bank a repository lists and reports each. `base` is the address
-   * it was read from; an uploaded repository has none, so its relative entries fail.
-   */
-  const loadRepository = useCallback(
-    async (text: string, name: string, base?: string) => {
-      clearPanels();
-
-      const parsed = parseBankRepository(text, base);
-      if (!parsed.ok) {
-        setRejection({
-          kind: 'invalid',
-          name,
-          issues: parsed.issues,
-          intro:
-            'This is not a valid bank repository, so none of its banks were loaded. Fix these:',
-        });
-        return;
-      }
-
-      const { title, entries } = parsed.repository;
-      setProgress({ settled: 0, total: entries.length });
-      try {
-        const outcomes = await loadBankRepository(parsed.repository, {
-          onProgress: (settled) => setProgress({ settled, total: entries.length }),
-        });
-        setReport({ title, outcomes });
-      } finally {
-        setProgress(null);
-      }
-    },
-    [clearPanels],
-  );
+  }, [bankLink, onBankLinkHandled, showLoaded, showProgress, clearPanels]);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       const file = files?.[0];
       if (!file) return;
-      await exclusive(async () => {
-        const text = await file.text();
-        if (isBankRepository(text)) await loadRepository(text, file.name);
-        else await addText(text, { kind: 'upload', filename: file.name });
-      });
+      await exclusive(async () => load(await file.text(), { kind: 'upload', filename: file.name }));
     },
-    [addText, exclusive, loadRepository],
+    [exclusive, load],
   );
 
   async function replaceInReport(index: number) {
@@ -322,10 +322,8 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     event.preventDefault();
     await exclusive(async () => {
       const fetched = await fetchBankText(url);
-      if (fetched.ok && isBankRepository(fetched.text)) {
-        await loadRepository(fetched.text, fetched.url, fetched.url);
-      } else if (fetched.ok) {
-        await addText(fetched.text, { kind: 'url', url: fetched.url });
+      if (fetched.ok) {
+        await load(fetched.text, { kind: 'url', url: fetched.url }, fetched.url);
       } else {
         clearPanels();
         setRejection({ kind: 'unreachable', message: fetchFailureMessage(fetched.failure) });
@@ -478,7 +476,15 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
               type="button"
               className="button"
               onClick={() =>
-                void addText(conflict.text, conflict.source, { ...conflict.options, replace: true })
+                void guard(async () => {
+                  const options = { ...conflict.options, replace: true };
+                  showResult(
+                    await addBankFromText(conflict.text, conflict.source, options),
+                    conflict.text,
+                    conflict.source,
+                    options,
+                  );
+                })
               }
             >
               Replace
@@ -611,7 +617,14 @@ function RepositoryReportPanel({
 }) {
   return (
     <section className="panel repository-report" aria-labelledby="repository-report-title">
-      <h3 id="repository-report-title">{report.title}</h3>
+      <h3 id="repository-report-title">
+        {report.private && (
+          <span className="bank__private" title="Opened with a bank link">
+            🔒{' '}
+          </span>
+        )}
+        {report.title}
+      </h3>
       <p>{reportSummary(report.outcomes)}.</p>
       <ul className="repository-report__list">
         {report.outcomes.map((outcome, index) => (
