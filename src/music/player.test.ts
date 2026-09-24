@@ -202,4 +202,27 @@ describe('background music', () => {
     }).not.toThrow();
     await settle();
   });
+
+  it('plays both voices down the middle where there is no stereo panner', async () => {
+    const player = music();
+    Object.assign(context, { createStereoPanner: undefined });
+    context.state = 'running';
+    player.play();
+    await settle();
+    expect(context.oscillators).toHaveLength(2);
+  });
+
+  it('stays silent, without throwing, when Web Audio refuses a node', async () => {
+    const player = music();
+    context.createBiquadFilter = () => {
+      throw new Error('Not supported');
+    };
+    expect(() => {
+      player.play();
+      player.unlock();
+      player.stop();
+    }).not.toThrow();
+    await settle();
+    expect(context.oscillators).toHaveLength(0);
+  });
 });

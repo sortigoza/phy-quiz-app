@@ -107,4 +107,16 @@ describe('background music', () => {
     await screen.findByRole('button', { name: 'Music' });
     expect(music.play).not.toHaveBeenCalled();
   });
+
+  it('passes the click that turns music back on to the player', async () => {
+    await setMusicOn(false);
+    const user = userEvent.setup();
+    const { music, isPlaying } = fakeMusic();
+    render(<App music={music} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Music' }));
+
+    expect(music.unlock).toHaveBeenCalled();
+    expect(isPlaying()).toBe(true);
+  });
 });

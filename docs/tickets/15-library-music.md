@@ -6,7 +6,7 @@ The Crab Canon is a single line of music played against itself reversed: the sec
 
 **Blocked by:** 03
 
-**Status:** in progress, waiting on the MIDI file
+**Status:** done
 
 - [x] Music plays on the library and on no other screen: not on start, attempt, review, history or help
 - [x] Leaving the library stops the music with a short fade, and returning starts it again from the beginning
@@ -15,15 +15,16 @@ The Crab Canon is a single line of music played against itself reversed: the sec
 - [x] The toggle's state is remembered in this browser, and music turned off never starts, not even for a moment on load
 - [x] A missing file, a file that will not parse, or a browser without Web Audio leaves the app silent and otherwise unaffected
 - [x] The MIDI reader handles formats 0 and 1, tempo changes, running status, and note-on at velocity zero, with tests
-- [ ] `public/music/crab-canon.mid` is committed from a source whose licence allows it, with the source and licence recorded below
-- [ ] A test parses the committed file and asserts it is a crab canon: two voices, the second the first reversed
+- [x] `public/music/crab-canon.mid` is committed from a source whose licence allows it, with the source and licence recorded below
+- [x] A test parses the committed file and asserts it is a crab canon: two voices, the second the first reversed
 
 ## Implementation notes
 
 ### Where things are
 
 - `src/music/midi.ts`: a small Standard MIDI File reader, pure TypeScript. It gives each note its pitch, loudness, start and length in seconds, and its voice (the track in format 1, the channel in format 0).
-- `src/music/crab.ts`: `isCrabCanon`, the check the committed file must pass.
+- `src/music/crab.ts`: `isCrabCanon`, the check the committed file must pass. It compares timing as well as pitch: a reversed note that sounds from `start` to `start + duration` must sound from `end - start - duration`.
+- `scripts/crab-canon.ts` (`pnpm crab-canon`): writes `public/music/crab-canon.mid`. A test holds the committed file to what the script writes, so they cannot drift apart.
 - `src/music/player.ts`: `createMusic`, which synthesises a score with Web Audio and loops it. It takes the loader and the audio context as arguments, so the tests pass fakes.
 - `src/music/background.ts`: the one instance the app uses, which fetches `./music/crab-canon.mid` relative to the page, so it works at any subpath like the rest of the build.
 - `src/App.tsx`: `useMusicSetting` and `useBackgroundMusic`. The setting is a row in the existing `settings` table, so the database schema did not change.
@@ -49,7 +50,20 @@ Headless Chromium, driving the real app through Playwright with a stand-in file:
 
 Headless Chromium ignores the autoplay policy flag, so the path where the context waits for a gesture is covered only by the unit tests. Check it once by hand on a real phone.
 
+### The file: source and licence
+
+`public/music/crab-canon.mid` is sequenced in this repo, not taken from elsewhere, because MIDI files found online seldom state a licence.
+
+- **The music** is Bach's, published in 1747, and in the public domain.
+- **The sequencing** is `scripts/crab-canon.ts`, dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The file says so in its copyright meta event.
+- **What it holds:** Bach wrote one line of 18 bars, in C minor and 4/4, to be read forwards and backwards at once. The script transcribes that line only, and computes the second voice as its exact retrograde, in time as well as in pitch. It is a format 1 file with three tracks: a tempo track at 72 quarter notes a minute (one pass lasts a minute), then `Forwards` and `Backwards`. Notes are written at full length, and the player adds its own release.
+- **How the notes were checked:** the line was compared note for note against two independent sequencings: the Canon 1 a 2 file on [Dave's J. S. Bach Page](http://www.jsbach.net/midi/midi_musicaloffering.html) (`1079-03.mid`), and the flute duet on [flutetunes.com](https://www.flutetunes.com/tunes.php?id=4602), which is transposed to G minor. The rhythm was checked against the LilyPond score on French Wikipedia's *Canon à l'écrevisse*. All 89 pitches agree with the jsbach.net file. Two places needed a decision:
+  - Bar 12 reads A♭ D E♭ F G F E♭ D. French Wikipedia's second voice has D where its own first voice, and both other sources, have F. That is a typo in its second voice.
+  - Bar 10 rises F G A♮ B♮ C. French Wikipedia writes A♭, and both other sources write A♮ (E♮ in the G minor flute version). The ascending melodic minor follows the majority.
+
+To change the tempo or fix a note, edit `scripts/crab-canon.ts`, run `pnpm crab-canon`, and commit both files.
+
 ### Left open
 
-- **The file itself.** The piece is public domain, but a MIDI sequencing of it can carry its own copyright, so the file needs a source with a stated licence: a Mutopia Project or IMSLP edition, a Wikimedia Commons file, or one sequenced by hand from the score. Once it is committed, tick the last two boxes, and put the source and licence in this section.
 - **Offline.** Ticket 11 should precache `music/crab-canon.mid` with the app shell, so the library still has its music offline.
+- **Autoplay on a real phone.** Headless Chromium ignores the autoplay policy, so check once by hand that a phone waits for the first gesture and then plays.
