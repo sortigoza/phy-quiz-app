@@ -12,7 +12,10 @@ import { answerAllAndSubmit, startQuiz } from '../test/quiz';
  * looking back at their attempts, and a teacher gathering a class's files.
  */
 
-const anna = attemptRecord({ submittedAt: '2026-09-22T10:00:00.000Z' });
+const anna = attemptRecord({
+  startedAt: '2026-09-22T09:56:40.000Z',
+  submittedAt: '2026-09-22T10:00:00.000Z',
+});
 const ben = attemptRecord({
   id: '01890a5d-ac96-774b-bcce-b302099a8058',
   code: '84S-N02R',

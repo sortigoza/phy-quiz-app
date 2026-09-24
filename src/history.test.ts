@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { writeHistoryFile } from './domain/history-file';
-import { filterHistory, historyChoices, importHistory } from './history';
+import { filterHistory, historyFilterValues, importHistory } from './history';
 import { db, listAttempts, recordSubmittedAttempt } from './storage/db';
 import { attemptRecord } from './test/attempts';
 
@@ -51,7 +51,7 @@ describe('filtering history', () => {
   });
 
   it('offers each name once, alphabetically, and each bank once under its newest title', () => {
-    expect(historyChoices(history)).toEqual({
+    expect(historyFilterValues(history)).toEqual({
       names: ['Anna', 'Ben'],
       banks: [
         { bankId: 'test.optics', title: 'Optics' },

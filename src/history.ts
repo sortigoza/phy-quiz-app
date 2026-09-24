@@ -8,7 +8,7 @@ import { addAttempts } from './storage/db';
  *
  * Import is additive and idempotent. Nothing held is ever replaced, so
  * importing the same file twice changes nothing the second time, and a teacher
- * can import thirty students' files in any order.
+ * can import thirty participants' files in any order.
  */
 
 /**
@@ -27,25 +27,25 @@ export function filterHistory(attempts: readonly Attempt[], filter: HistoryFilte
 }
 
 /** What the filters can be set to: every name and bank in history, each once. */
-export type HistoryChoices = {
+export type HistoryFilterValues = {
   /** Alphabetical. */
   names: string[];
   /** Alphabetical by title, each under the title of its most recent attempt. */
   banks: Array<{ bankId: string; title: string }>;
 };
 
-export function historyChoices(attempts: readonly Attempt[]): HistoryChoices {
-  const byTitle = (a: string, b: string) => a.localeCompare(b);
+export function historyFilterValues(attempts: readonly Attempt[]): HistoryFilterValues {
+  const alphabetical = (a: string, b: string) => a.localeCompare(b);
   const latest = new Map<string, Attempt>();
   for (const attempt of attempts) {
     const held = latest.get(attempt.bankId);
     if (!held || attempt.submittedAt > held.submittedAt) latest.set(attempt.bankId, attempt);
   }
   return {
-    names: [...new Set(attempts.map((attempt) => attempt.name))].sort(byTitle),
+    names: [...new Set(attempts.map((attempt) => attempt.name))].sort(alphabetical),
     banks: [...latest.values()]
       .map((attempt) => ({ bankId: attempt.bankId, title: attempt.bankTitle }))
-      .sort((a, b) => byTitle(a.title, b.title)),
+      .sort((a, b) => alphabetical(a.title, b.title)),
   };
 }
 

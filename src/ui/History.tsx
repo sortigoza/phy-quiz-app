@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
 import { historyFileName, writeHistoryFile, type RejectedAttempt } from '../domain/history-file';
 import { percentage } from '../domain/scoring';
-import { filterHistory, historyChoices, importHistory, type HistoryFilter } from '../history';
+import { filterHistory, historyFilterValues, importHistory, type HistoryFilter } from '../history';
 import { listAttempts } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { APP_VERSION } from '../version';
@@ -62,7 +62,7 @@ export function History({ onDone }: Props) {
 
   const all = held?.attempts ?? [];
   const shown = filterHistory(all, filter);
-  const choices = historyChoices(all);
+  const filterValues = historyFilterValues(all);
   const filtered = filter.name !== undefined || filter.bankId !== undefined;
 
   function exportAttempts(attempts: Attempt[]) {
@@ -198,7 +198,7 @@ export function History({ onDone }: Props) {
                 }
               >
                 <option value="">Everyone</option>
-                {choices.names.map((name) => (
+                {filterValues.names.map((name) => (
                   <option key={name} value={name}>
                     {name}
                   </option>
@@ -214,7 +214,7 @@ export function History({ onDone }: Props) {
                 }
               >
                 <option value="">All banks</option>
-                {choices.banks.map((bank) => (
+                {filterValues.banks.map((bank) => (
                   <option key={bank.bankId} value={bank.bankId}>
                     {bank.title}
                   </option>

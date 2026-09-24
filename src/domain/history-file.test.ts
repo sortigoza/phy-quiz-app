@@ -123,6 +123,37 @@ describe('reading the attempts in a history file', () => {
     });
   });
 
+  it('lower-cases the id, so the same attempt cannot slip past deduplication by case', () => {
+    const shouted = attempt({ id: '01890A5D-AC96-774B-BCCE-B302099A8057' });
+    expect(readHistoryFile(envelope([shouted]))).toMatchObject({
+      ok: true,
+      attempts: [{ id: '01890a5d-ac96-774b-bcce-b302099a8057' }],
+    });
+  });
+
+  it('writes times the way this app does, so history sorts newest first', () => {
+    const read = readHistoryFile(
+      envelope([
+        attempt({ startedAt: '2026-09-23T10:00:00Z', submittedAt: '2026-09-23T12:03:20+02:00' }),
+      ]),
+    );
+    expect(read).toMatchObject({
+      ok: true,
+      attempts: [
+        { startedAt: '2026-09-23T10:00:00.000Z', submittedAt: '2026-09-23T10:03:20.000Z' },
+      ],
+    });
+  });
+
+  it('rejects an attempt submitted before it started', () => {
+    const read = readHistoryFile(envelope([attempt({ startedAt: '2026-09-23T11:00:00.000Z' })]));
+    expect(read).toMatchObject({
+      ok: true,
+      attempts: [],
+      rejected: [{ position: 1, reason: expect.stringMatching(/^submittedAt: .*before/) }],
+    });
+  });
+
   it('accepts fields a later version of the app may add, and drops them', () => {
     expect(readHistoryFile(envelope([{ ...attempt(), device: 'phone' }]))).toEqual({
       ok: true,

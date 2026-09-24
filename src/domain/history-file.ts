@@ -53,6 +53,13 @@ export function historyFileName(exportedAt: Date): string {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A moment, written back exactly as `Date.toISOString` writes it. History is
+ * sorted by comparing these strings, which only works when every one has the
+ * same shape: UTC, with milliseconds.
+ */
+const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
+
 const answerSchema = z.object({
   questionId: z.string().min(1).max(128),
   chosenOptionId: z.string().min(1).max(16).nullable(),
@@ -78,8 +85,8 @@ const attemptSchema = z
     bankVersion: z.string().min(1).max(64),
     bankFingerprint: z.string().min(1).max(64),
     bankTitle: z.string().min(1).max(200),
-    startedAt: z.iso.datetime(),
-    submittedAt: z.iso.datetime(),
+    startedAt: isoTime,
+    submittedAt: isoTime,
     durationMs: z.int().min(0),
     seed: z
       .int()
@@ -91,6 +98,13 @@ const attemptSchema = z
     appVersion: z.string().min(1).max(64),
   })
   .superRefine((attempt, ctx) => {
+    if (attempt.submittedAt < attempt.startedAt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['submittedAt'],
+        message: `submittedAt ${attempt.submittedAt} is before startedAt ${attempt.startedAt}`,
+      });
+    }
     if (attempt.questionCount !== attempt.answers.length) {
       ctx.addIssue({
         code: 'custom',
