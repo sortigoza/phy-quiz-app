@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { openBankLink, type OpenBankLinkResult } from '../bank-link';
+import { bankLinkIn, openBankLink, type OpenBankLinkResult } from '../bank-link';
 import { replaceRepositoryEntry, type RepositoryOutcome } from '../bank-repository';
 import { fetchBankText, fetchFailureMessage } from '../bank-url';
 import {
@@ -248,6 +248,23 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
 
   // Opened once per link, even though React may run this effect twice: the
   // promise is kept, and only a live effect shows what it settles to.
+  /** Shows what opening a bank link did. `name` is the address it pointed at. */
+  const showOpened = useCallback(
+    (opened: OpenBankLinkResult, name: string) => {
+      if (opened.kind !== 'broken' && opened.kind !== 'unreachable') {
+        showLoaded(opened, name);
+        return;
+      }
+      clearPanels();
+      setRejection({
+        kind: 'unreachable',
+        message:
+          opened.kind === 'broken' ? BROKEN_LINK_MESSAGE : fetchFailureMessage(opened.failure),
+      });
+    },
+    [clearPanels, showLoaded],
+  );
+
   const opening = useRef<{ link: ParsedBankLink; result: Promise<OpenBankLinkResult> }>(null);
   const [shownLink, setShownLink] = useState<ParsedBankLink | null>(null);
   useEffect(() => {
@@ -269,18 +286,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     };
     opening.current.result.then(
       (opened) =>
-        settle(() => {
-          if (opened.kind !== 'broken' && opened.kind !== 'unreachable') {
-            showLoaded(opened, bankLink.kind === 'bank-link' ? bankLink.url : '');
-            return;
-          }
-          clearPanels();
-          setRejection({
-            kind: 'unreachable',
-            message:
-              opened.kind === 'broken' ? BROKEN_LINK_MESSAGE : fetchFailureMessage(opened.failure),
-          });
-        }),
+        settle(() => showOpened(opened, bankLink.kind === 'bank-link' ? bankLink.url : '')),
       (error: unknown) =>
         settle(() => {
           clearPanels();
@@ -290,7 +296,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
     return () => {
       live = false;
     };
-  }, [bankLink, onBankLinkHandled, showLoaded, showProgress, clearPanels]);
+  }, [bankLink, onBankLinkHandled, showOpened, showProgress, clearPanels]);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -320,6 +326,23 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
 
   async function handleUrl(event: FormEvent) {
     event.preventDefault();
+    // A bank link pasted here would otherwise fetch the app's own page. Its key
+    // leaves the field at once, as it leaves the address bar.
+    const link = bankLinkIn(url);
+    if (link.kind !== 'none') {
+      setUrl('');
+      await exclusive(() =>
+        guard(async () => {
+          try {
+            const opened = await openBankLink(link, { onProgress: showProgress });
+            showOpened(opened, link.kind === 'bank-link' ? link.url : '');
+          } finally {
+            setProgress(null);
+          }
+        }),
+      );
+      return;
+    }
     await exclusive(async () => {
       const fetched = await fetchBankText(url);
       if (fetched.ok) {
