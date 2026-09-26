@@ -6,7 +6,7 @@ The backslash detector is the reason this ticket exists. In JSON, a LaTeX comman
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] A validate screen accepts a file, reports success or a list of errors, and never stores the bank
 - [x] Each error names the path to the offending field and explains the problem in a sentence a teacher can act on

@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import type { UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
 import type { AttemptMode, Confidence } from '../domain/attempt';
@@ -90,8 +91,12 @@ export async function answerCurrent(
   if (given !== null) await chooseConfidence(user, given);
 }
 
-export async function loadBankAndOpenStart(user: UserEvent, file = bankFile()): Promise<void> {
-  render(<App />);
+export async function loadBankAndOpenStart(
+  user: UserEvent,
+  file = bankFile(),
+  app: ReactElement = <App />,
+): Promise<void> {
+  render(app);
   await user.upload(screen.getByLabelText(/bank file/i), file);
   await user.click(await screen.findByRole('button', { name: /start SI units/i }));
   await screen.findByRole('heading', { name: /SI units/ });
@@ -101,8 +106,9 @@ export async function startQuiz(
   user: UserEvent,
   name = 'Anna',
   mode: AttemptMode = 'standard',
+  app?: ReactElement,
 ): Promise<void> {
-  await loadBankAndOpenStart(user);
+  await loadBankAndOpenStart(user, bankFile(), app);
   const nameField = screen.getByLabelText(/your name/i);
   await user.clear(nameField);
   await user.type(nameField, name);

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Physics Quiz: a pendulum in phosphor green, its swing traced in neon pink, on the app's near-black. -->
+  <rect width="512" height="512" fill="#07050d"/>
+  <path d="M 133 333 A 246 246 0 0 0 379 333" fill="none" stroke="#ff2bd6" stroke-width="14" stroke-dasharray="24 16"/>
+  <g stroke="#39ff6a" stroke-linecap="square">
+    <line x1="186" y1="120" x2="326" y2="120" stroke-width="22"/>
+    <line x1="256" y1="120" x2="340" y2="351" stroke-width="12"/>
+  </g>
+  <circle cx="340" cy="351" r="40" fill="#39ff6a"/>
+</svg>

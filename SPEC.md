@@ -556,7 +556,7 @@ public/
 
 - Update in **prompt** mode: a toast offers reload when a new service worker is waiting, and **never while an attempt is in progress**.
 - Precache the app shell and KaTeX fonts. Banks live in IndexedDB, not the service worker cache: they are data, not assets.
-- Custom Install button on the library screen when `beforeinstallprompt` fires, with a short iOS Safari instruction line since iOS never fires it.
+- Custom Install button on the library screen when `beforeinstallprompt` fires. Only Chrome and Firefox are supported for installation; Firefox and iOS Safari never fire the event, and install from the browser's own menu.
 - Fully functional offline after first load.
 
 ### 8.5 Accessibility and presentation
