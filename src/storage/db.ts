@@ -286,9 +286,7 @@ export async function setMusicOn(on: boolean): Promise<void> {
 /** The mode the last attempt here was started in, so the start screen can offer it again. */
 export async function getAttemptMode(): Promise<AttemptMode> {
   const setting = await db.settings.get('attemptMode');
-  return setting?.key === 'attemptMode' && setting.value === 'answer-first'
-    ? 'answer-first'
-    : 'standard';
+  return setting?.value === 'answer-first' ? 'answer-first' : 'standard';
 }
 
 export async function setAttemptMode(mode: AttemptMode): Promise<void> {

@@ -6,6 +6,11 @@ import { SELF_GRADES, type Attempt, type AttemptAnswer, type SelfGrade } from '.
  * it changes the score, and it is never checked against anything.
  */
 
+/** Whether the question was taken answer-first: with a response written, or a skipped response. */
+export function answeredFirst(answer: AttemptAnswer): boolean {
+  return answer.response !== undefined || answer.responseSkipped === true;
+}
+
 /** Whether the review asks for a self-grade: only where a response was written. */
 export function asksSelfGrade(answer: AttemptAnswer): boolean {
   return answer.response !== undefined;

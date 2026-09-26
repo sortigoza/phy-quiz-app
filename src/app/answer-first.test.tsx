@@ -228,7 +228,7 @@ describe('self-grading in review', () => {
     const user = userEvent.setup();
     await takeAnswerFirstAttempt(user);
     const [first, second] = screen.getAllByRole('article');
-    expect(first).toHaveTextContent(/your answer.*My own reasoning here/i);
+    expect(first).toHaveTextContent(/your response.*My own reasoning here/i);
     expect(
       within(first as HTMLElement).getByRole('group', { name: /did your own answer match/i }),
     ).toBeInTheDocument();

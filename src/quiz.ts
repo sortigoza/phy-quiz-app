@@ -78,7 +78,7 @@ export async function beginAttempt(
   bank: Bank,
   name: string,
   count: number,
-  mode: AttemptMode = 'standard',
+  mode: AttemptMode,
 ): Promise<InProgressAttempt> {
   const seed = randomSeed();
   const participant = normaliseName(name);

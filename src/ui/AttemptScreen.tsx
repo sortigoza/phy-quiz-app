@@ -322,7 +322,7 @@ function ResponseStep({
   const hintId = `response-hint-${questionId}`;
 
   if (revealed === 'skipped') {
-    return <p className="response__skipped">You skipped writing an answer to this question.</p>;
+    return <p className="response__skipped">You skipped writing a response to this question.</p>;
   }
 
   return (
