@@ -2,7 +2,7 @@
 
 **What to build:** The first real release: tagged, deployed, and verified on an actual phone rather than a desktop browser pretending to be one.
 
-**Blocked by:** 07, 11, 12, 13
+**Blocked by:** 07, 11, 12, 13, 16, 17, 18, 19, 20
 
 **Status:** ready-for-agent
 
