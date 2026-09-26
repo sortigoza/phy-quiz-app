@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { Attempt } from '../domain/attempt';
+import { CONFIDENCE_LEVELS, type Attempt, type Confidence } from '../domain/attempt';
 import { bankLanguage } from '../domain/bank';
-import { submitAttempt, type InProgressAttempt } from '../quiz';
+import { missingConfidence, submitAttempt, type InProgressAttempt } from '../quiz';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
+import { confidenceLabel } from './confidence';
 
 /**
  * One question per screen, in exam mode: nothing on this screen says whether
@@ -13,6 +14,10 @@ import { BankText } from './BankText';
  * and screen reader semantics come from the platform rather than from us. The
  * prompt names the fieldset through `aria-labelledby` rather than a `<legend>`,
  * because a prompt may hold a table or a list and a legend may not.
+ *
+ * Below the options, a second radio group asks how sure the participant is of
+ * the option they chose. It stays disabled until an option is chosen, and
+ * submission waits until every answered question has one.
  */
 
 type Props = {
@@ -21,6 +26,7 @@ type Props = {
   /** Why answers are not being saved as they are given, or null when they are. */
   unsaved: string | null;
   onChoose: (questionId: string, optionId: string) => void;
+  onSetConfidence: (questionId: string, confidence: Confidence) => void;
   onGoTo: (index: number) => void;
   onSubmitted: (attempt: Attempt) => void;
 };
@@ -30,10 +36,13 @@ export function AttemptScreen({
   index,
   unsaved,
   onChoose,
+  onSetConfidence,
   onGoTo,
   onSubmitted,
 }: Props) {
   const [confirming, setConfirming] = useState(false);
+  // Whether submitting was refused for want of confidence. The list itself is live.
+  const [askedForConfidence, setAskedForConfidence] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -48,6 +57,9 @@ export function AttemptScreen({
   const unanswered = inProgress.selection.filter(
     ({ question: q }) => !(q.id in inProgress.chosen),
   ).length;
+  const withoutConfidence = missingConfidence(inProgress);
+  const answered = question.id in inProgress.chosen;
+  const confidenceHintId = `confidence-hint-${index}`;
 
   async function submit() {
     if (submitting) return;
@@ -63,7 +75,10 @@ export function AttemptScreen({
   }
 
   function requestSubmit() {
-    if (unanswered > 0) setConfirming(true);
+    if (withoutConfidence.length > 0) {
+      setAskedForConfidence(true);
+      setConfirming(false);
+    } else if (unanswered > 0) setConfirming(true);
     else void submit();
   }
 
@@ -97,6 +112,52 @@ export function AttemptScreen({
           </label>
         ))}
       </fieldset>
+
+      {/* A native fieldset again: keyboard use and the group's name come from the platform. */}
+      <fieldset
+        key={`confidence-${question.id}`}
+        className="confidence"
+        disabled={submitting || !answered}
+        aria-describedby={answered ? undefined : confidenceHintId}
+      >
+        <legend className="confidence__legend">How sure are you?</legend>
+        <div className="confidence__levels">
+          {CONFIDENCE_LEVELS.map((level) => (
+            <label key={level} className="radio-card confidence__level">
+              <input
+                type="radio"
+                name={`confidence-${question.id}`}
+                checked={inProgress.confidence[question.id] === level}
+                onChange={() => onSetConfidence(question.id, level)}
+              />
+              {confidenceLabel[level]}
+            </label>
+          ))}
+        </div>
+        {!answered && (
+          <p id={confidenceHintId} className="confidence__hint">
+            Choose an option first.
+          </p>
+        )}
+      </fieldset>
+
+      {askedForConfidence && withoutConfidence.length > 0 && (
+        <div className="panel panel--error" role="alert">
+          <p>Say how sure you are of every answer before submitting. Still to do:</p>
+          <div className="actions actions--start">
+            {withoutConfidence.map((position) => (
+              <button
+                key={position}
+                type="button"
+                className="button button--quiet"
+                onClick={() => onGoTo(position - 1)}
+              >
+                Question {position}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {confirming && (
         <div className="panel panel--error" role="alert">

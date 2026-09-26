@@ -38,6 +38,7 @@ function attemptOn(bank: Bank, count = 3): Attempt {
     seed,
     selection,
     chosen: { [first?.question.id ?? '']: 'a', [second?.question.id ?? '']: 'b' },
+    confidence: {},
     startedAt: new Date('2026-09-23T10:00:00.000Z'),
     submittedAt: new Date('2026-09-23T10:03:20.000Z'),
     appVersion: '0.1.0',

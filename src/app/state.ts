@@ -1,4 +1,4 @@
-import type { Attempt } from '../domain/attempt';
+import type { Attempt, Confidence } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
 import { reviewSelection, type AttemptReview } from '../domain/review';
 import type { HistoryFilter } from '../history';
@@ -42,6 +42,7 @@ export type AppAction =
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'resume'; inProgress: InProgressAttempt; index: number }
   | { type: 'choose'; questionId: string; optionId: string }
+  | { type: 'set-confidence'; questionId: string; confidence: Confidence }
   | { type: 'go-to'; index: number }
   | { type: 'submitted'; attempt: Attempt }
   | { type: 'open-help' }
@@ -89,6 +90,18 @@ export function reducer(state: AppState, action: AppAction): AppState {
         inProgress: {
           ...state.inProgress,
           chosen: { ...state.inProgress.chosen, [action.questionId]: action.optionId },
+        },
+      };
+
+    case 'set-confidence':
+      if (state.screen !== 'attempt') return state;
+      // Confidence belongs to a chosen option; an unanswered question has none.
+      if (!(action.questionId in state.inProgress.chosen)) return state;
+      return {
+        ...state,
+        inProgress: {
+          ...state.inProgress,
+          confidence: { ...state.inProgress.confidence, [action.questionId]: action.confidence },
         },
       };
 

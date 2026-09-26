@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
 import { db } from '../storage/db';
+import { chooseConfidence } from '../test/quiz';
 
 /**
  * Bank text as it appears in the app: maths and Markdown rendered on every
@@ -64,6 +65,7 @@ async function takeQuizUntilQuestion(user: UserEvent): Promise<void> {
 async function takeQuiz(user: UserEvent, chosen: RegExp): Promise<void> {
   await takeQuizUntilQuestion(user);
   await user.click(screen.getByRole('radio', { name: chosen }));
+  await chooseConfidence(user, 'sure');
   await user.click(screen.getByRole('button', { name: /submit/i }));
   await screen.findByRole('heading', { name: /review/i });
 }

@@ -6,19 +6,19 @@ A score cannot tell knowledge from a lucky guess. Confident errors are the mista
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Each question shows a three-way *Sure / Unsure / Guess* control below the options, as a labelled radio group reachable by keyboard and announced by screen readers
-- [ ] The control is disabled until an option is chosen. Changing the chosen option keeps the confidence already set
-- [ ] Submitting is blocked while any answered question has no confidence, and the message names those questions. Unanswered questions need none, and the existing blank-answer warning is unchanged
-- [ ] Confidence is stored per answer as `answers[].confidence: "sure" | "unsure" | "guess"`, which is optional, so attempts saved earlier stay valid
-- [ ] The in-progress record keeps confidence too, so a resumed attempt has it
-- [ ] The review badges each answer with its confidence
-- [ ] The review opens with a **Confident errors** section linking to each question answered *Sure* but wrong, visually distinct. The full list below it stays in attempt order
-- [ ] The review summary shows accuracy per confidence level, such as "Sure: 6/7 (86%) · Unsure: 1/2 · Guess: 0/1"
-- [ ] Attempts without confidence show "confidence not recorded" in place of the badges and the calibration line
-- [ ] Export includes `confidence`. The history reader accepts it as an optional field, so old exports still import and `formatVersion` stays 1
-- [ ] A test imports an export written before this ticket, and another round-trips an attempt with confidence through export and import
+- [x] Each question shows a three-way *Sure / Unsure / Guess* control below the options, as a labelled radio group reachable by keyboard and announced by screen readers
+- [x] The control is disabled until an option is chosen. Changing the chosen option keeps the confidence already set
+- [x] Submitting is blocked while any answered question has no confidence, and the message names those questions. Unanswered questions need none, and the existing blank-answer warning is unchanged
+- [x] Confidence is stored per answer as `answers[].confidence: "sure" | "unsure" | "guess"`, which is optional, so attempts saved earlier stay valid
+- [x] The in-progress record keeps confidence too, so a resumed attempt has it
+- [x] The review badges each answer with its confidence
+- [x] The review opens with a **Confident errors** section linking to each question answered *Sure* but wrong, visually distinct. The full list below it stays in attempt order
+- [x] The review summary shows accuracy per confidence level, such as "Sure: 6/7 (86%) · Unsure: 1/2 · Guess: 0/1"
+- [x] Attempts without confidence show "confidence not recorded" in place of the badges and the calibration line
+- [x] Export includes `confidence`. The history reader accepts it as an optional field, so old exports still import and `formatVersion` stays 1
+- [x] A test imports an export written before this ticket, and another round-trips an attempt with confidence through export and import
 
 ## Notes for the implementer
 
