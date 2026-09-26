@@ -1,6 +1,7 @@
 import type { Bank } from './bank';
 import type { Selection } from './selection';
 import { correctCount } from './scoring';
+import { isWholeBank, type TagFilter } from './tags';
 
 /**
  * The attempt record: one sitting, from start to submission.
@@ -26,6 +27,12 @@ export type AttemptAnswer = {
    * asked for (ticket 17), so every reader must cope without it.
    */
   confidence?: Confidence;
+  /**
+   * ISO 8601, when the chosen option was last changed. Answered questions only,
+   * and missing on attempts saved before ticket 18. Nothing reads it yet: it is
+   * kept for a spaced-review scheduler.
+   */
+  answeredAt?: string;
 };
 
 export type Attempt = {
@@ -51,6 +58,17 @@ export type Attempt = {
   correctCount: number;
   /** In attempt order. */
   answers: AttemptAnswer[];
+  /**
+   * The tags the selection was restricted to, applied before the shuffle.
+   * Missing or empty means the whole bank, as on every attempt before ticket 18.
+   */
+  tagFilter?: TagFilter;
+  /**
+   * The participant's own ruling on whether the attempt counts, overruling the
+   * reading-pace rule (see `counted.ts`). An annotation: written after
+   * submission, on local attempts only. See ADR 0004.
+   */
+  countedOverride?: boolean;
   appVersion: string;
   origin: 'local' | 'imported';
 };
@@ -108,10 +126,14 @@ export type CreateAttemptInput = {
   bankFingerprint: string;
   seed: number;
   selection: Selection;
+  /** The tag filter the selection was drawn with, if any. */
+  tagFilter?: TagFilter | undefined;
   /** Chosen option id by question id. A question missing here was left unanswered. */
   chosen: Readonly<Record<string, string>>;
   /** Confidence by question id. Ignored for a question left unanswered. */
   confidence: Readonly<Record<string, Confidence>>;
+  /** When each question's option was last changed, ISO 8601, by question id. Ignored for a question left unanswered. */
+  answeredAt: Readonly<Record<string, string>>;
   startedAt: Date;
   submittedAt: Date;
   appVersion: string;
@@ -122,11 +144,13 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
   const answers: AttemptAnswer[] = input.selection.map(({ question }) => {
     const chosenOptionId = input.chosen[question.id] ?? null;
     const confidence = chosenOptionId === null ? undefined : input.confidence[question.id];
+    const answeredAt = chosenOptionId === null ? undefined : input.answeredAt[question.id];
     return {
       questionId: question.id,
       chosenOptionId,
       correctOptionId: question.answer,
       ...(confidence && { confidence }),
+      ...(answeredAt && { answeredAt }),
     };
   });
 
@@ -145,6 +169,7 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
     questionCount: answers.length,
     correctCount: correctCount(answers),
     answers,
+    ...(input.tagFilter && !isWholeBank(input.tagFilter) && { tagFilter: input.tagFilter }),
     appVersion: input.appVersion,
     origin: 'local',
   };

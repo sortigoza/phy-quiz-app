@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Attempt, Confidence } from '../domain/attempt';
+import type { TagFilter } from '../domain/tags';
 
 /**
  * Where a bank came from. Recorded so the library can show it, and so ticket 05
@@ -71,12 +72,16 @@ export type StoredInProgress = {
   bankTitle: string;
   name: string;
   seed: number;
+  /** The tags the selection was restricted to. Missing means the whole bank. */
+  tagFilter?: TagFilter;
   /** The number of questions drawn, already clamped to the bank. */
   questionCount: number;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
   /** Confidence by question id. Missing on a record saved before ticket 17. */
   confidence?: Record<string, Confidence>;
+  /** When each option was last changed, ISO 8601, by question id. Missing on a record saved before ticket 18. */
+  answeredAt?: Record<string, string>;
   /** ISO 8601. */
   startedAt: string;
   /** The question on screen, so resuming lands where the participant was. */
@@ -238,6 +243,20 @@ export async function addAttempts(
     }
     await db.attempts.bulkAdd(fresh);
     return { added: fresh.length, duplicates: attempts.length - fresh.length };
+  });
+}
+
+/**
+ * Records the participant's ruling on whether an attempt counts. It is an
+ * annotation, the only kind of write a submitted attempt allows, and only on
+ * an attempt taken in this browser: imported attempts are read-only. See ADR 0004.
+ */
+export async function setCountedOverride(id: string, counted: boolean): Promise<void> {
+  await db.transaction('rw', db.attempts, async () => {
+    const attempt = await db.attempts.get(id);
+    if (!attempt) throw new Error(`No attempt ${id} in history`);
+    if (attempt.origin !== 'local') throw new Error('An imported attempt cannot be changed');
+    await db.attempts.update(id, { countedOverride: counted });
   });
 }
 

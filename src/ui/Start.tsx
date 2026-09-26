@@ -2,16 +2,20 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { normaliseName } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
 import { defaultQuestionCount } from '../domain/selection';
+import { bankTags, isWholeBank, qualifyingQuestions, type TagFilter } from '../domain/tags';
 import { beginAttempt, type InProgressAttempt } from '../quiz';
 import { getLastParticipantName, type StoredBank } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
 
 /**
- * The start screen: who is taking the quiz, and how many questions.
+ * The start screen: who is taking the quiz, how many questions, and, when the
+ * bank has tags, which of them to draw from.
  *
  * The name is the participant's whole identity, so it is offered back from the
  * last attempt in this browser rather than asked for from scratch each time.
+ * The tag filter is not remembered: it starts empty, unless the tag breakdown
+ * opened this screen to practise one tag.
  */
 
 /** The fixed counts offered, before the bank's own default and "All" are added. */
@@ -21,12 +25,26 @@ type Props = {
   stored: StoredBank;
   /** Already parsed from `stored`, by whoever checked that it still opens. */
   bank: Bank;
+  /** A filter to start with, set when opened from the tag breakdown. */
+  tagFilter?: TagFilter | undefined;
   onBegin: (inProgress: InProgressAttempt) => void;
   onCancel: () => void;
 };
 
-export function Start({ stored, bank, onBegin, onCancel }: Props) {
-  const size = bank.questions.length;
+const noTags: TagFilter = { tags: [], untagged: false };
+
+/** "4 questions carry the chosen tags", and when the count asked for is more, that the quiz asks them all. */
+function qualifyingNote(size: number, clamped: boolean): string {
+  const carry = size === 1 ? '1 question carries' : `${size} questions carry`;
+  if (!clamped) return `${carry} the chosen tags.`;
+  return `${carry} the chosen tags, so the quiz asks ${size === 1 ? 'it' : `all ${size}`}.`;
+}
+
+export function Start({ stored, bank, tagFilter: preset = noTags, onBegin, onCancel }: Props) {
+  const [tagFilter, setTagFilter] = useState(preset);
+  const offered = bankTags(bank);
+  const filtered = !isWholeBank(tagFilter);
+  const size = qualifyingQuestions(bank, tagFilter).length;
   const lang = bankLanguage(bank);
   const suggested = defaultQuestionCount(bank);
 
@@ -66,7 +84,7 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
     setStarting(true);
     setProblem(null);
     try {
-      onBegin(await beginAttempt(stored, bank, name, count));
+      onBegin(await beginAttempt(stored, bank, name, Math.min(count, size), tagFilter));
     } catch (error) {
       setStarting(false);
       setProblem(storageProblem(error));
@@ -94,6 +112,46 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
           />
         </div>
 
+        {offered.tags.length > 0 && (
+          <fieldset className="field counts">
+            <legend>Tags</legend>
+            {offered.tags.map(({ tag, count: questions }) => (
+              <label key={tag} className="radio-card">
+                <input
+                  type="checkbox"
+                  checked={tagFilter.tags.includes(tag)}
+                  onChange={(event) =>
+                    setTagFilter({
+                      ...tagFilter,
+                      tags: event.target.checked
+                        ? [...tagFilter.tags, tag]
+                        : tagFilter.tags.filter((chosen) => chosen !== tag),
+                    })
+                  }
+                />
+                {tag} ({questions})
+              </label>
+            ))}
+            {offered.untagged > 0 && (
+              <label className="radio-card">
+                <input
+                  type="checkbox"
+                  checked={tagFilter.untagged}
+                  onChange={(event) =>
+                    setTagFilter({ ...tagFilter, untagged: event.target.checked })
+                  }
+                />
+                untagged ({offered.untagged})
+              </label>
+            )}
+            <p className="field__note">
+              {filtered
+                ? qualifyingNote(size, count > size)
+                : 'None chosen draws from the whole bank.'}
+            </p>
+          </fieldset>
+        )}
+
         <fieldset className="field counts">
           <legend>How many questions?</legend>
           {counts.map((option) => (
@@ -116,7 +174,7 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
             />
             All ({size})
           </label>
-          {suggested.clamped && (
+          {!filtered && suggested.clamped && (
             <p className="field__note">
               This bank only has {size} question{size === 1 ? '' : 's'}.
             </p>

@@ -128,7 +128,8 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: 'tags',
       type: 'string[]',
       required: false,
-      rules: 'Up to 20 tags of up to 40 characters. Recorded, not used yet.',
+      rules:
+        'Up to 20 tags of up to 40 characters, saying what the question is about. A quiz can be restricted to chosen tags, and history shows accuracy per tag.',
     },
     {
       name: 'difficulty',
