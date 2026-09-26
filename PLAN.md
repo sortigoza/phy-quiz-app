@@ -142,7 +142,7 @@ Per bank. Sort by percentage descending, then shorter duration, then earlier sub
 
 - `vite-plugin-pwa` in `prompt` mode; manifest with relative `start_url: "."` and `scope: "./"`, icons at 192 and 512 plus maskable.
 - Precache the shell and KaTeX fonts; suppress the update toast while an attempt is in progress.
-- Install button on the library screen behind `beforeinstallprompt`, with an iOS Safari instruction line.
+- Install button on the library screen behind `beforeinstallprompt` (Chrome and Firefox only; no iOS instruction line).
 - **Verify offline on the deployed GitHub Pages URL, not just localhost.** The project-site subpath and service worker scope is the sharp edge called out in SPEC section 11.
 
 **Closes** acceptance 2 and 8.

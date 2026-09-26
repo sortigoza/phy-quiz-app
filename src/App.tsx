@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { initialState, reducer, type AppState, type AppAction } from './app/state';
 import { takeBankLink } from './bank-link';
 import type { ParsedBankLink } from './domain/private-bank';
 import { backgroundMusic, CRAB_CANON_CREDIT } from './music/background';
 import type { Music } from './music/player';
+import { staticPwa, type Pwa } from './pwa';
 import { saveInProgress } from './quiz';
 import { getMusicOn, gradeResponse, setMusicOn } from './storage/db';
 import { storageProblem } from './storage/problems';
@@ -27,27 +35,42 @@ type Props = {
   bankLink?: ParsedBankLink;
   /** The library's background music. Replaced in tests, which have no Web Audio. */
   music?: Music;
+  /** The service worker and install offer. Static in tests, which have neither. */
+  pwa?: Pwa;
 };
 
 export function App({
   bankLink: initialBankLink = { kind: 'none' },
   music = backgroundMusic,
+  pwa = staticPwa,
 }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // Held until the library has shown its outcome, so returning there later does not open it again.
   const [bankLink, setBankLink] = useState(initialBankLink);
   const bankLinkHandled = useCallback(() => setBankLink({ kind: 'none' }), []);
   useBankLinksWhileOpen(setBankLink);
-  useLeaveWarning(isAttemptInProgress(state));
+  const attemptInProgress = isAttemptInProgress(state);
+  useLeaveWarning(attemptInProgress);
   const unsaved = usePersistAttempt(state);
   const [musicOn, toggleMusic] = useMusicSetting();
   useBackgroundMusic(music, state.screen === 'library' && musicOn === true);
+  const { updateWaiting, installable } = useSyncExternalStore(pwa.subscribe, pwa.snapshot);
+  const [updatePutOff, setUpdatePutOff] = useState(false);
 
   return (
     <div className="app">
       <header className="app__header">
         <h1>Physics Quiz</h1>
         <div className="app__nav">
+          {state.screen === 'library' && installable && (
+            <button
+              type="button"
+              className="button button--quiet"
+              onClick={() => void pwa.install()}
+            >
+              Install
+            </button>
+          )}
           {state.screen === 'library' && musicOn !== undefined && (
             <button
               type="button"
@@ -91,6 +114,25 @@ export function App({
           )}
         </div>
       </header>
+
+      {/* Reloading mid-attempt would swap the code under the participant: wait for submit. */}
+      {updateWaiting && !updatePutOff && !attemptInProgress && (
+        <div className="panel panel--notice update-offer" role="status" aria-label="New version">
+          <span>A new version of Physics Quiz is ready.</span>
+          <span className="update-offer__actions">
+            <button type="button" className="button" onClick={pwa.applyUpdate}>
+              Reload
+            </button>
+            <button
+              type="button"
+              className="button button--quiet"
+              onClick={() => setUpdatePutOff(true)}
+            >
+              Not now
+            </button>
+          </span>
+        </div>
+      )}
 
       <main className="app__main">
         <ErrorBoundary
