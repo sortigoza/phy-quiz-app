@@ -57,7 +57,7 @@ export function AttemptScreen({
   const unanswered = inProgress.selection.filter(
     ({ question: q }) => !(q.id in inProgress.chosen),
   ).length;
-  const lacking = missingConfidence(inProgress);
+  const withoutConfidence = missingConfidence(inProgress);
   const answered = question.id in inProgress.chosen;
   const confidenceHintId = `confidence-hint-${index}`;
 
@@ -75,7 +75,7 @@ export function AttemptScreen({
   }
 
   function requestSubmit() {
-    if (lacking.length > 0) {
+    if (withoutConfidence.length > 0) {
       setAskedForConfidence(true);
       setConfirming(false);
     } else if (unanswered > 0) setConfirming(true);
@@ -141,11 +141,11 @@ export function AttemptScreen({
         )}
       </fieldset>
 
-      {askedForConfidence && lacking.length > 0 && (
+      {askedForConfidence && withoutConfidence.length > 0 && (
         <div className="panel panel--error" role="alert">
           <p>Say how sure you are of every answer before submitting. Still to do:</p>
           <div className="actions actions--start">
-            {lacking.map((position) => (
+            {withoutConfidence.map((position) => (
               <button
                 key={position}
                 type="button"

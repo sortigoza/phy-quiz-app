@@ -1,12 +1,6 @@
 import { CONFIDENCE_LEVELS, type Attempt, type AttemptAnswer } from '../domain/attempt';
-import {
-  calibration,
-  confidenceRecorded,
-  confidentErrors,
-  outcome,
-  percentage,
-  type Outcome,
-} from '../domain/scoring';
+import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
+import { outcome, percentage, type Outcome } from '../domain/scoring';
 import type { Selection } from '../domain/selection';
 import { BankText } from './BankText';
 import { confidenceLabel } from './confidence';
@@ -21,7 +15,7 @@ import { confidenceLabel } from './confidence';
  *
  * Where confidence was recorded, the review opens with the confident errors,
  * the wrong answers the participant was sure of, because correcting those
- * matters most, and the summary says how well-calibrated they were. Attempts
+ * matters most, and the score line says how well-calibrated they were. Attempts
  * saved before confidence was asked for say it was not recorded.
  */
 
@@ -57,7 +51,7 @@ function questionAnchor(position: number): string {
 
 export function Review({ attempt, selection, language, onDone }: Props) {
   const answerById = new Map(attempt.answers.map((answer) => [answer.questionId, answer]));
-  const recorded = confidenceRecorded(attempt.answers);
+  const withConfidence = confidenceRecorded(attempt.answers);
   const positionById = new Map(selection.map(({ question }, index) => [question.id, index + 1]));
   const errorPositions = confidentErrors(attempt.answers).flatMap(({ questionId }) => {
     const position = positionById.get(questionId);
@@ -78,11 +72,11 @@ export function Review({ attempt, selection, language, onDone }: Props) {
           {attempt.code}
         </span>
         <span className="review__calibration">
-          {recorded ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
+          {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
         </span>
       </p>
 
-      {recorded && (
+      {withConfidence && (
         <section className="card confident-errors" aria-labelledby="confident-errors-heading">
           <h3 id="confident-errors-heading">Confident errors</h3>
           {errorPositions.length === 0 ? (
@@ -127,10 +121,15 @@ export function Review({ attempt, selection, language, onDone }: Props) {
               >
                 <p className={`outcome outcome--${result}`}>
                   {outcomeLabel[result]}
-                  {answer.confidence && (
+                  {answer.confidence ? (
                     <span className="mark mark--confidence">
                       {' · '}Confidence: {confidenceLabel[answer.confidence]}
                     </span>
+                  ) : (
+                    !withConfidence &&
+                    result !== 'unanswered' && (
+                      <span className="mark mark--confidence">{' · '}Confidence not recorded</span>
+                    )
                   )}
                 </p>
                 <h3 className="reviewed__number">Question {index + 1}</h3>
