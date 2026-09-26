@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
-import type { Confidence } from '../domain/attempt';
+import type { AttemptMode, Confidence } from '../domain/attempt';
 
 /**
  * Driving the attempt flow through the whole app, the way a participant uses it.
@@ -92,12 +92,19 @@ export async function loadBankAndOpenStart(user: UserEvent, file = bankFile()): 
   await screen.findByRole('heading', { name: /SI units/ });
 }
 
-export async function startQuiz(user: UserEvent, name = 'Anna'): Promise<void> {
+export async function startQuiz(
+  user: UserEvent,
+  name = 'Anna',
+  mode: AttemptMode = 'standard',
+): Promise<void> {
   await loadBankAndOpenStart(user);
   const nameField = screen.getByLabelText(/your name/i);
   await user.clear(nameField);
   await user.type(nameField, name);
   await user.click(screen.getByRole('radio', { name: /all/i }));
+  await user.click(
+    screen.getByRole('radio', { name: mode === 'standard' ? /^standard/i : /^answer first/i }),
+  );
   await user.click(screen.getByRole('button', { name: /begin/i }));
   // Beginning saves the name first, so the attempt screen arrives asynchronously.
   await screen.findByText(/question 1 of/i);
@@ -114,4 +121,10 @@ export async function answerAllAndSubmit(
     if (i < 2) await user.click(screen.getByRole('button', { name: /next/i }));
   }
   await user.click(screen.getByRole('button', { name: /submit/i }));
+}
+
+/** In answer-first mode, writes a response to the question on screen and reveals its options. */
+export async function writeAndReveal(user: UserEvent, response: string): Promise<void> {
+  await user.type(screen.getByRole('textbox', { name: /your answer or reasoning/i }), response);
+  await user.click(screen.getByRole('button', { name: /reveal options/i }));
 }

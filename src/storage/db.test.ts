@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { attemptRecord } from '../test/attempts';
 import {
+  addAttempts,
   bankKey,
   db,
+  getAttemptMode,
+  gradeResponse,
+  listAttempts,
+  recordSubmittedAttempt,
+  setAttemptMode,
   deleteBank,
   getBank,
   getBankKey,
@@ -164,5 +171,48 @@ describe('the bank key store', () => {
 
     await deleteBank(bankKey('kth.kinematics', '1.0.0'));
     expect(await db.bankKeys.count()).toBe(0);
+  });
+});
+
+describe('the attempt mode setting', () => {
+  beforeEach(async () => {
+    await db.settings.clear();
+  });
+
+  it('is standard until another is chosen, and then remembers it', async () => {
+    expect(await getAttemptMode()).toBe('standard');
+    await setAttemptMode('answer-first');
+    expect(await getAttemptMode()).toBe('answer-first');
+  });
+});
+
+describe('self-grading a held attempt', () => {
+  const written = attemptRecord({
+    mode: 'answer-first',
+    answers: [
+      { questionId: 'q1', chosenOptionId: 'a', correctOptionId: 'a', response: 'Newton, kg m/s²' },
+      { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b', responseSkipped: true },
+    ],
+  });
+
+  beforeEach(async () => {
+    await db.attempts.clear();
+  });
+
+  it('writes the self-grade into the stored attempt and returns it', async () => {
+    await recordSubmittedAttempt(written);
+    const graded = await gradeResponse(written.id, 'q1', 'yes');
+    expect(graded.answers[0]?.selfGrade).toBe('yes');
+    expect(await listAttempts()).toEqual([graded]);
+  });
+
+  it('refuses an imported attempt and leaves it as it was', async () => {
+    await addAttempts([{ ...written, origin: 'imported' }]);
+    await expect(gradeResponse(written.id, 'q1', 'yes')).rejects.toThrow(/imported/i);
+    expect((await listAttempts())[0]?.answers[0]).not.toHaveProperty('selfGrade');
+  });
+
+  it('refuses an attempt no longer held', async () => {
+    await expect(gradeResponse(written.id, 'q1', 'yes')).rejects.toThrow(/no longer/i);
   });
 });

@@ -5,7 +5,7 @@ import type { ParsedBankLink } from './domain/private-bank';
 import { backgroundMusic, CRAB_CANON_CREDIT } from './music/background';
 import type { Music } from './music/player';
 import { saveInProgress } from './quiz';
-import { getMusicOn, setMusicOn } from './storage/db';
+import { getMusicOn, gradeResponse, setMusicOn } from './storage/db';
 import { storageProblem } from './storage/problems';
 import { AttemptScreen } from './ui/AttemptScreen';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -251,6 +251,10 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           onSetConfidence={(questionId, confidence) =>
             dispatch({ type: 'set-confidence', questionId, confidence })
           }
+          onWriteResponse={(questionId, text) =>
+            dispatch({ type: 'write-response', questionId, text })
+          }
+          onReveal={(questionId, reveal) => dispatch({ type: 'reveal', questionId, reveal })}
           onGoTo={(index) => dispatch({ type: 'go-to', index })}
           onSubmitted={(attempt) => dispatch({ type: 'submitted', attempt })}
         />
@@ -266,6 +270,15 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           review={state.review}
           backTo={state.back.screen}
           onDone={() => dispatch({ type: 'close-review' })}
+          onSelfGrade={
+            // Only a local attempt takes annotations (ADR 0004).
+            state.attempt.origin === 'local'
+              ? async (questionId, grade) => {
+                  const attempt = await gradeResponse(state.attempt.id, questionId, grade);
+                  dispatch({ type: 'annotated', attempt });
+                }
+              : undefined
+          }
         />
       );
 
