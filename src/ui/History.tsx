@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
 import type { Bank } from '../domain/bank';
-import { atReadingPace, isCounted, MIN_MS_PER_QUESTION } from '../domain/counted';
+import { atReadingPace, canOverrule, isCounted, MIN_MS_PER_QUESTION } from '../domain/counted';
 import { historyFileName, writeHistoryFile, type RejectedAttempt } from '../domain/history-file';
 import type { AttemptReview } from '../domain/review';
 import { percentage } from '../domain/scoring';
@@ -352,7 +352,7 @@ function CountedMarker({
   onOverrule: (attempt: Attempt, counted: boolean) => Promise<void>;
 }) {
   const counted = isCounted(attempt);
-  const overrulable = attempt.origin === 'local' && !atReadingPace(attempt);
+  const overrulable = canOverrule(attempt);
   if (counted && !overrulable) return null;
   return (
     <>
@@ -361,7 +361,11 @@ function CountedMarker({
           {' '}
           <span
             className="badge badge--not-counted"
-            title={`Answered in under ${MIN_MS_PER_QUESTION / 1000} s a question on average, so left out of the tag breakdown`}
+            title={
+              atReadingPace(attempt)
+                ? 'Marked not counted by the participant, so left out of the tag breakdown'
+                : `Answered in under ${MIN_MS_PER_QUESTION / 1000} s a question on average, so left out of the tag breakdown`
+            }
           >
             Not counted
           </span>

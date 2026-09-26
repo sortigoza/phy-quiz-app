@@ -1,7 +1,7 @@
 import type { Bank } from './bank';
 import type { Selection } from './selection';
 import { correctCount } from './scoring';
-import { isWholeBank, type TagFilter } from './tags';
+import { narrowingFilter, type TagFilter } from './tags';
 
 /**
  * The attempt record: one sitting, from start to submission.
@@ -154,6 +154,7 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
     };
   });
 
+  const tagFilter = narrowingFilter(input.tagFilter);
   return {
     id: input.id,
     code: attemptCode(input.id),
@@ -169,7 +170,7 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
     questionCount: answers.length,
     correctCount: correctCount(answers),
     answers,
-    ...(input.tagFilter && !isWholeBank(input.tagFilter) && { tagFilter: input.tagFilter }),
+    ...(tagFilter && { tagFilter }),
     appVersion: input.appVersion,
     origin: 'local',
   };

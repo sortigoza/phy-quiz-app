@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
 import type { Bank } from '../domain/bank';
 import { percentage } from '../domain/scoring';
-import { LOW_DATA_ANSWERS, tagBreakdown, type TagRow } from '../domain/tag-breakdown';
+import { LOW_DATA_ANSWERS, practiseFilter, rowLabel, tagBreakdown } from '../domain/tag-breakdown';
 import type { TagFilter } from '../domain/tags';
 import { newestEdition } from '../history';
 import type { StoredBank } from '../storage/db';
@@ -23,17 +23,6 @@ type Props = {
   attempts: readonly Attempt[];
   onPractise: (stored: StoredBank, bank: Bank, tagFilter: TagFilter) => void;
 };
-
-function rowLabel(row: TagRow): string {
-  switch (row.kind) {
-    case 'tag':
-      return row.tag;
-    case 'untagged':
-      return 'untagged';
-    case 'archived':
-      return 'Archived question';
-  }
-}
 
 export function TagBreakdown({ bankId, attempts, onPractise }: Props) {
   const held = useLiveQuery(
@@ -79,12 +68,7 @@ export function TagBreakdown({ bankId, attempts, onPractise }: Props) {
               <tbody>
                 {rows.map((row) => {
                   const label = rowLabel(row);
-                  const filter: TagFilter | undefined =
-                    row.kind === 'tag'
-                      ? { tags: [row.tag], untagged: false }
-                      : row.kind === 'untagged'
-                        ? { tags: [], untagged: true }
-                        : undefined;
+                  const filter = practiseFilter(row);
                   return (
                     <tr key={`${row.kind}:${label}`}>
                       <td>

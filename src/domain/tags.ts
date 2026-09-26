@@ -17,10 +17,20 @@ export function isWholeBank(filter: TagFilter | undefined): boolean {
   return filter === undefined || (filter.tags.length === 0 && !filter.untagged);
 }
 
+/** The filter as it is recorded: dropped when it narrows nothing. */
+export function narrowingFilter(filter: TagFilter | undefined): TagFilter | undefined {
+  return isWholeBank(filter) ? undefined : filter;
+}
+
+/** A question's tags, each once. Empty means the question is untagged. */
+export function questionTags(question: BankQuestion): Set<string> {
+  return new Set(question.tags ?? []);
+}
+
 function qualifies(question: BankQuestion, filter: TagFilter): boolean {
-  const tags = question.tags ?? [];
-  if (tags.length === 0) return filter.untagged;
-  return tags.some((tag) => filter.tags.includes(tag));
+  const tags = questionTags(question);
+  if (tags.size === 0) return filter.untagged;
+  return filter.tags.some((tag) => tags.has(tag));
 }
 
 /**
@@ -31,8 +41,9 @@ export function qualifyingQuestions(
   bank: Bank,
   filter: TagFilter | undefined,
 ): readonly BankQuestion[] {
-  if (filter === undefined || isWholeBank(filter)) return bank.questions;
-  return bank.questions.filter((question) => qualifies(question, filter));
+  const narrowing = narrowingFilter(filter);
+  if (!narrowing) return bank.questions;
+  return bank.questions.filter((question) => qualifies(question, narrowing));
 }
 
 /** A bank's tags, alphabetically, each with how many questions carry it, and how many carry none. */
@@ -43,7 +54,7 @@ export function bankTags(bank: Bank): {
   const counts = new Map<string, number>();
   let untagged = 0;
   for (const question of bank.questions) {
-    const tags = new Set(question.tags ?? []);
+    const tags = questionTags(question);
     if (tags.size === 0) untagged += 1;
     for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   }

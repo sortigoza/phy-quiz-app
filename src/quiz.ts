@@ -7,7 +7,7 @@ import {
 } from './domain/attempt';
 import { parseBank, type Bank, type ParseBankResult } from './domain/bank';
 import { drawSelection, randomSeed, type Selection } from './domain/selection';
-import { isWholeBank, type TagFilter } from './domain/tags';
+import { narrowingFilter, type TagFilter } from './domain/tags';
 import {
   getBank,
   getInProgress,
@@ -77,6 +77,7 @@ export async function beginAttempt(
 ): Promise<InProgressAttempt> {
   const seed = randomSeed();
   const participant = normaliseName(name);
+  const narrowing = narrowingFilter(tagFilter);
   await setLastParticipantName(participant);
 
   return {
@@ -84,8 +85,8 @@ export async function beginAttempt(
     bank,
     name: participant,
     seed,
-    ...(tagFilter && !isWholeBank(tagFilter) && { tagFilter }),
-    selection: drawSelection(bank, count, seed, tagFilter),
+    ...(narrowing && { tagFilter: narrowing }),
+    selection: drawSelection(bank, count, seed, narrowing),
     chosen: {},
     confidence: {},
     answeredAt: {},

@@ -88,9 +88,12 @@ const answerSchema = z
     };
   });
 
-/** Ticket 18. The bank format's limits on tags bound what a filter can name. */
+/**
+ * Ticket 18. The bank format's limits bound what a filter can name: 500
+ * questions of up to 20 tags, each up to 40 characters.
+ */
 const tagFilterSchema = z.object({
-  tags: z.array(z.string().min(1).max(40)).max(200),
+  tags: z.array(z.string().min(1).max(40)).max(10_000),
   untagged: z.boolean(),
 });
 
