@@ -83,10 +83,7 @@ export function unreadableEscape(text: string): string | undefined {
 export type StringAt = { path: (string | number)[]; text: string };
 
 /** Every string value in a parsed document, with its path. Keys are not visited. */
-export function* stringsIn(
-  value: unknown,
-  path: (string | number)[] = [],
-): Generator<StringAt> {
+export function* stringsIn(value: unknown, path: (string | number)[] = []): Generator<StringAt> {
   if (typeof value === 'string') {
     yield { path, text: value };
   } else if (Array.isArray(value)) {

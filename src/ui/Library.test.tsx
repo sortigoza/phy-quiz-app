@@ -519,7 +519,7 @@ describe('Library', () => {
       expect(load.parentElement).toContainElement(screen.getByText(/upload a bank file/i));
       expect(screen.getByLabelText(/bank file/i)).toHaveAttribute(
         'accept',
-        '.json,application/json',
+        '.json,.yaml,.yml,application/json,application/yaml',
       );
     });
 

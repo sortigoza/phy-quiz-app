@@ -14,6 +14,7 @@ import { History } from './ui/History';
 import { Library } from './ui/Library';
 import { Review } from './ui/Review';
 import { Start } from './ui/Start';
+import { Validate } from './ui/Validate';
 import { APP_VERSION } from './version';
 
 /**
@@ -70,6 +71,15 @@ export function App({
               onClick={() => dispatch({ type: 'open-history' })}
             >
               History
+            </button>
+          )}
+          {state.screen === 'library' && (
+            <button
+              type="button"
+              className="button button--quiet"
+              onClick={() => dispatch({ type: 'open-validate' })}
+            >
+              Validate a bank
             </button>
           )}
           {state.screen === 'help' ? (
@@ -284,6 +294,9 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           }
         />
       );
+
+    case 'validate':
+      return <Validate onDone={() => dispatch({ type: 'open-library' })} />;
 
     case 'history':
       return (

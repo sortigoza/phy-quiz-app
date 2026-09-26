@@ -280,16 +280,19 @@ describe('the backslash detector', () => {
     ['\\rho', 'a carriage return', '\\rho'],
     ['\\nabla', 'a line break', '\\nabla'],
     ['\\nu_0', 'a line break', '\\nu'],
-  ])('reports "%s" in JSON as an unescaped LaTeX command, naming the field', (latex, what, command) => {
-    const result = parseBank(jsonWithRawPrompt(`What is $5 ${latex} 3$?`));
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const issue = result.issues.find((found) => found.path === 'questions[0].prompt');
-    expect(issue?.message).toMatch(/unescaped LaTeX command/);
-    expect(issue?.message).toContain(what);
-    expect(issue?.message).toContain(command);
-    expect(issue?.message).toContain(`\\${command}`);
-  });
+  ])(
+    'reports "%s" in JSON as an unescaped LaTeX command, naming the field',
+    (latex, what, command) => {
+      const result = parseBank(jsonWithRawPrompt(`What is $5 ${latex} 3$?`));
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      const issue = result.issues.find((found) => found.path === 'questions[0].prompt');
+      expect(issue?.message).toMatch(/unescaped LaTeX command/);
+      expect(issue?.message).toContain(what);
+      expect(issue?.message).toContain(command);
+      expect(issue?.message).toContain(`\\${command}`);
+    },
+  );
 
   it('turns the parse error of a backslash JSON cannot read into the same advice', () => {
     const result = parseBank(jsonWithRawPrompt('What is $\\alpha$?'));
@@ -373,7 +376,9 @@ describe('YAML banks', () => {
     const result = parseBank('name: my-package\nversion: 1.0.0');
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.issues).toEqual([{ path: '', message: expect.stringMatching(/not a question bank/) }]);
+    expect(result.issues).toEqual([
+      { path: '', message: expect.stringMatching(/not a question bank/) },
+    ]);
   });
 });
 
@@ -405,9 +410,9 @@ describe('issue messages a teacher can act on', () => {
   it('says what type a field should be', () => {
     expect(messageAt(parse(validBank({ title: 42 })), 'title')).toMatch(/should be text/);
     expect(messageAt(parse(validBank({ questions: {} })), 'questions')).toMatch(/should be a list/);
-    expect(messageAt(parse(validBank({ defaultQuestionCount: 2.5 })), 'defaultQuestionCount')).toMatch(
-      /whole number/,
-    );
+    expect(
+      messageAt(parse(validBank({ defaultQuestionCount: 2.5 })), 'defaultQuestionCount'),
+    ).toMatch(/whole number/);
   });
 
   it('gives lengths and counts in plain words', () => {
@@ -415,9 +420,7 @@ describe('issue messages a teacher can act on', () => {
     expect(messageAt(parse(validBank({ title: 'x'.repeat(201) })), 'title')).toMatch(
       /at most 200 characters/,
     );
-    expect(messageAt(parse(validBank({ questions: [] })), 'questions')).toMatch(
-      /at least 1 item/,
-    );
+    expect(messageAt(parse(validBank({ questions: [] })), 'questions')).toMatch(/at least 1 item/);
   });
 
   it('lists the allowed values of a field that has few', () => {

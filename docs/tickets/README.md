@@ -51,7 +51,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 04 | Maths and Markdown rendering | 03 | [x] |
 | 05 | Load a bank from a URL | 02 | [x] |
 | 05a | Bank repositories | 05 | [x] |
-| 06 | Author ergonomics | 02 | [ ] |
+| 06 | Author ergonomics | 02 | [x] |
 | 06a | Private banks by link (v1.1) | 05 | [x] |
 | 06b | Private bank repositories (v1.1) | 05a, 06a | [x] |
 | 07 | Resume an interrupted attempt | 03 | [x] |

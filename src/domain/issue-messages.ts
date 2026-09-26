@@ -47,9 +47,7 @@ export function teacherMessages(issue: RawIssue): string | undefined {
       if (issue.input === undefined) return 'this field is required and is missing';
       const expected = typeNames[issue.expected] ?? issue.expected;
       const hint =
-        issue.expected === 'string' && typeof issue.input === 'number'
-          ? '; put it in quotes'
-          : '';
+        issue.expected === 'string' && typeof issue.input === 'number' ? '; put it in quotes' : '';
       return `should be ${expected}, but is ${describeValue(issue.input)}${hint}`;
     }
     case 'too_small':

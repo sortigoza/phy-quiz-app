@@ -142,8 +142,7 @@ function looksLikeABank(document: unknown): boolean {
 export type BankFormat = 'json' | 'yaml';
 
 type ReadDocumentResult =
-  | { ok: true; document: unknown; format: BankFormat }
-  | { ok: false; issue: BankIssue };
+  { ok: true; document: unknown; format: BankFormat } | { ok: false; issue: BankIssue };
 
 /**
  * Reads a file as JSON or YAML, telling them apart by content alone, so a
@@ -235,7 +234,9 @@ export function parseBank(text: string): ParseBankResult {
   }
 
   const problems = problemsWith(read.document);
-  return 'bank' in problems ? { ok: true, bank: problems.bank } : { ok: false, issues: problems.issues };
+  return 'bank' in problems
+    ? { ok: true, bank: problems.bank }
+    : { ok: false, issues: problems.issues };
 }
 
 /**
