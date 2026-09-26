@@ -6,16 +6,16 @@ The history file stays lean by design (SPEC §5): it references questions by id 
 
 **Blocked by:** 16. Includes the fields of 17 and 19 when they are done.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The review has a **Copy as Markdown** button. It confirms the copy, and falls back to a selectable text area where the clipboard API is unavailable
-- [ ] The Markdown opens with the bank title, bank version, participant name, date, score, duration, attempt code and, when set, the mode and tag filter
-- [ ] Each question follows in attempt order with its tags, the prompt, every option in presentation order (the correct one and the chosen one marked), the explanation, and the chosen distractor's `why` when there is one
-- [ ] Where recorded, each question also shows its confidence, response or skipped response, and self-grade
-- [ ] The calibration summary (17) and self-grade counts (19) appear after the questions when recorded
-- [ ] Maths stays as its `$...$` source, so it survives the paste
-- [ ] Unanswered questions and archived questions are labelled as such
-- [ ] A test pins the output for a fixture attempt
+- [x] The review has a **Copy as Markdown** button. It confirms the copy, and falls back to a selectable text area where the clipboard API is unavailable
+- [x] The Markdown opens with the bank title, bank version, participant name, date, score, duration, attempt code and, when set, the mode and tag filter
+- [x] Each question follows in attempt order with its tags, the prompt, every option in presentation order (the correct one and the chosen one marked), the explanation, and the chosen distractor's `why` when there is one
+- [x] Where recorded, each question also shows its confidence, response or skipped response, and self-grade
+- [x] The calibration summary (17) and self-grade counts (19) appear after the questions when recorded
+- [x] Maths stays as its `$...$` source, so it survives the paste
+- [x] Unanswered questions and archived questions are labelled as such
+- [x] A test pins the output for a fixture attempt
 
 ## Notes for the implementer
 

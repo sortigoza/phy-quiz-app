@@ -11,6 +11,13 @@ import type { AttemptAnswer } from './attempt';
 /** How one question went. Unanswered is kept distinct from wrong, though both score zero. */
 export type Outcome = 'correct' | 'wrong' | 'unanswered';
 
+/** How each outcome is named, on screen and in a copied review. */
+export const outcomeLabel: Record<Outcome, string> = {
+  correct: 'Correct',
+  wrong: 'Wrong',
+  unanswered: 'Not answered',
+};
+
 export function outcome(answer: AttemptAnswer): Outcome {
   if (answer.chosenOptionId === null) return 'unanswered';
   return answer.chosenOptionId === answer.correctOptionId ? 'correct' : 'wrong';

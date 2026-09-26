@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
 import type { Bank } from '../domain/bank';
 import { atReadingPace, canOverrule, isCounted, MIN_MS_PER_QUESTION } from '../domain/counted';
+import { formatDuration } from '../domain/duration';
 import { historyFileName, writeHistoryFile, type RejectedAttempt } from '../domain/history-file';
 import type { AttemptReview } from '../domain/review';
 import { percentage } from '../domain/scoring';
@@ -60,16 +61,6 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', tim
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
-}
-
-/** "45 s", "3 min 20 s", "1 h 5 min". */
-function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds} s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60)
-    return seconds % 60 === 0 ? `${minutes} min` : `${minutes} min ${seconds % 60} s`;
-  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
 export function History({ filter, onFilter, onReview, onPractise, onDone }: Props) {
