@@ -1,15 +1,15 @@
-import { SELF_GRADES, type Attempt, type AttemptAnswer, type AttemptMode } from './attempt';
+import type { Attempt, AttemptAnswer, AttemptMode } from './attempt';
 import type { BankOption, BankQuestion } from './bank';
 import {
   calibrationLine,
   confidenceLabel,
   confidenceRecorded,
-  confidentErrors,
+  confidentErrorPositions,
 } from './confidence';
 import { formatDuration } from './duration';
 import type { AttemptReview } from './review';
-import { outcome, percentage, type Outcome } from './scoring';
-import { answeredFirst, asksSelfGrade, selfGradeLabel, selfGradeTally } from './self-grade';
+import { outcome, outcomeLabel, percentage } from './scoring';
+import { answeredFirst, reportsSelfGrades, selfGradeCounts, selfGradeLabel } from './self-grade';
 import type { TagFilter } from './tags';
 
 /**
@@ -22,54 +22,42 @@ import type { TagFilter } from './tags';
  * recorded is written: a field it never had is left out rather than guessed.
  */
 
-const outcomeLabel: Record<Outcome, string> = {
-  correct: 'Correct',
-  wrong: 'Wrong',
-  unanswered: 'Not answered',
-};
-
 const modeLabel: Record<AttemptMode, string> = {
   standard: 'Standard',
   'answer-first': 'Answer first',
 };
 
+/** Why a question's text is not in the copy. */
+type Unshown = 'archived' | 'bank-not-held';
+
+const unshownReason: Record<Unshown, string> = {
+  archived: 'Archived question: this edition of the bank no longer has it as it was answered.',
+  'bank-not-held': 'Question not shown: its bank is not in the library.',
+};
+
 /** The review of an attempt as Markdown, questions in attempt order, ending in a newline. */
 export function reviewMarkdown(attempt: Attempt, review: AttemptReview): string {
-  const blocks = [`# Review: ${attempt.bankTitle}`, header(attempt), editionNote(attempt, review)];
-
-  if (review.edition === 'none') {
-    attempt.answers.forEach((answer, index) => {
-      blocks.push(
-        ...unshownQuestion(
-          index,
-          answer,
-          'Question not shown: its bank is not in the library.',
-          'unavailable',
-        ),
-      );
-    });
-  } else {
-    review.questions.forEach((reviewed, index) => {
-      blocks.push(
-        ...(reviewed.kind === 'question'
-          ? shownQuestion(index, reviewed.question, reviewed.options, reviewed.answer)
-          : unshownQuestion(
-              index,
-              reviewed.answer,
-              'Archived question: this edition of the bank no longer has it as it was answered.',
-              'archived',
-            )),
-      );
-    });
-  }
-
-  blocks.push(...summary(attempt));
+  const questions =
+    review.edition === 'none'
+      ? attempt.answers.map((answer, index) => unshownQuestion(index, answer, 'bank-not-held'))
+      : review.questions.map((reviewed, index) =>
+          reviewed.kind === 'question'
+            ? shownQuestion(index, reviewed.question, reviewed.options, reviewed.answer)
+            : unshownQuestion(index, reviewed.answer, 'archived'),
+        );
+  const blocks = [
+    `# Review: ${attempt.bankTitle}`,
+    header(attempt),
+    editionNote(attempt, review),
+    ...questions.flat(),
+    ...summary(attempt, review),
+  ];
   return `${blocks.filter((block) => block !== '').join('\n\n')}\n`;
 }
 
 function header(attempt: Attempt): string {
   const score = `${attempt.correctCount} of ${attempt.questionCount} correct (${percentage(attempt.correctCount, attempt.questionCount)}%)`;
-  return list([
+  return labelledList([
     ['Bank', `${attempt.bankTitle}, version ${attempt.bankVersion}`],
     ['Participant', attempt.name],
     ['Date', formatDate(attempt.submittedAt)],
@@ -81,8 +69,8 @@ function header(attempt: Attempt): string {
     ],
     ['Duration', formatDuration(attempt.durationMs)],
     ['Attempt code', attempt.code],
-    attempt.mode && ['Mode', modeLabel[attempt.mode]],
-    attempt.tagFilter && ['Tag filter', tagFilterText(attempt.tagFilter)],
+    attempt.mode ? ['Mode', modeLabel[attempt.mode]] : null,
+    attempt.tagFilter ? ['Tag filter', tagFilterText(attempt.tagFilter)] : null,
   ]);
 }
 
@@ -127,7 +115,7 @@ function shownQuestion(
     result === 'wrong' ? options.find((option) => option.id === answer.chosenOptionId) : undefined;
   return [
     `## Question ${index + 1}: ${outcomeLabel[result]}`,
-    list([['Tags', tags], confidenceItem(answer)]),
+    labelledList([['Tags', tags], confidenceItem(answer)]),
     question.prompt,
     '**Options:**',
     options.map((option, position) => optionItem(option, position, answer)).join('\n'),
@@ -139,34 +127,32 @@ function shownQuestion(
 }
 
 /** A question whose text cannot be shown: only what the attempt recorded for it. */
-function unshownQuestion(
-  index: number,
-  answer: AttemptAnswer,
-  reason: string,
-  label: 'archived' | 'unavailable',
-): string[] {
+function unshownQuestion(index: number, answer: AttemptAnswer, why: Unshown): string[] {
   const chosen =
     answer.chosenOptionId === null ? '' : ` The chosen option was \`${answer.chosenOptionId}\`.`;
   const heading = `## Question ${index + 1}: ${outcomeLabel[outcome(answer)]}`;
   return [
-    label === 'archived' ? `${heading} (archived)` : heading,
-    list([confidenceItem(answer)]),
-    `${reason}${chosen} The correct option was \`${answer.correctOptionId}\`.`,
+    why === 'archived' ? `${heading} (archived)` : heading,
+    labelledList([confidenceItem(answer)]),
+    `${unshownReason[why]}${chosen} The correct option was \`${answer.correctOptionId}\`.`,
     ...responseBlocks(answer),
   ];
 }
 
-function confidenceItem(answer: AttemptAnswer): ListItem {
-  return answer.confidence && ['Confidence', confidenceLabel[answer.confidence]];
+function confidenceItem(answer: AttemptAnswer): LabelledItem | null {
+  return answer.confidence ? ['Confidence', confidenceLabel[answer.confidence]] : null;
 }
 
-/** "1. text **(correct, chosen)**", continuation lines indented to stay in the item. */
+/**
+ * "1. **(correct, chosen)** text", continuation lines indented to stay in the
+ * item. The marks go first so they cannot land inside maths that ends the text.
+ */
 function optionItem(option: BankOption, position: number, answer: AttemptAnswer): string {
   const marks = [
     option.id === answer.correctOptionId && 'correct',
     option.id === answer.chosenOptionId && 'chosen',
   ].filter(Boolean);
-  const marked = marks.length > 0 ? `${option.text} **(${marks.join(', ')})**` : option.text;
+  const marked = marks.length > 0 ? `**(${marks.join(', ')})** ${option.text}` : option.text;
   const prefix = `${position + 1}. `;
   return prefix + marked.split('\n').join(`\n${' '.repeat(prefix.length)}`);
 }
@@ -184,12 +170,10 @@ function responseBlocks(answer: AttemptAnswer): string[] {
 }
 
 /** Calibration, confident errors and self-grade counts, each only when the attempt recorded them. */
-function summary(attempt: Attempt): string[] {
-  const items: ListItem[] = [];
+function summary(attempt: Attempt, review: AttemptReview): string[] {
+  const items: LabelledItem[] = [];
   if (confidenceRecorded(attempt.answers)) {
-    const errors = confidentErrors(attempt.answers).map(
-      (error) => attempt.answers.indexOf(error) + 1,
-    );
+    const errors = confidentErrorPositions(attempt.answers);
     items.push(['Calibration', calibrationLine(attempt.answers)]);
     items.push([
       'Confident errors',
@@ -198,26 +182,16 @@ function summary(attempt: Attempt): string[] {
         : `${errors.length === 1 ? 'Question' : 'Questions'} ${errors.join(', ')}`,
     ]);
   }
-  if (attempt.mode === 'answer-first' || attempt.answers.some(answeredFirst)) {
-    items.push(['Self-grade', selfGradeText(attempt.answers)]);
-  }
-  return items.length === 0 ? [] : ['## Summary', list(items)];
+  if (reportsSelfGrades(attempt)) items.push(['Self-grade', selfGradeCounts(attempt, review)]);
+  return items.length === 0 ? [] : ['## Across the attempt', labelledList(items)];
 }
 
-function selfGradeText(answers: readonly AttemptAnswer[]): string {
-  if (!answers.some(asksSelfGrade)) return 'no responses written';
-  const tally = selfGradeTally(answers);
-  const counts = SELF_GRADES.map((grade) => `${selfGradeLabel[grade]} ${tally[grade]}`);
-  if (tally.ungraded > 0) counts.push(`${tally.ungraded} not graded`);
-  return counts.join(' · ');
-}
+type LabelledItem = readonly [label: string, value: string];
 
-/** A bold-labelled bullet, or a falsy value for one the attempt did not record. */
-type ListItem = readonly [label: string, value: string] | undefined | false | '';
-
-function list(items: readonly ListItem[]): string {
+/** "- **Label:** value" per item, leaving out the ones the attempt did not record. */
+function labelledList(items: ReadonlyArray<LabelledItem | null>): string {
   return items
-    .filter((item) => !!item)
+    .filter((item) => item !== null)
     .map(([label, value]) => `- **${label}:** ${value}`)
     .join('\n');
 }

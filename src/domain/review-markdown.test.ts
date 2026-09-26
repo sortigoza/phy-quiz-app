@@ -129,8 +129,8 @@ What is its mean speed?
 **Options:**
 
 1. $0.05\\,\\text{m/s}$
-2. $500\\,\\text{m/s}$ **(chosen)**
-3. $20\\,\\text{m/s}$ **(correct)**
+2. **(chosen)** $500\\,\\text{m/s}$
+3. **(correct)** $20\\,\\text{m/s}$
 
 **Response:**
 
@@ -157,7 +157,7 @@ What is the SI unit of force?
 **Options:**
 
 1. Joule
-2. Newton **(correct, chosen)**
+2. **(correct, chosen)** Newton
 
 **Response:** skipped
 
@@ -173,7 +173,7 @@ What is the SI unit of power?
 
 **Options:**
 
-1. Watt **(correct)**
+1. **(correct)** Watt
 2. Volt
 
 **Explanation:**
@@ -192,11 +192,11 @@ Archived question: this edition of the bank no longer has it as it was answered.
 
 **Self-grade:** not graded
 
-## Summary
+## Across the attempt
 
 - **Calibration:** Sure: 0/1 (0%) · Unsure: 1/1 (100%) · Guess: 1/1 (100%)
 - **Confident errors:** Question 1
-- **Self-grade:** Yes 0 · Partly 0 · No 1 · 1 not graded
+- **Self-grade:** Yes 0 · Partly 0 · No 1
 `,
     );
   });
@@ -205,7 +205,7 @@ Archived question: this edition of the bank no longer has it as it was answered.
     const plain = attemptRecord();
     const markdown = reviewMarkdown(plain, { edition: 'none' });
 
-    expect(markdown).not.toMatch(/Mode|Tag filter|Confidence|Self-grade|Calibration|Summary/);
+    expect(markdown).not.toMatch(/Mode|Tag filter|Confidence|Self-grade|Calibration|Across/);
     expect(markdown).toContain(
       'SI units is not in the library, so only what the attempt recorded is shown.',
     );
