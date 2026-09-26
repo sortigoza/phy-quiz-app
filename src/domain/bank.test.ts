@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bankLanguage, fingerprint, parseBank } from './bank';
+import { bankLanguage, compareVersions, fingerprint, parseBank } from './bank';
 
 /** A minimal bank that satisfies every rule. Tests mutate copies of this. */
 function validBank(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -248,5 +248,19 @@ describe('bankLanguage', () => {
 
   it('is English when the bank declares none', () => {
     expect(languageOf({})).toBe('en');
+  });
+});
+
+describe('compareVersions', () => {
+  it('orders versions numerically, with a release above its pre-releases', () => {
+    const versions = ['1.10.0', '1.2.0', '2.0.0-beta', '2.0.0', '1.2.0+build', '0.9.9'];
+    expect([...versions].sort(compareVersions)).toEqual([
+      '0.9.9',
+      '1.2.0',
+      '1.2.0+build',
+      '1.10.0',
+      '2.0.0-beta',
+      '2.0.0',
+    ]);
   });
 });

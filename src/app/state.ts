@@ -24,7 +24,7 @@ type WorkScreen =
 type HistoryScreen = { screen: 'history'; filter: HistoryFilter };
 
 /** Where a review returns to: the library after submission, or the history it was opened from. */
-type ReviewBack = { screen: 'library' } | HistoryScreen;
+export type ReviewBack = { screen: 'library' } | HistoryScreen;
 
 /**
  * Help sits over whichever screen opened it and returns there on close, so

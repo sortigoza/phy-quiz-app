@@ -132,7 +132,7 @@ One participant's accuracy on one bank, per tag, across their counted attempts, 
 _Avoid_: Dashboard, progress screen, topic analysis
 
 **Archived Question**:
-A question an attempt answered that no longer exists in the newest held edition of its bank. Its answers still count towards the attempt's score, but belong to no tag.
+A question an attempt answered that no longer exists in the newest held edition of its bank, or that no longer has the option recorded as chosen or correct. Its answers still count towards the attempt's score, but belong to no tag.
 _Avoid_: Deleted question, missing question, orphan
 
 **Leaderboard**:
