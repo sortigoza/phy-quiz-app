@@ -1,5 +1,11 @@
 import type { Attempt, AttemptAnswer } from './attempt';
-import { bankLanguage, type Bank, type BankOption, type BankQuestion } from './bank';
+import {
+  bankLanguage,
+  compareVersions,
+  type Bank,
+  type BankOption,
+  type BankQuestion,
+} from './bank';
 import { drawSelection, type Selection } from './selection';
 
 /**
@@ -29,8 +35,18 @@ export type ReviewedQuestion =
 export type AttemptReview =
   /** The edition the attempt was taken on. */
   | { edition: 'same'; language: string; questions: ReviewedQuestion[] }
-  /** Another edition of the same bank, which the review must say it is using. */
-  | { edition: 'other'; version: string; language: string; questions: ReviewedQuestion[] }
+  /**
+   * Another edition of the same bank, which the review must say it is using.
+   * `mismatch` when it is the edition the attempt names, but the attempt's
+   * answers do not replay against it: an imported attempt that says so wrongly.
+   */
+  | {
+      edition: 'other';
+      version: string;
+      mismatch: boolean;
+      language: string;
+      questions: ReviewedQuestion[];
+    }
   /** No edition of the bank is held: there is only the score. */
   | { edition: 'none' };
 
@@ -80,31 +96,12 @@ export function reviewAttempt(attempt: Attempt, editions: readonly HeldEdition[]
   return {
     edition: 'other',
     version: newest.bank.version,
+    mismatch: newest === exact,
     language: bankLanguage(newest.bank),
-    questions: attempt.answers.map((answer) => lookUp(answer, byId.get(answer.questionId))),
+    questions: attempt.answers.map((answer) =>
+      reviewedOrArchived(answer, byId.get(answer.questionId)),
+    ),
   };
-}
-
-/**
- * Orders two bank versions as semver does, closely enough to find the newest:
- * by major, minor and patch, then a release above its pre-releases. Pre-release
- * labels and build metadata are compared as plain text.
- */
-export function compareVersions(a: string, b: string): number {
-  const parse = (version: string) => {
-    const [core = '', pre] = version.split('+')[0]?.split(/-(.*)/) ?? [];
-    return { numbers: core.split('.').map(Number), pre };
-  };
-  const x = parse(a);
-  const y = parse(b);
-  for (let i = 0; i < 3; i++) {
-    const difference = (x.numbers[i] ?? 0) - (y.numbers[i] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  if (x.pre === undefined || y.pre === undefined) {
-    return (x.pre === undefined ? 1 : 0) - (y.pre === undefined ? 1 : 0);
-  }
-  return x.pre.localeCompare(y.pre);
 }
 
 function replays(attempt: Attempt, selection: Selection): boolean {
@@ -114,8 +111,11 @@ function replays(attempt: Attempt, selection: Selection): boolean {
   );
 }
 
-/** A recorded answer beside its question, unless the question cannot show what was recorded. */
-function lookUp(answer: AttemptAnswer, question: BankQuestion | undefined): ReviewedQuestion {
+/** A recorded answer beside its question, or archived when the question cannot show what was recorded. */
+function reviewedOrArchived(
+  answer: AttemptAnswer,
+  question: BankQuestion | undefined,
+): ReviewedQuestion {
   const has = (id: string) => question?.options.some((option) => option.id === id) === true;
   if (
     !question ||

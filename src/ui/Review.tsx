@@ -1,6 +1,7 @@
 import type { Attempt, AttemptAnswer } from '../domain/attempt';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
+import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
 
@@ -20,7 +21,7 @@ type Props = {
   attempt: Attempt;
   review: AttemptReview;
   /** Where Done goes, to name the button. */
-  backTo: 'library' | 'history';
+  backTo: ReviewBack['screen'];
   onDone: () => void;
 };
 
@@ -60,10 +61,13 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
         <>
           {review.edition === 'other' && (
             <p className="panel panel--notice">
-              This attempt was taken on version {attempt.bankVersion} of {attempt.bankTitle}, which
-              is no longer in your library. It is shown against version {review.version}.
+              <OtherEditionNotice
+                attempt={attempt}
+                version={review.version}
+                mismatch={review.mismatch}
+              />
               {review.questions.some((reviewed) => reviewed.kind === 'archived') &&
-                ' Questions that version no longer has are shown as archived.'}
+                ' Questions it cannot show as they were answered are shown as archived.'}
             </p>
           )}
           <ol className="review__list">
@@ -82,6 +86,34 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
         </button>
       </div>
     </section>
+  );
+}
+
+/** Says which edition the review is shown against, and why it is not the one the attempt was taken on. */
+function OtherEditionNotice({
+  attempt,
+  version,
+  mismatch,
+}: {
+  attempt: Attempt;
+  version: string;
+  mismatch: boolean;
+}) {
+  if (mismatch) {
+    return (
+      <>
+        This attempt’s answers do not match the version {version} of {attempt.bankTitle} in your
+        library, though it names that edition. Its questions are shown by id.
+      </>
+    );
+  }
+  const shown =
+    version === attempt.bankVersion ? `a changed copy of version ${version}` : `version ${version}`;
+  return (
+    <>
+      The edition of {attempt.bankTitle} this attempt was taken on, version {attempt.bankVersion},
+      is no longer in your library. It is shown against {shown}.
+    </>
   );
 }
 
@@ -155,7 +187,7 @@ function ArchivedCard({ answer, index }: { answer: AttemptAnswer; index: number 
       <p className={`outcome outcome--${result}`}>{outcomeLabel[result]}</p>
       <h3 className="reviewed__number">Question {index + 1}</h3>
       <p id={labelId} className="reviewed__prompt reviewed__archived">
-        Archived question: it is no longer in this bank.
+        Archived question: this edition of the bank no longer has it as it was answered.
       </p>
       <p>
         {answer.chosenOptionId === null ? (

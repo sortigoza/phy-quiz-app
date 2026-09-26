@@ -27,7 +27,7 @@ What was built, where it lives, and what was left open on purpose.
 
 ### Where things are
 
-- `src/domain/review.ts`: `reviewAttempt(attempt, editions)` decides which edition to show and builds the reviewed questions; `reviewSelection` does the same for a selection still in memory, which is how the post-submission review is built, so both routes render one model. `compareVersions` orders bank versions. No DOM, no Dexie.
+- `src/domain/review.ts`: `reviewAttempt(attempt, editions)` decides which edition to show and builds the reviewed questions; `reviewSelection` does the same for a selection still in memory, which is how the post-submission review is built, so both routes render one model. No DOM, no Dexie. `compareVersions`, which orders bank versions, is in `src/domain/bank.ts`.
 - `src/history.ts`: `reviewFromHistory(attempt)` reads the bank's editions (`listEditions` in `src/storage/db.ts`) and hands them to the domain.
 - `src/ui/Review.tsx` renders an `AttemptReview`: the replayed questions, the note naming the other edition, archived questions, or the score alone. `src/ui/UnverifiedBadge.tsx` is the badge History already showed, now shared.
 - `src/app/state.ts`: History's filter moved from the component into the `history` screen state, and a review carries `back`, the screen it returns to. That is what keeps the filters on the way back.
@@ -35,9 +35,9 @@ What was built, where it lives, and what was left open on purpose.
 
 ### Decisions made along the way
 
-- **The replay is checked, not trusted.** An imported attempt can name any fingerprint, so when the exact edition is held the replayed question ids must equal the recorded ones in order. If they do not, the review takes the other-edition path rather than pairing answers with the wrong questions.
+- **The replay is checked, not trusted.** An imported attempt can name any fingerprint, so when the exact edition is held the replayed question ids must equal the recorded ones in order. If they do not, the review takes the other-edition path rather than pairing answers with the wrong questions, and says the attempt does not match the edition it names rather than that the edition is gone.
 - **Another edition shows questions by id, in attempt order, with options in the bank's order.** The seed cannot replay option order against a different bank, so no attempt is made to.
-- **A question is archived when its id is gone, or when its recorded correct or chosen option is.** Either way the card could not show what was recorded. The recorded choice and correctness always stand, and the score is never recomputed.
+- **A question is archived when its id is gone, or when its recorded correct or chosen option is.** Either way the card could not show what was recorded. CONTEXT.md's entry says so. The recorded choice and correctness always stand, and the score is never recomputed.
 - **The newest edition is the highest version**, compared as semver closely enough: numerically by major, minor and patch, a release above its pre-releases. Not by `addedAt`, which a re-download would change.
 - **An edition that no longer parses is passed over**, as if it were not held.
 - **Each row has a Review button**, named with the attempt code, rather than the whole row being clickable, which a table row cannot be accessibly.

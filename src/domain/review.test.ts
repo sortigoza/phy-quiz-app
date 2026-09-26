@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAttempt, type Attempt } from './attempt';
 import type { Bank, BankQuestion } from './bank';
-import {
-  compareVersions,
-  reviewAttempt,
-  type AttemptReview,
-  type ReviewedQuestion,
-} from './review';
+import { reviewAttempt, type AttemptReview, type ReviewedQuestion } from './review';
 import { drawSelection } from './selection';
 
 function question(id: string, answer = 'a'): BankQuestion {
@@ -91,7 +86,7 @@ describe('reviewAttempt', () => {
       { bank: bankOf(firstEdition.questions, '1.10.0'), fingerprint: 'older' },
     ]);
 
-    expect(review).toMatchObject({ edition: 'other', version: '2.0.0' });
+    expect(review).toMatchObject({ edition: 'other', version: '2.0.0', mismatch: false });
     expect(shape(review)).toEqual([`${kept}:abc`, `archived:${lost}`, `${alsoKept}:abc`]);
     if (review.edition === 'none') throw new Error('unreachable');
     // The recorded choice and correctness stand, whatever the edition says now.
@@ -118,7 +113,8 @@ describe('reviewAttempt', () => {
     const forged = { ...attempt, seed: seed + 1 };
     const review = reviewAttempt(forged, [{ bank: firstEdition, fingerprint: 'first' }]);
 
-    expect(review.edition).toBe('other');
+    // Held, so the review must not claim it is gone: the attempt disagrees with it.
+    expect(review).toMatchObject({ edition: 'other', version: '1.0.0', mismatch: true });
     expect(shape(review).map((entry) => entry.split(':')[0])).toEqual(
       attempt.answers.map((answer) => answer.questionId),
     );
@@ -126,19 +122,5 @@ describe('reviewAttempt', () => {
 
   it('degrades to the score alone when no edition of the bank is held', () => {
     expect(reviewAttempt(attempt, [])).toEqual({ edition: 'none' });
-  });
-});
-
-describe('compareVersions', () => {
-  it('orders versions numerically, with a release above its pre-releases', () => {
-    const versions = ['1.10.0', '1.2.0', '2.0.0-beta', '2.0.0', '1.2.0+build', '0.9.9'];
-    expect([...versions].sort(compareVersions)).toEqual([
-      '0.9.9',
-      '1.2.0',
-      '1.2.0+build',
-      '1.10.0',
-      '2.0.0-beta',
-      '2.0.0',
-    ]);
   });
 });

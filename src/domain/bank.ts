@@ -205,3 +205,25 @@ const DEFAULT_BANK_LANGUAGE = 'en';
 export function bankLanguage(bank: Bank): string {
   return bank.language ?? DEFAULT_BANK_LANGUAGE;
 }
+
+/**
+ * Orders two bank versions as semver does, closely enough to find the newest:
+ * by major, minor and patch, then a release above its pre-releases. Pre-release
+ * labels and build metadata are compared as plain text.
+ */
+export function compareVersions(a: string, b: string): number {
+  const parse = (version: string) => {
+    const [core = '', pre] = version.split('+')[0]?.split(/-(.*)/) ?? [];
+    return { numbers: core.split('.').map(Number), pre };
+  };
+  const x = parse(a);
+  const y = parse(b);
+  for (let i = 0; i < 3; i++) {
+    const difference = (x.numbers[i] ?? 0) - (y.numbers[i] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  if (x.pre === undefined || y.pre === undefined) {
+    return (x.pre === undefined ? 1 : 0) - (y.pre === undefined ? 1 : 0);
+  }
+  return x.pre.localeCompare(y.pre);
+}
