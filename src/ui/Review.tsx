@@ -1,11 +1,22 @@
-import { CONFIDENCE_LEVELS, type Attempt, type AttemptAnswer } from '../domain/attempt';
+import { useState } from 'react';
+import {
+  CONFIDENCE_LEVELS,
+  SELF_GRADES,
+  type Attempt,
+  type AttemptAnswer,
+  type SelfGrade,
+} from '../domain/attempt';
 import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
+import { answeredFirst, asksSelfGrade, selfGradeTally } from '../domain/self-grade';
+import { storageProblem } from '../storage/problems';
 import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
 import { confidenceLabel } from './confidence';
+import { ResponseText } from './ResponseText';
+import { selfGradeLabel } from './self-grade';
 
 /**
  * The review: where all the teaching happens.
@@ -22,6 +33,11 @@ import { confidenceLabel } from './confidence';
  * the wrong answers the participant was sure of, because correcting those
  * matters most, and the score line says how well-calibrated they were. Attempts
  * saved before confidence was asked for say it was not recorded.
+ *
+ * An attempt taken in answer-first mode shows each response beside the
+ * explanation and asks whether it matched. The participant may answer that on
+ * a local attempt at any time, from any review (ADR 0004); an imported
+ * attempt shows its self-grades read-only.
  */
 
 type Props = {
@@ -30,7 +46,26 @@ type Props = {
   /** Where Done goes, to name the button. */
   backTo: ReviewBack['screen'];
   onDone: () => void;
+  /** Writes a self-grade. Missing where self-grades are read-only: on an imported attempt. */
+  onSelfGrade?: ((questionId: string, grade: SelfGrade) => Promise<void>) | undefined;
 };
+
+/**
+ * "Self-grade: Yes 3 · Partly 1 · No 0 · 2 to grade". Only responses the
+ * review can show beside their explanation are counted as still to grade: an
+ * archived question, or one of a bank no longer held, cannot be graded here.
+ */
+function selfGradeLine(attempt: Attempt, review: AttemptReview): string {
+  if (!attempt.answers.some(asksSelfGrade)) return 'Self-grade: no responses written';
+  const tally = selfGradeTally(attempt.answers);
+  const gradable = review.edition === 'none' ? [] : review.questions;
+  const { ungraded } = selfGradeTally(
+    gradable.flatMap((reviewed) => (reviewed.kind === 'question' ? [reviewed.answer] : [])),
+  );
+  const counts = SELF_GRADES.map((grade) => `${selfGradeLabel[grade]} ${tally[grade]}`);
+  if (ungraded > 0) counts.push(`${ungraded} to grade`);
+  return `Self-grade: ${counts.join(' · ')}`;
+}
 
 const outcomeLabel: Record<Outcome, string> = {
   correct: 'Correct',
@@ -54,7 +89,7 @@ function questionAnchor(position: number): string {
   return `review-question-${position}`;
 }
 
-export function Review({ attempt, review, backTo, onDone }: Props) {
+export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) {
   const withConfidence = confidenceRecorded(attempt.answers);
   // The review lists questions in attempt order, whichever edition it is shown against.
   const positionById = new Map(
@@ -89,6 +124,9 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
         <span className="review__calibration">
           {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
         </span>
+        {(attempt.mode === 'answer-first' || attempt.answers.some(answeredFirst)) && (
+          <span className="review__self-grades">{selfGradeLine(attempt, review)}</span>
+        )}
       </p>
 
       {withConfidence && (
@@ -143,6 +181,7 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
                   index={index}
                   language={review.language}
                   withConfidence={withConfidence}
+                  onSelfGrade={onSelfGrade}
                 />
               </li>
             ))}
@@ -218,11 +257,13 @@ function ReviewedCard({
   index,
   language,
   withConfidence,
+  onSelfGrade,
 }: {
   reviewed: ReviewedQuestion;
   index: number;
   language: string;
   withConfidence: boolean;
+  onSelfGrade: Props['onSelfGrade'];
 }) {
   if (reviewed.kind === 'archived')
     return <ArchivedCard answer={reviewed.answer} index={index} withConfidence={withConfidence} />;
@@ -233,6 +274,12 @@ function ReviewedCard({
   const chosenId = answer.chosenOptionId;
   const chosenWrong =
     result === 'wrong' ? options.find((option) => option.id === chosenId) : undefined;
+  const explanation = (
+    <div className="reviewed__explanation">
+      <h4>Explanation</h4>
+      <BankText text={question.explanation} lang={language} />
+    </div>
+  );
 
   return (
     <article
@@ -273,10 +320,17 @@ function ReviewedCard({
           <BankText text={chosenWrong.why} lang={language} />
         </div>
       )}
-      <div className="reviewed__explanation">
-        <h4>Explanation</h4>
-        <BankText text={question.explanation} lang={language} />
-      </div>
+      {answeredFirst(answer) ? (
+        <div className="reviewed__compare">
+          <ResponseRecord answer={answer} />
+          {explanation}
+        </div>
+      ) : (
+        explanation
+      )}
+      {asksSelfGrade(answer) && (
+        <SelfGradeQuestion answer={answer} index={index} onSelfGrade={onSelfGrade} />
+      )}
     </article>
   );
 }
@@ -314,6 +368,78 @@ function ArchivedCard({
         )}
         The correct option was <code>{answer.correctOptionId}</code>.
       </p>
+      {answeredFirst(answer) && <ResponseRecord answer={answer} />}
     </article>
+  );
+}
+
+/** What the participant wrote before seeing the options, or that they skipped it. */
+function ResponseRecord({ answer }: { answer: AttemptAnswer }) {
+  return (
+    <div className="reviewed__response">
+      <h4>Your response</h4>
+      {answer.response === undefined ? (
+        <p className="reviewed__skipped">You skipped writing a response.</p>
+      ) : (
+        <ResponseText text={answer.response} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Did your own answer match?", as a native radio group. Each choice is saved
+ * at once; while it saves, and on an imported attempt, the group is disabled.
+ */
+function SelfGradeQuestion({
+  answer,
+  index,
+  onSelfGrade,
+}: {
+  answer: AttemptAnswer;
+  index: number;
+  onSelfGrade: Props['onSelfGrade'];
+}) {
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function grade(value: SelfGrade) {
+    if (!onSelfGrade) return;
+    setSaving(true);
+    setProblem(null);
+    try {
+      await onSelfGrade(answer.questionId, value);
+    } catch (cause) {
+      setProblem(storageProblem(cause));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <fieldset className="self-grade" disabled={!onSelfGrade || saving}>
+      <legend className="self-grade__legend">Did your own answer match?</legend>
+      <div className="self-grade__levels">
+        {SELF_GRADES.map((value) => (
+          <label key={value} className="radio-card self-grade__level">
+            <input
+              type="radio"
+              name={`self-grade-${index}`}
+              checked={answer.selfGrade === value}
+              onChange={() => void grade(value)}
+            />
+            {selfGradeLabel[value]}
+          </label>
+        ))}
+      </div>
+      {!onSelfGrade && (
+        <p className="self-grade__hint">An imported attempt’s self-grades cannot be changed.</p>
+      )}
+      {problem && (
+        <p className="panel panel--error" role="alert">
+          Could not save your self-grade. {problem}
+        </p>
+      )}
+    </fieldset>
   );
 }

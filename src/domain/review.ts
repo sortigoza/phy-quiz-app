@@ -109,6 +109,22 @@ export function reviewAttempt(attempt: Attempt, editions: readonly HeldEdition[]
   };
 }
 
+/**
+ * The review with its answers taken again from the attempt, by question id:
+ * after a participant annotation, so the review shows what is now stored.
+ */
+export function withAnswersOf(review: AttemptReview, attempt: Attempt): AttemptReview {
+  if (review.edition === 'none') return review;
+  const answerById = new Map(attempt.answers.map((answer) => [answer.questionId, answer]));
+  return {
+    ...review,
+    questions: review.questions.map((reviewed) => ({
+      ...reviewed,
+      answer: answerById.get(reviewed.answer.questionId) ?? reviewed.answer,
+    })),
+  };
+}
+
 function replays(attempt: Attempt, selection: Selection): boolean {
   return (
     selection.length === attempt.answers.length &&

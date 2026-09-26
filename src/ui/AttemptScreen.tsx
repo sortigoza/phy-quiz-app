@@ -1,10 +1,18 @@
-import { useState } from 'react';
-import { CONFIDENCE_LEVELS, type Attempt, type Confidence } from '../domain/attempt';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import {
+  canReveal,
+  CONFIDENCE_LEVELS,
+  MIN_RESPONSE_LENGTH,
+  type Attempt,
+  type Confidence,
+  type Reveal,
+} from '../domain/attempt';
 import { bankLanguage } from '../domain/bank';
-import { missingConfidence, submitAttempt, type InProgressAttempt } from '../quiz';
+import { missingConfidence, optionsShown, submitAttempt, type InProgressAttempt } from '../quiz';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
 import { confidenceLabel } from './confidence';
+import { ResponseText } from './ResponseText';
 
 /**
  * One question per screen, in exam mode: nothing on this screen says whether
@@ -18,6 +26,13 @@ import { confidenceLabel } from './confidence';
  * Below the options, a second radio group asks how sure the participant is of
  * the option they chose. It stays disabled until an option is chosen, and
  * submission waits until every answered question has one.
+ *
+ * In answer-first mode the options and the confidence stay hidden until the
+ * participant writes a response and reveals them, or skips it. The response
+ * then stays on screen, read-only, above the options.
+ *
+ * Number keys 1 to 9 choose an option while the options are on screen, except
+ * while the focus is in a text field, where they are typed.
  */
 
 type Props = {
@@ -27,6 +42,8 @@ type Props = {
   unsaved: string | null;
   onChoose: (questionId: string, optionId: string) => void;
   onSetConfidence: (questionId: string, confidence: Confidence) => void;
+  onWriteResponse: (questionId: string, text: string) => void;
+  onReveal: (questionId: string, reveal: Reveal) => void;
   onGoTo: (index: number) => void;
   onSubmitted: (attempt: Attempt) => void;
 };
@@ -37,6 +54,8 @@ export function AttemptScreen({
   unsaved,
   onChoose,
   onSetConfidence,
+  onWriteResponse,
+  onReveal,
   onGoTo,
   onSubmitted,
 }: Props) {
@@ -60,6 +79,38 @@ export function AttemptScreen({
   const withoutConfidence = missingConfidence(inProgress);
   const answered = question.id in inProgress.chosen;
   const confidenceHintId = `confidence-hint-${index}`;
+  const shown = optionsShown(inProgress, question.id);
+
+  function choose(optionId: string) {
+    setConfirming(false);
+    onChoose(question.id, optionId);
+  }
+
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (!shown || submitting || !/^[1-9]$/.test(event.key)) return;
+    if (event.ctrlKey || event.metaKey || event.altKey || isTextField(event.target)) return;
+    const option = options[Number(event.key) - 1];
+    if (!option) return;
+    event.preventDefault();
+    choose(option.id);
+  });
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Revealing removes the button that had the focus; it moves to the first option.
+  const firstOption = useRef<HTMLInputElement>(null);
+  const justRevealed = useRef(false);
+  useEffect(() => {
+    if (shown && justRevealed.current) firstOption.current?.focus();
+    justRevealed.current = false;
+  }, [shown]);
+
+  function reveal(how: Reveal) {
+    justRevealed.current = true;
+    onReveal(question.id, how);
+  }
 
   async function submit() {
     if (submitting) return;
@@ -97,49 +148,59 @@ export function AttemptScreen({
         disabled={submitting}
       >
         <BankText id={promptId} className="question__prompt" text={question.prompt} lang={lang} />
-        {options.map((option) => (
-          <label key={option.id} className="radio-card option">
-            <input
-              type="radio"
-              name={`question-${question.id}`}
-              checked={inProgress.chosen[question.id] === option.id}
-              onChange={() => {
-                setConfirming(false);
-                onChoose(question.id, option.id);
-              }}
-            />
-            <BankText inline text={option.text} lang={lang} />
-          </label>
-        ))}
+        {inProgress.mode === 'answer-first' && (
+          <ResponseStep
+            questionId={question.id}
+            response={inProgress.responses[question.id] ?? ''}
+            revealed={inProgress.revealed[question.id]}
+            onWrite={(text) => onWriteResponse(question.id, text)}
+            onReveal={reveal}
+          />
+        )}
+        {shown &&
+          options.map((option, position) => (
+            <label key={option.id} className="radio-card option">
+              <input
+                ref={position === 0 ? firstOption : undefined}
+                type="radio"
+                name={`question-${question.id}`}
+                checked={inProgress.chosen[question.id] === option.id}
+                onChange={() => choose(option.id)}
+              />
+              <BankText inline text={option.text} lang={lang} />
+            </label>
+          ))}
       </fieldset>
 
       {/* A native fieldset again: keyboard use and the group's name come from the platform. */}
-      <fieldset
-        key={`confidence-${question.id}`}
-        className="confidence"
-        disabled={submitting || !answered}
-        aria-describedby={answered ? undefined : confidenceHintId}
-      >
-        <legend className="confidence__legend">How sure are you?</legend>
-        <div className="confidence__levels">
-          {CONFIDENCE_LEVELS.map((level) => (
-            <label key={level} className="radio-card confidence__level">
-              <input
-                type="radio"
-                name={`confidence-${question.id}`}
-                checked={inProgress.confidence[question.id] === level}
-                onChange={() => onSetConfidence(question.id, level)}
-              />
-              {confidenceLabel[level]}
-            </label>
-          ))}
-        </div>
-        {!answered && (
-          <p id={confidenceHintId} className="confidence__hint">
-            Choose an option first.
-          </p>
-        )}
-      </fieldset>
+      {shown && (
+        <fieldset
+          key={`confidence-${question.id}`}
+          className="confidence"
+          disabled={submitting || !answered}
+          aria-describedby={answered ? undefined : confidenceHintId}
+        >
+          <legend className="confidence__legend">How sure are you?</legend>
+          <div className="confidence__levels">
+            {CONFIDENCE_LEVELS.map((level) => (
+              <label key={level} className="radio-card confidence__level">
+                <input
+                  type="radio"
+                  name={`confidence-${question.id}`}
+                  checked={inProgress.confidence[question.id] === level}
+                  onChange={() => onSetConfidence(question.id, level)}
+                />
+                {confidenceLabel[level]}
+              </label>
+            ))}
+          </div>
+          {!answered && (
+            <p id={confidenceHintId} className="confidence__hint">
+              Choose an option first.
+            </p>
+          )}
+        </fieldset>
+      )}
 
       {askedForConfidence && withoutConfidence.length > 0 && (
         <div className="panel panel--error" role="alert">
@@ -227,5 +288,87 @@ export function AttemptScreen({
         )}
       </div>
     </section>
+  );
+}
+
+/** Whether typing a digit here should type it, rather than choose an option. */
+function isTextField(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return !['radio', 'checkbox', 'button', 'submit', 'reset'].includes(target.type);
+  }
+  return target instanceof HTMLElement && target.isContentEditable;
+}
+
+/**
+ * Answer-first mode: the response field, with its live preview, and the two
+ * ways to reveal the options. Once they are revealed, what was written stays,
+ * read-only.
+ */
+function ResponseStep({
+  questionId,
+  response,
+  revealed,
+  onWrite,
+  onReveal,
+}: {
+  questionId: string;
+  response: string;
+  revealed: Reveal | undefined;
+  onWrite: (text: string) => void;
+  onReveal: (how: Reveal) => void;
+}) {
+  const fieldId = `response-${questionId}`;
+  const hintId = `response-hint-${questionId}`;
+
+  if (revealed === 'skipped') {
+    return <p className="response__skipped">You skipped writing a response to this question.</p>;
+  }
+
+  return (
+    <div className="response">
+      <label htmlFor={fieldId} className="response__label">
+        Your answer or reasoning
+      </label>
+      <textarea
+        id={fieldId}
+        className="response__field"
+        rows={4}
+        value={response}
+        readOnly={revealed === 'written'}
+        aria-describedby={revealed ? undefined : hintId}
+        onChange={(event) => onWrite(event.target.value)}
+      />
+      {response.trim() !== '' && (
+        <div role="group" aria-label="Preview" className="response__preview">
+          <ResponseText text={response} />
+        </div>
+      )}
+      {!revealed && (
+        <>
+          <p id={hintId} className="response__hint">
+            Write at least {MIN_RESPONSE_LENGTH} characters to reveal the options, or skip if the
+            question needs them.
+          </p>
+          <div className="actions actions--start">
+            <button
+              type="button"
+              className="button"
+              disabled={!canReveal(response)}
+              onClick={() => onReveal('written')}
+            >
+              Reveal options
+            </button>
+            <button
+              type="button"
+              className="button button--link"
+              onClick={() => onReveal('skipped')}
+            >
+              Skip
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

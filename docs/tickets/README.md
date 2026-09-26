@@ -67,7 +67,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 16 | Review from history | 08 | [x] |
 | 17 | Confidence per answer | 03 | [x] |
 | 18 | Tag filter and tag breakdown | 08, 16 | [x] |
-| 19 | Answer-first mode | 16 | [ ] |
+| 19 | Answer-first mode | 16 | [x] |
 | 20 | Copy review as Markdown | 16 | [ ] |
 
 Live at <https://sortigoza.github.io/phy-quiz-app/>.

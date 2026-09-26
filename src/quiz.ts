@@ -3,7 +3,9 @@ import {
   normaliseName,
   uuidv7,
   type Attempt,
+  type AttemptMode,
   type Confidence,
+  type Reveal,
 } from './domain/attempt';
 import { parseBank, type Bank, type ParseBankResult } from './domain/bank';
 import { drawSelection, randomSeed, type Selection } from './domain/selection';
@@ -13,6 +15,7 @@ import {
   getInProgress,
   recordSubmittedAttempt,
   putInProgress,
+  setAttemptMode,
   setLastParticipantName,
   type StoredBank,
 } from './storage/db';
@@ -36,14 +39,24 @@ export type InProgressAttempt = {
   /** The tags the selection was restricted to, if any. Replayed with the seed. */
   tagFilter?: TagFilter | undefined;
   selection: Selection;
+  mode: AttemptMode;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
   /** Confidence by question id. Kept when the chosen option changes. */
   confidence: Record<string, Confidence>;
   /** When each question's option was last changed, ISO 8601, by question id. */
   answeredAt: Record<string, string>;
+  /** Answer-first mode: the response written so far by question id, a draft until revealed. */
+  responses: Record<string, string>;
+  /** Answer-first mode: how each question's options were revealed. Missing means still hidden. */
+  revealed: Record<string, Reveal>;
   startedAt: Date;
 };
+
+/** Whether the options of a question are on screen: always in standard mode, once revealed in answer-first. */
+export function optionsShown(inProgress: InProgressAttempt, questionId: string): boolean {
+  return inProgress.mode === 'standard' || questionId in inProgress.revealed;
+}
 
 /**
  * The 1-based positions of the questions answered without a confidence, which
@@ -66,19 +79,22 @@ export function openStoredBank(stored: StoredBank): ParseBankResult {
 
 /**
  * Starts a sitting on a bank already read from the library, remembering the
- * name for next time. `count` is clamped to the questions the tag filter lets through.
+ * name and mode for next time. `count` is clamped to the questions the tag
+ * filter lets through.
  */
 export async function beginAttempt(
   stored: StoredBank,
   bank: Bank,
   name: string,
   count: number,
+  mode: AttemptMode,
   tagFilter?: TagFilter,
 ): Promise<InProgressAttempt> {
   const seed = randomSeed();
   const participant = normaliseName(name);
   const narrowing = narrowingFilter(tagFilter);
   await setLastParticipantName(participant);
+  await setAttemptMode(mode);
 
   return {
     stored,
@@ -87,9 +103,12 @@ export async function beginAttempt(
     seed,
     ...(narrowing && { tagFilter: narrowing }),
     selection: drawSelection(bank, count, seed, narrowing),
+    mode,
     chosen: {},
     confidence: {},
     answeredAt: {},
+    responses: {},
+    revealed: {},
     startedAt: new Date(),
   };
 }
@@ -105,9 +124,12 @@ export async function submitAttempt(inProgress: InProgressAttempt): Promise<Atte
     seed: inProgress.seed,
     tagFilter: inProgress.tagFilter,
     selection: inProgress.selection,
+    mode: inProgress.mode,
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
     answeredAt: inProgress.answeredAt,
+    responses: inProgress.responses,
+    revealed: inProgress.revealed,
     startedAt: inProgress.startedAt,
     submittedAt,
     appVersion: APP_VERSION,
@@ -130,6 +152,9 @@ export async function saveInProgress(inProgress: InProgressAttempt, index: numbe
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
     answeredAt: inProgress.answeredAt,
+    mode: inProgress.mode,
+    responses: inProgress.responses,
+    revealed: inProgress.revealed,
     startedAt: inProgress.startedAt.toISOString(),
     index,
   });
@@ -175,9 +200,12 @@ export async function findInProgress(): Promise<PendingAttempt | undefined> {
       seed: saved.seed,
       tagFilter: saved.tagFilter,
       selection: drawSelection(parsed.bank, saved.questionCount, saved.seed, saved.tagFilter),
+      mode: saved.mode ?? 'standard',
       chosen: saved.chosen,
       confidence: saved.confidence ?? {},
       answeredAt: saved.answeredAt ?? {},
+      responses: saved.responses ?? {},
+      revealed: saved.revealed ?? {},
       startedAt: new Date(saved.startedAt),
     },
     index: saved.index,
