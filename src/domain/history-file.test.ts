@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { attemptRecord as attempt } from '../test/attempts';
-import { historyFileName, readHistoryFile, writeHistoryFile } from './history-file';
+import {
+  historyFileName,
+  readHistoryFile,
+  writeHistoryFile,
+  type HistoryFile,
+} from './history-file';
 
 const exportedAt = new Date('2026-09-24T08:30:00.000Z');
 
@@ -156,6 +161,90 @@ describe('reading the attempts in a history file', () => {
 
   it('accepts fields a later version of the app may add, and drops them', () => {
     expect(readHistoryFile(envelope([{ ...attempt(), device: 'phone' }]))).toEqual({
+      ok: true,
+      attempts: [attempt({ origin: 'imported' })],
+      rejected: [],
+    });
+  });
+});
+
+describe('confidence in a history file', () => {
+  const confident = attempt({
+    answers: [
+      { questionId: 'q1', chosenOptionId: 'a', correctOptionId: 'a', confidence: 'sure' },
+      { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b' },
+    ],
+  });
+
+  it('imports an export written before confidence was asked for', () => {
+    // Exactly as History → Export wrote it before ticket 17: no answer has a confidence.
+    const before = `{
+  "format": "physics-quiz-history",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-24T08:30:00.000Z",
+  "appVersion": "0.1.0",
+  "attempts": [
+    {
+      "id": "01890a5d-ac96-774b-bcce-b302099a8057",
+      "code": "84S-N02Q",
+      "name": "Anna",
+      "bankId": "test.units",
+      "bankVersion": "1.0.0",
+      "bankFingerprint": "a1b2c3d4",
+      "bankTitle": "SI units",
+      "startedAt": "2026-09-23T10:00:00.000Z",
+      "submittedAt": "2026-09-23T10:03:20.000Z",
+      "durationMs": 200000,
+      "seed": 12345,
+      "questionCount": 2,
+      "correctCount": 1,
+      "answers": [
+        { "questionId": "q1", "chosenOptionId": "a", "correctOptionId": "a" },
+        { "questionId": "q2", "chosenOptionId": null, "correctOptionId": "b" }
+      ],
+      "appVersion": "0.1.0",
+      "origin": "local"
+    }
+  ]
+}`;
+    const read = readHistoryFile(before);
+    expect(read).toEqual({ ok: true, attempts: [attempt({ origin: 'imported' })], rejected: [] });
+    expect(read.ok && read.attempts[0]?.answers.some((answer) => 'confidence' in answer)).toBe(
+      false,
+    );
+  });
+
+  it('round-trips an attempt with confidence through export and import', () => {
+    const written = writeHistoryFile([confident], exportedAt, '0.1.0');
+    expect((JSON.parse(written) as HistoryFile).attempts[0]?.answers[0]?.confidence).toBe('sure');
+    expect(readHistoryFile(written)).toEqual({
+      ok: true,
+      attempts: [{ ...confident, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+
+  it('rejects a confidence this app does not know', () => {
+    const odd = {
+      ...confident,
+      answers: [{ ...confident.answers[0], confidence: 'certain' }, confident.answers[1]],
+    };
+    expect(readHistoryFile(envelope([odd]))).toMatchObject({
+      ok: true,
+      attempts: [],
+      rejected: [{ position: 1, reason: expect.stringMatching(/^answers\[0\]\.confidence: /) }],
+    });
+  });
+
+  it('drops a confidence given on an unanswered question, which cannot have one', () => {
+    const blankButSure = {
+      ...attempt(),
+      answers: [
+        attempt().answers[0],
+        { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b', confidence: 'sure' },
+      ],
+    };
+    expect(readHistoryFile(envelope([blankButSure]))).toEqual({
       ok: true,
       attempts: [attempt({ origin: 'imported' })],
       rejected: [],

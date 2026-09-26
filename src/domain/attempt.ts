@@ -11,11 +11,21 @@ import { correctCount } from './scoring';
  * bank. See SPEC.md section 5.
  */
 
+/** How sure the participant said they were of the option they chose. */
+export type Confidence = 'sure' | 'unsure' | 'guess';
+
+export const CONFIDENCE_LEVELS: readonly Confidence[] = ['sure', 'unsure', 'guess'];
+
 export type AttemptAnswer = {
   questionId: string;
   /** Null means the question was left unanswered. */
   chosenOptionId: string | null;
   correctOptionId: string;
+  /**
+   * Answered questions only. Missing on attempts saved before confidence was
+   * asked for (ticket 17), so every reader must cope without it.
+   */
+  confidence?: Confidence;
 };
 
 export type Attempt = {
@@ -100,6 +110,8 @@ export type CreateAttemptInput = {
   selection: Selection;
   /** Chosen option id by question id. A question missing here was left unanswered. */
   chosen: Readonly<Record<string, string>>;
+  /** Confidence by question id. Ignored for a question left unanswered. */
+  confidence: Readonly<Record<string, Confidence>>;
   startedAt: Date;
   submittedAt: Date;
   appVersion: string;
@@ -107,11 +119,16 @@ export type CreateAttemptInput = {
 
 /** Scores a finished sitting and builds its record. */
 export function createAttempt(input: CreateAttemptInput): Attempt {
-  const answers: AttemptAnswer[] = input.selection.map(({ question }) => ({
-    questionId: question.id,
-    chosenOptionId: input.chosen[question.id] ?? null,
-    correctOptionId: question.answer,
-  }));
+  const answers: AttemptAnswer[] = input.selection.map(({ question }) => {
+    const chosenOptionId = input.chosen[question.id] ?? null;
+    const confidence = chosenOptionId === null ? undefined : input.confidence[question.id];
+    return {
+      questionId: question.id,
+      chosenOptionId,
+      correctOptionId: question.answer,
+      ...(confidence && { confidence }),
+    };
+  });
 
   return {
     id: input.id,

@@ -3,7 +3,13 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
 import { db, listAttempts } from '../storage/db';
-import { answerAllAndSubmit, answerCurrent, currentQuestion, startQuiz } from '../test/quiz';
+import {
+  answerAllAndSubmit,
+  answerCurrent,
+  confidenceGroup,
+  currentQuestion,
+  startQuiz,
+} from '../test/quiz';
 
 /**
  * Resuming an interrupted attempt: the tab dies mid-quiz, the app is opened
@@ -90,6 +96,32 @@ describe('resuming an interrupted attempt', () => {
     expect(screen.getByRole('radio', { name: /Pascal/ })).toBeChecked();
 
     expect(await walkQuestions(user)).toEqual(before);
+  });
+
+  it('resumes with the confidence given', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    await answerCurrent(user, { [currentQuestion()]: 'wrong' }, { [currentQuestion()]: 'guess' });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    reopen();
+    await user.click(await screen.findByRole('button', { name: /resume/i }));
+    await user.click(await screen.findByRole('button', { name: /previous/i }));
+    expect(within(confidenceGroup()).getByRole('radio', { name: 'Guess' })).toBeChecked();
+  });
+
+  it('resumes an attempt saved before confidence was asked for', async () => {
+    const user = userEvent.setup();
+    await answerTwoThenStop(user);
+    const saved = await db.inProgress.get('current');
+    if (!saved) throw new Error('Nothing in progress');
+    delete saved.confidence;
+    await db.inProgress.put(saved);
+
+    reopen();
+    await user.click(await screen.findByRole('button', { name: /resume/i }));
+    expect(await screen.findByText(/question 2 of 3/i)).toBeInTheDocument();
+    expect(within(confidenceGroup()).getByRole('radio', { name: 'Sure' })).not.toBeChecked();
   });
 
   it('discards the attempt without recording anything in history', async () => {

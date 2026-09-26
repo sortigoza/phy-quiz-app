@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { attemptCode, normaliseName, type Attempt } from './attempt';
+import {
+  attemptCode,
+  CONFIDENCE_LEVELS,
+  normaliseName,
+  type Attempt,
+  type AttemptAnswer,
+} from './attempt';
 import { formatPath } from './bank';
 import { correctCount } from './scoring';
 
@@ -60,11 +66,21 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
 
-const answerSchema = z.object({
-  questionId: z.string().min(1).max(128),
-  chosenOptionId: z.string().min(1).max(16).nullable(),
-  correctOptionId: z.string().min(1).max(16),
-});
+/**
+ * `confidence` arrived with ticket 17 and is optional, so files exported before
+ * it still read. An unanswered question cannot have one, so any it claims is dropped.
+ */
+const answerSchema = z
+  .object({
+    questionId: z.string().min(1).max(128),
+    chosenOptionId: z.string().min(1).max(16).nullable(),
+    correctOptionId: z.string().min(1).max(16),
+    confidence: z.enum(CONFIDENCE_LEVELS).optional(),
+  })
+  .transform(({ confidence, ...answer }): AttemptAnswer => ({
+    ...answer,
+    ...(confidence && answer.chosenOptionId !== null && { confidence }),
+  }));
 
 /**
  * One attempt as it arrives in a file. The code is derived again from the id
