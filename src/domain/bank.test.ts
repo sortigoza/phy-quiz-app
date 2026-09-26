@@ -311,6 +311,19 @@ describe('the backslash detector', () => {
     expect(issueText(result)).toBe('');
   });
 
+  it.each([
+    ['Given:\\nu = 3 m/s'],
+    ['Given:\\ne = 1.6e-19 C'],
+    ['A ball in\\nmid-air'],
+    ['Line one\\r\\nline two'],
+  ])('leaves the ordinary line breaks in "%s" alone', (raw) => {
+    expect(issueText(parseBank(jsonWithRawPrompt(raw)))).toBe('');
+  });
+
+  it('reads a JSON file that starts with a byte order mark', () => {
+    expect(parseBank(`\uFEFF${JSON.stringify(validBank())}`).ok).toBe(true);
+  });
+
   it('catches the same mistake in a double-quoted YAML string', () => {
     const yaml = [
       'formatVersion: 1',
@@ -328,6 +341,40 @@ describe('the backslash detector', () => {
     expect(result.ok).toBe(false);
     expect(issuePaths(result)).toContain('questions[0].prompt');
     expect(issueText(result)).toMatch(/unescaped LaTeX command/);
+  });
+});
+
+describe('the backslash detector in YAML', () => {
+  const bankWithPrompt = (prompt: string) =>
+    [
+      'formatVersion: 1',
+      'id: se.kth.mechanics.kinematics',
+      'version: 1.0.0',
+      'title: Kinematics',
+      'questions:',
+      '  - id: q1',
+      `    prompt: ${prompt}`,
+      '    options: [{ id: a, text: one }, { id: b, text: two }]',
+      '    answer: a',
+      '    explanation: Because.',
+    ].join('\n');
+
+  it.each(['"$\\Lambda$"', '"$\\Pi$"', '"$\\Psi$"', '"$\\nu$"'])(
+    'reports %s, whose YAML escape is not a control character',
+    (prompt) => {
+      expect(issueText(parseBank(bankWithPrompt(prompt)))).toMatch(/unescaped LaTeX command/);
+    },
+  );
+
+  it('adds the LaTeX advice to an escape YAML cannot read', () => {
+    const result = parseBank(bankWithPrompt('"$\\sigma$"'));
+    expect(issueText(result)).toMatch(/not valid YAML/);
+    expect(issueText(result)).toMatch(/unescaped LaTeX command/);
+  });
+
+  it('leaves the line breaks of a block scalar alone', () => {
+    const prompt = '|\n      Given:\n      u = 3 m/s\n      e = 1.6e-19 C\n      What is $\\nu$?';
+    expect(issueText(parseBank(bankWithPrompt(prompt)))).toBe('');
   });
 });
 

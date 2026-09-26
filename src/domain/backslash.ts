@@ -8,7 +8,7 @@
  * string, and names the command that was probably meant.
  */
 
-/** The escape letter each control character is written as, and what to call it. */
+/** The escape letter each character is written as, and what to call it. */
 const escapes: Record<string, { letter: string; name: string }> = {
   '\0': { letter: '0', name: 'a null character' },
   '\x07': { letter: 'a', name: 'a bell character' },
@@ -19,51 +19,56 @@ const escapes: Record<string, { letter: string; name: string }> = {
   '\f': { letter: 'f', name: 'a form feed' },
   '\r': { letter: 'r', name: 'a carriage return' },
   '\x1b': { letter: 'e', name: 'an escape character' },
+  // Escapes only YAML has, which leave no control character: `"\Lambda"`, `"\Pi"`.
+  '\u0085': { letter: 'N', name: 'a next-line character' },
+  '\u2028': { letter: 'L', name: 'a line separator' },
+  '\u2029': { letter: 'P', name: 'a paragraph separator' },
 };
 
 /**
  * What follows a line break when it was really `\n` starting a LaTeX command.
  *
- * A line break on its own is legitimate Markdown, so it is only suspect when
- * the rest of a command follows it. The short remainders of `\nu` and `\ne`
- * must also be followed by something maths-like, so a line starting "e.g." or
- * "u is" is left alone.
+ * A line break on its own is legitimate Markdown, and a line may well start
+ * "u = 3 m/s" or "mid-air", so a line break is only suspect when the rest of a
+ * command follows it. The long remainders are distinctive enough on their own;
+ * the short ones must be followed by something only LaTeX writes, as in
+ * `\nu_0`, `$\nu$` or `\neq{}`.
  */
 const newlineCommand =
-  /^(?:(?:abla|eq|eg|ewline|exists|atural|earrow|warrow|leq|geq|mid|ot)(?![A-Za-z])|[ue](?=$|[\s_^${}()=,+\\-]))/;
+  /^(?:(?:abla|ewline|exists|atural|earrow|warrow|leq|geq)(?![A-Za-z])|(?:u|e|eq|eg|ot|mid)(?=$|[_^${}(),\\]))/;
 
-// Every C0 control character, and DEL. A tab written literally is flagged too:
-// JSON cannot hold one unescaped, and in YAML it is almost always this mistake.
+// Every C0 control character, DEL, and the separators YAML's own escapes
+// produce. A tab written literally is flagged too: JSON cannot hold one
+// unescaped, and in YAML it is almost always this mistake.
 // eslint-disable-next-line no-control-regex
-const controlCharacter = /[\0-\x1f\x7f]/g;
+const suspectCharacter = /[\0-\x1f\x7f\u0085\u2028\u2029]/g;
+
+/** The advice for one command, showing it written both ways. */
+export function adviceFor(command: string): string {
+  return `In a JSON bank every backslash must be doubled, as in "\\${command}"; in a YAML bank, put the text in single quotes, as in '${command}'.`;
+}
 
 /**
  * Why a string is probably a LaTeX command that lost its backslash, or
  * undefined if it looks fine. Reports the first such place in the string.
  */
 export function strayControlCharacter(text: string): string | undefined {
-  for (const match of text.matchAll(controlCharacter)) {
+  for (const match of text.matchAll(suspectCharacter)) {
     const character = match[0];
     const rest = text.slice(match.index + 1);
     if (character === '\n' && !newlineCommand.test(rest)) continue;
+    // A Windows line ending is a line break like any other.
+    if (character === '\r' && rest.startsWith('\n')) continue;
 
     const escape = escapes[character];
-    if (!escape) {
+    const command = escape && `\\${escape.letter}${/^[A-Za-z]*/.exec(rest)?.[0] ?? ''}`;
+    if (!escape || !command) {
       const code = character.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
-      return `contains an invisible control character (U+${code}), which usually means a backslash was not escaped. ${ADVICE}`;
+      return `contains an invisible control character (U+${code}), which usually means a LaTeX command lost its backslash. ${adviceFor('\\command')}`;
     }
-    const command = `\\${escape.letter}${/^[A-Za-z]*/.exec(rest)?.[0] ?? ''}`;
     return `contains ${escape.name} where "${command}" was probably meant: this looks like an unescaped LaTeX command. ${adviceFor(command)}`;
   }
   return undefined;
-}
-
-const ADVICE =
-  'In a JSON bank every backslash must be doubled; in a YAML bank, put the text in single quotes.';
-
-/** The advice for one command, showing it written both ways. */
-export function adviceFor(command: string): string {
-  return `In a JSON bank every backslash must be doubled, as in "\\${command}"; in a YAML bank, put the text in single quotes, as in '${command}'.`;
 }
 
 /**

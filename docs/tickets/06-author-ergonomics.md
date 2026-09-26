@@ -25,11 +25,18 @@ Three things decided while building it:
   it was loaded from, and is parsed again from that text with no file name at
   hand, so the content has to be enough.
 - A tab, form feed, backspace, carriage return or any other control character
-  in a string is always reported. A line break is legitimate Markdown, so it
-  is reported only when the rest of a LaTeX command follows it (`\nabla`,
-  `\neq`, `\nu_0`, `\ne b`), not when a line merely starts with "u" or "e.g.".
-  A backslash JSON cannot read at all, as in `"\alpha"`, is a parse error, and
-  the parse error now names the command and gives the same advice.
+  in a string is always reported, except the `\r` of a Windows line ending.
+  So are the line and paragraph separators that YAML's `"\Lambda"` and `"\Pi"`
+  quietly become. A line break is legitimate Markdown, and a line may well
+  start "u = 3 m/s" or "mid-air", so it is reported only when the rest of a
+  LaTeX command follows it: a distinctive one (`\nabla`, `\leq`) on its own, a
+  short one (`\nu`, `\ne`, `\neq`) only when followed by something only LaTeX
+  writes, as in `\nu_0` or `$\nu$`. A backslash JSON or YAML cannot read at
+  all, as in `"\alpha"` or `"\sigma"`, is a parse error, and the parse error
+  names the command and gives the same advice.
+- A bank already stored that the detector now rejects (a literal tab, say)
+  shows the library's existing "can no longer be opened" panel, with the
+  field named.
 - Zod's own wording is replaced by an error map passed to `safeParse`, so the
   messages a schema already gives (the semver rule, the answer rule) are kept.
   An unknown key becomes one issue per key at the key's own path, suggesting

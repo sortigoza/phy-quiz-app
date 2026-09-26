@@ -19,7 +19,7 @@ import {
   type BankSource,
   type StoredBank,
 } from '../storage/db';
-import type { Bank, BankIssue } from '../domain/bank';
+import { BANK_FILE_TYPES, type Bank, type BankIssue } from '../domain/bank';
 import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
@@ -61,9 +61,6 @@ type Conflict = {
 
 /** What loading a bank repository did, entry by entry. */
 type RepositoryReport = { title: string; private: boolean; outcomes: RepositoryOutcome[] };
-
-/** The files a bank may be: JSON, or YAML meaning the same thing. SPEC section 2.5. */
-export const BANK_FILE_TYPES = '.json,.yaml,.yml,application/json,application/yaml';
 
 const INVALID_BANK_INTRO = 'Nothing was added. Fix these and try again:';
 const INVALID_REPOSITORY_INTRO =

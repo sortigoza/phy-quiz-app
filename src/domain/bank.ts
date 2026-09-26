@@ -138,6 +138,9 @@ function looksLikeABank(document: unknown): boolean {
   );
 }
 
+/** The files a bank may be, for a file picker: JSON, or YAML meaning the same thing. */
+export const BANK_FILE_TYPES = '.json,.yaml,.yml,application/json,application/yaml';
+
 /** The two ways a bank may be written. JSON is canonical; YAML means the same thing. SPEC section 2.5. */
 export type BankFormat = 'json' | 'yaml';
 
@@ -152,14 +155,13 @@ type ReadDocumentResult =
  * or array was meant to be JSON, and gets JSON's error; anything else is YAML.
  */
 export function readDocument(text: string): ReadDocumentResult {
+  // A byte order mark, as Windows Notepad writes, is not part of the content.
+  const content = text.replace(/^\uFEFF/, '');
   try {
-    return { ok: true, document: JSON.parse(text), format: 'json' };
+    return { ok: true, document: JSON.parse(content), format: 'json' };
   } catch (cause) {
-    if (/^\s*[[{]/.test(text)) {
-      const escape = unreadableEscape(text);
-      const hint = escape
-        ? ` The text contains "${escape}": this looks like an unescaped LaTeX command. ${adviceFor(escape)}`
-        : '';
+    if (/^\s*[[{]/.test(content)) {
+      const hint = latexHint(unreadableEscape(content));
       return {
         ok: false,
         issue: { path: '', message: `this file is not valid JSON: ${errorMessage(cause)}.${hint}` },
@@ -168,15 +170,34 @@ export function readDocument(text: string): ReadDocumentResult {
   }
 
   try {
-    return { ok: true, document: parseYaml(text), format: 'yaml' };
+    return { ok: true, document: parseYaml(content), format: 'yaml' };
   } catch (cause) {
-    const message =
-      cause instanceof YAMLParseError
-        ? // The first line; the rest is a picture of the offending line.
-          (cause.message.split('\n')[0] ?? '').replace(/:$/, '')
-        : errorMessage(cause);
-    return { ok: false, issue: { path: '', message: `this file is not valid YAML: ${message}` } };
+    if (!(cause instanceof YAMLParseError)) {
+      return {
+        ok: false,
+        issue: { path: '', message: `this file is not valid YAML: ${errorMessage(cause)}` },
+      };
+    }
+    // The first line; the rest is a picture of the offending line.
+    const message = (cause.message.split('\n')[0] ?? '').replace(/:$/, '');
+    // A double-quoted YAML string refuses `\sigma` as JSON refuses `\alpha`.
+    const letter = /escape sequence \\([A-Za-z])/.exec(message)?.[1];
+    const escape = letter && new RegExp(`\\\\${letter}[A-Za-z]*`).exec(content)?.[0];
+    return {
+      ok: false,
+      issue: {
+        path: '',
+        message: `this file is not valid YAML: ${message}.${latexHint(escape || undefined)}`,
+      },
+    };
   }
+}
+
+/** The advice added to a parse error caused by a LaTeX command, if it was one. */
+function latexHint(command: string | undefined): string {
+  return command
+    ? ` The text contains "${command}": this looks like an unescaped LaTeX command. ${adviceFor(command)}`
+    : '';
 }
 
 function errorMessage(cause: unknown): string {
@@ -191,7 +212,7 @@ function fieldsAt(path: PropertyKey[]): string[] {
 }
 
 /** The problems in a document read from a bank file: stray control characters first, then the schema's. */
-function problemsWith(document: unknown): { bank: Bank } | { issues: BankIssue[] } {
+function problemsWith(document: unknown): ParseBankResult {
   const issues: BankIssue[] = [];
   for (const { path, text } of stringsIn(document)) {
     const problem = strayControlCharacter(text);
@@ -199,7 +220,7 @@ function problemsWith(document: unknown): { bank: Bank } | { issues: BankIssue[]
   }
 
   const result = bankSchema.safeParse(document, { error: teacherMessages });
-  if (result.success && issues.length === 0) return { bank: result.data };
+  if (result.success && issues.length === 0) return { ok: true, bank: result.data };
 
   for (const issue of result.error?.issues ?? []) {
     const reported =
@@ -208,7 +229,7 @@ function problemsWith(document: unknown): { bank: Bank } | { issues: BankIssue[]
         : [issue];
     for (const { path, message } of reported) issues.push({ path: formatPath(path), message });
   }
-  return { issues };
+  return { ok: false, issues };
 }
 
 /**
@@ -233,10 +254,7 @@ export function parseBank(text: string): ParseBankResult {
     };
   }
 
-  const problems = problemsWith(read.document);
-  return 'bank' in problems
-    ? { ok: true, bank: problems.bank }
-    : { ok: false, issues: problems.issues };
+  return problemsWith(read.document);
 }
 
 /**

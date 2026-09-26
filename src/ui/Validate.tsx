@@ -1,7 +1,7 @@
 import { useState, type DragEvent } from 'react';
+import { BANK_FILE_TYPES } from '../domain/bank';
 import { validateText, type Validation } from '../validate';
 import { IssueList } from './IssueList';
-import { BANK_FILE_TYPES } from './Library';
 
 /**
  * The Validate a bank screen: a teacher checks a file without adding it to
@@ -19,9 +19,21 @@ export function Validate({ onDone }: { onDone: () => void }) {
     const file = files?.[0];
     if (!file) return;
     setBusy(true);
-    const validation = await validateText(await file.text());
-    setChecked({ name: file.name, validation });
-    setBusy(false);
+    try {
+      setChecked({ name: file.name, validation: await validateText(await file.text()) });
+    } catch {
+      // An unreadable file, or storage refusing the lookup of a private bank's key.
+      setChecked({
+        name: file.name,
+        validation: {
+          ok: false,
+          kind: 'unopened',
+          message: 'The file could not be read. Try again, or choose it again.',
+        },
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   function drop(event: DragEvent) {
@@ -92,7 +104,7 @@ function Report({ name, validation }: Checked) {
     );
   }
 
-  if (validation.kind === 'private') {
+  if (validation.kind === 'unopened') {
     return (
       <div className="panel panel--error" role="alert">
         <h3>
