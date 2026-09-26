@@ -264,3 +264,170 @@ describe('compareVersions', () => {
     ]);
   });
 });
+
+/** The first question of a bank as JSON text, with `prompt` spliced in raw, unescaped. */
+function jsonWithRawPrompt(rawPrompt: string): string {
+  const text = JSON.stringify(validBank());
+  const prompt = (validBank()['questions'] as Record<string, unknown>[])[0]!['prompt'] as string;
+  return text.replace(JSON.stringify(prompt), `"${rawPrompt}"`);
+}
+
+describe('the backslash detector', () => {
+  it.each([
+    ['\\times', 'a tab', '\\times'],
+    ['\\frac{1}{2}', 'a form feed', '\\frac'],
+    ['\\beta', 'a backspace', '\\beta'],
+    ['\\rho', 'a carriage return', '\\rho'],
+    ['\\nabla', 'a line break', '\\nabla'],
+    ['\\nu_0', 'a line break', '\\nu'],
+  ])('reports "%s" in JSON as an unescaped LaTeX command, naming the field', (latex, what, command) => {
+    const result = parseBank(jsonWithRawPrompt(`What is $5 ${latex} 3$?`));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const issue = result.issues.find((found) => found.path === 'questions[0].prompt');
+    expect(issue?.message).toMatch(/unescaped LaTeX command/);
+    expect(issue?.message).toContain(what);
+    expect(issue?.message).toContain(command);
+    expect(issue?.message).toContain(`\\${command}`);
+  });
+
+  it('turns the parse error of a backslash JSON cannot read into the same advice', () => {
+    const result = parseBank(jsonWithRawPrompt('What is $\\alpha$?'));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]?.message).toMatch(/not valid JSON/);
+    expect(result.issues[0]?.message).toMatch(/unescaped LaTeX command/);
+    expect(result.issues[0]?.message).toContain('\\alpha');
+  });
+
+  it('leaves line breaks that are only Markdown alone', () => {
+    const result = parseBank(
+      jsonWithRawPrompt('Which holds?\\n\\n- energy\\n- $u = at$\\n- nothing else'),
+    );
+    expect(issueText(result)).toBe('');
+  });
+
+  it('catches the same mistake in a double-quoted YAML string', () => {
+    const yaml = [
+      'formatVersion: 1',
+      'id: se.kth.mechanics.kinematics',
+      'version: 1.0.0',
+      'title: Kinematics',
+      'questions:',
+      '  - id: q1',
+      '    prompt: "What is $\\alpha$?"',
+      '    options: [{ id: a, text: one }, { id: b, text: two }]',
+      '    answer: a',
+      '    explanation: Because.',
+    ].join('\n');
+    const result = parseBank(yaml);
+    expect(result.ok).toBe(false);
+    expect(issuePaths(result)).toContain('questions[0].prompt');
+    expect(issueText(result)).toMatch(/unescaped LaTeX command/);
+  });
+});
+
+describe('YAML banks', () => {
+  const yaml = [
+    'formatVersion: 1',
+    'id: se.kth.mechanics.kinematics',
+    'version: 1.0.0',
+    'title: Kinematics in one dimension',
+    'questions:',
+    '  - id: free-fall-speed',
+    "    prompt: 'A ball falls from rest for $1.00\\,\\mathrm{s}$. What is its speed?'",
+    '    options:',
+    "      - { id: a, text: '$4.91\\,\\mathrm{m/s}$', why: 'That is the average speed.' }",
+    "      - { id: b, text: '$9.81\\,\\mathrm{m/s}$' }",
+    '    answer: b',
+    "    explanation: 'From rest, $v = gt$.'",
+  ].join('\n');
+
+  it('produces exactly the bank the same file written as JSON produces', () => {
+    expect(parseBank(yaml)).toEqual(parse(validBank()));
+    expect(parseBank(yaml).ok).toBe(true);
+  });
+
+  it('produces exactly the issues the same broken file written as JSON produces', () => {
+    const brokenYaml = yaml
+      .replace('answer: b', 'answer: e')
+      .replace('version: 1.0.0', 'version: 1.0.0\ntitel: typo');
+    const brokenJson = validBank({ titel: 'typo' });
+    (brokenJson['questions'] as Record<string, unknown>[])[0]!['answer'] = 'e';
+    const fromYaml = parseBank(brokenYaml);
+    expect(fromYaml.ok).toBe(false);
+    expect(fromYaml).toEqual(parse(brokenJson));
+  });
+
+  it('reports a YAML syntax error with where it is', () => {
+    const result = parseBank('formatVersion: 1\nquestions:\n  - id: a\n   prompt: bad indent');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]?.message).toMatch(/not valid YAML/);
+    expect(result.issues[0]?.message).toMatch(/line \d+/);
+  });
+
+  it('says plainly when YAML is not a question bank', () => {
+    const result = parseBank('name: my-package\nversion: 1.0.0');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toEqual([{ path: '', message: expect.stringMatching(/not a question bank/) }]);
+  });
+});
+
+describe('issue messages a teacher can act on', () => {
+  function messageAt(result: ReturnType<typeof parseBank>, path: string): string | undefined {
+    return result.ok ? undefined : result.issues.find((issue) => issue.path === path)?.message;
+  }
+
+  it('says a required field is missing', () => {
+    const bank = validBank();
+    delete (bank['questions'] as Record<string, unknown>[])[0]!['explanation'];
+    expect(messageAt(parse(bank), 'questions[0].explanation')).toMatch(/missing/);
+  });
+
+  it('names an unknown field at its own path and suggests the field it resembles', () => {
+    const bank = validBank();
+    (bank['questions'] as Record<string, unknown>[])[0]!['explaination'] = 'typo';
+    const message = messageAt(parse(bank), 'questions[0].explaination');
+    expect(message).toMatch(/unknown field/);
+    expect(message).toMatch(/did you mean "explanation"/);
+  });
+
+  it('reports each unknown field of one object separately', () => {
+    expect(issuePaths(parse(validBank({ titel: 'a', auther: 'b' })))).toEqual(
+      expect.arrayContaining(['titel', 'auther']),
+    );
+  });
+
+  it('says what type a field should be', () => {
+    expect(messageAt(parse(validBank({ title: 42 })), 'title')).toMatch(/should be text/);
+    expect(messageAt(parse(validBank({ questions: {} })), 'questions')).toMatch(/should be a list/);
+    expect(messageAt(parse(validBank({ defaultQuestionCount: 2.5 })), 'defaultQuestionCount')).toMatch(
+      /whole number/,
+    );
+  });
+
+  it('gives lengths and counts in plain words', () => {
+    expect(messageAt(parse(validBank({ title: '' })), 'title')).toMatch(/is empty/);
+    expect(messageAt(parse(validBank({ title: 'x'.repeat(201) })), 'title')).toMatch(
+      /at most 200 characters/,
+    );
+    expect(messageAt(parse(validBank({ questions: [] })), 'questions')).toMatch(
+      /at least 1 item/,
+    );
+  });
+
+  it('lists the allowed values of a field that has few', () => {
+    const bank = validBank();
+    (bank['questions'] as Record<string, unknown>[])[0]!['difficulty'] = 'tricky';
+    expect(messageAt(parse(bank), 'questions[0].difficulty')).toMatch(/easy, medium or hard/);
+  });
+
+  it('keeps no Zod wording anywhere', () => {
+    const bank = validBank({ title: 42, titel: 'x', questions: [{ id: 1 }], version: '1' });
+    expect(issueText(parse(bank))).not.toMatch(/Invalid input|Too small|Too big|Unrecognized key/);
+  });
+});

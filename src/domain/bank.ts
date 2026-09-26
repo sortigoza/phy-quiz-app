@@ -1,4 +1,7 @@
+import { parse as parseYaml, YAMLParseError } from 'yaml';
 import { z } from 'zod';
+import { adviceFor, strayControlCharacter, stringsIn, unreadableEscape } from './backslash';
+import { teacherMessages, unknownFieldIssues } from './issue-messages';
 
 /**
  * The question bank format, version 1.
@@ -135,51 +138,104 @@ function looksLikeABank(document: unknown): boolean {
   );
 }
 
+/** The two ways a bank may be written. JSON is canonical; YAML means the same thing. SPEC section 2.5. */
+export type BankFormat = 'json' | 'yaml';
+
+type ReadDocumentResult =
+  | { ok: true; document: unknown; format: BankFormat }
+  | { ok: false; issue: BankIssue };
+
 /**
- * Parses and validates the text of a bank file.
+ * Reads a file as JSON or YAML, telling them apart by content alone, so a
+ * bank stored as the text it was loaded from reads back the same way.
+ *
+ * Text JSON can read is JSON. Otherwise, text that starts like a JSON object
+ * or array was meant to be JSON, and gets JSON's error; anything else is YAML.
+ */
+export function readDocument(text: string): ReadDocumentResult {
+  try {
+    return { ok: true, document: JSON.parse(text), format: 'json' };
+  } catch (cause) {
+    if (/^\s*[[{]/.test(text)) {
+      const escape = unreadableEscape(text);
+      const hint = escape
+        ? ` The text contains "${escape}": this looks like an unescaped LaTeX command. ${adviceFor(escape)}`
+        : '';
+      return {
+        ok: false,
+        issue: { path: '', message: `this file is not valid JSON: ${errorMessage(cause)}.${hint}` },
+      };
+    }
+  }
+
+  try {
+    return { ok: true, document: parseYaml(text), format: 'yaml' };
+  } catch (cause) {
+    const message =
+      cause instanceof YAMLParseError
+        ? // The first line; the rest is a picture of the offending line.
+          (cause.message.split('\n')[0] ?? '').replace(/:$/, '')
+        : errorMessage(cause);
+    return { ok: false, issue: { path: '', message: `this file is not valid YAML: ${message}` } };
+  }
+}
+
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
+/** The fields the object at a path accepts: the bank, a question or an option. */
+function fieldsAt(path: PropertyKey[]): string[] {
+  const depth = path.filter((segment) => typeof segment === 'string').length;
+  const schema = [bankSchema, questionSchema, optionSchema][depth];
+  return schema ? Object.keys(schema.shape) : [];
+}
+
+/** The problems in a document read from a bank file: stray control characters first, then the schema's. */
+function problemsWith(document: unknown): { bank: Bank } | { issues: BankIssue[] } {
+  const issues: BankIssue[] = [];
+  for (const { path, text } of stringsIn(document)) {
+    const problem = strayControlCharacter(text);
+    if (problem) issues.push({ path: formatPath(path), message: problem });
+  }
+
+  const result = bankSchema.safeParse(document, { error: teacherMessages });
+  if (result.success && issues.length === 0) return { bank: result.data };
+
+  for (const issue of result.error?.issues ?? []) {
+    const reported =
+      issue.code === 'unrecognized_keys'
+        ? unknownFieldIssues(issue.path, issue.keys, fieldsAt(issue.path))
+        : [issue];
+    for (const { path, message } of reported) issues.push({ path: formatPath(path), message });
+  }
+  return { issues };
+}
+
+/**
+ * Parses and validates the text of a bank file, JSON or YAML.
  *
  * Either the whole bank is valid or none of it is returned: a partially
  * accepted bank would produce a quiz nobody could trust.
  */
 export function parseBank(text: string): ParseBankResult {
-  let document: unknown;
-  try {
-    document = JSON.parse(text);
-  } catch (cause) {
+  const read = readDocument(text);
+  if (!read.ok) return { ok: false, issues: [read.issue] };
+
+  if (!looksLikeABank(read.document)) {
     return {
       ok: false,
       issues: [
         {
           path: '',
-          message: `this file is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+          message: `this is ${read.format === 'json' ? 'JSON' : 'YAML'}, but not a question bank: a bank is an object with formatVersion, id, version, title and questions`,
         },
       ],
     };
   }
 
-  if (!looksLikeABank(document)) {
-    return {
-      ok: false,
-      issues: [
-        {
-          path: '',
-          message:
-            'this is JSON, but not a question bank: a bank is an object with formatVersion, id, version, title and questions',
-        },
-      ],
-    };
-  }
-
-  const result = bankSchema.safeParse(document);
-  if (result.success) return { ok: true, bank: result.data };
-
-  return {
-    ok: false,
-    issues: result.error.issues.map((issue) => ({
-      path: formatPath(issue.path),
-      message: issue.message,
-    })),
-  };
+  const problems = problemsWith(read.document);
+  return 'bank' in problems ? { ok: true, bank: problems.bank } : { ok: false, issues: problems.issues };
 }
 
 /**
