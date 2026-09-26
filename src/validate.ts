@@ -14,12 +14,13 @@ export type Validation =
   | { ok: true; kind: 'bank'; bank: Bank }
   | { ok: true; kind: 'repository'; title: string; count: number }
   | { ok: false; kind: 'bank' | 'repository'; issues: BankIssue[] }
-  /** A private file this browser holds no key for, or one that would not decrypt. */
-  | { ok: false; kind: 'private'; message: string };
+  /** A file that could not be read, or a private one this browser holds no key for or that would not decrypt. */
+  | { ok: false; kind: 'unopened'; message: string };
 
 export async function validateText(text: string): Promise<Validation> {
   const opened = await openText(text, undefined);
-  if (!opened.ok) return { ok: false, kind: 'private', message: privateBankMessage[opened.reason] };
+  if (!opened.ok)
+    return { ok: false, kind: 'unopened', message: privateBankMessage[opened.reason] };
 
   if (isBankRepository(opened.plaintext)) {
     const parsed = parseBankRepository(opened.plaintext, undefined, {

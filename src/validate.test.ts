@@ -61,7 +61,7 @@ describe('validateText', () => {
     const raw = generateBankKey();
     const encrypted = await encryptBank(JSON.stringify(bank), raw);
 
-    expect(await validateText(encrypted)).toMatchObject({ ok: false, kind: 'private' });
+    expect(await validateText(encrypted)).toMatchObject({ ok: false, kind: 'unopened' });
 
     await storeBankKey(raw);
     expect(await validateText(encrypted)).toMatchObject({ ok: true, kind: 'bank' });
