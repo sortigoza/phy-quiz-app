@@ -59,6 +59,8 @@ describe('Help', () => {
     render(<App />);
     const help = await openHelp(userEvent.setup());
     expect(help).toHaveTextContent(/double every backslash/i);
+    expect(help).toHaveTextContent(/write the bank in YAML/i);
+    expect(help).toHaveTextContent(/validate a bank/i);
     expect(help).toHaveTextContent(/display maths as \$\$\.\.\.\$\$/i);
     expect(help).toHaveTextContent(/raw HTML is shown as text/i);
   });

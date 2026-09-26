@@ -23,14 +23,15 @@ import type { Bank, BankIssue } from '../domain/bank';
 import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
+import { IssueList } from './IssueList';
 
 /**
  * The library: every question bank held in this browser, and the way to add one.
  *
  * A bank arrives by upload, by URL or by bank link, and from then on they are
  * all the same: each goes through `loadText`. A bank repository, public or
- * private, delivers several banks that way at once. The dedicated validation
- * screen with its richer error reporting is ticket 06.
+ * private, delivers several banks that way at once. Checking a file without
+ * adding it is the Validate a bank screen.
  */
 
 /**
@@ -60,6 +61,9 @@ type Conflict = {
 
 /** What loading a bank repository did, entry by entry. */
 type RepositoryReport = { title: string; private: boolean; outcomes: RepositoryOutcome[] };
+
+/** The files a bank may be: JSON, or YAML meaning the same thing. SPEC section 2.5. */
+export const BANK_FILE_TYPES = '.json,.yaml,.yml,application/json,application/yaml';
 
 const INVALID_BANK_INTRO = 'Nothing was added. Fix these and try again:';
 const INVALID_REPOSITORY_INTRO =
@@ -408,7 +412,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
               id="bank-file"
               className="visually-hidden"
               type="file"
-              accept=".json,application/json"
+              accept={BANK_FILE_TYPES}
               disabled={busy}
               onChange={(event) => {
                 void handleFiles(event.target.files);
@@ -419,8 +423,8 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
           </span>
         </div>
         <span className="library__hint">
-          JSON only for now. A bank repository loads every bank it lists. A GitHub file link works
-          from a public repository; other hosts must allow cross-origin requests.
+          A bank may be JSON or YAML. A bank repository loads every bank it lists. A GitHub file
+          link works from a public repository; other hosts must allow cross-origin requests.
         </span>
       </form>
 
@@ -585,18 +589,6 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         </ul>
       )}
     </section>
-  );
-}
-
-function IssueList({ issues }: { issues: BankIssue[] }) {
-  return (
-    <ul className="issues">
-      {issues.map((issue, index) => (
-        <li key={`${issue.path}-${index}`}>
-          {issue.path && <code>{issue.path}</code>} {issue.message}
-        </li>
-      ))}
-    </ul>
   );
 }
 

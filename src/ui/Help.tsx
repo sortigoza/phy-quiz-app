@@ -136,6 +136,13 @@ export function Help() {
         <code>&quot;$5 \\times 10^&#123;3&#125;$&quot;</code> and{' '}
         <code>&quot;$9.81\\,\\mathrm&#123;m/s^2&#125;$&quot;</code>.
       </p>
+      <p>
+        Or write the bank in YAML, which the app reads exactly as it reads JSON. Text in single
+        quotes needs no escaping: <code>prompt: &apos;$5 \times 10^&#123;3&#125;$&apos;</code>. To
+        check a file before sharing it, use <strong>Validate a bank</strong> on the library: it
+        names every problem by the field it is in, including a backslash that went missing, and adds
+        nothing to your library.
+      </p>
 
       <h4>Maths and Markdown</h4>
       <ul>
