@@ -82,6 +82,8 @@ JSON treats a backslash as the start of an escape, which silently corrupts LaTeX
 | \`\\nu\` | \`"$\\\\nu$"\` | \`\\n\` is a newline, leaving \`u\` |
 | \`\\,\` (thin space) | \`"$9.81\\\\,\\\\mathrm{m/s^2}$"\` | a parse error |
 
+The app rejects a bank with such a control character in any string, naming the field. Or write the bank as YAML (\`.yaml\` or \`.yml\`), which the app validates against the same schema; text in single quotes needs no escaping there: \`prompt: '$5 \\times 10^{3}$'\`. JSON remains the canonical format.
+
 ## Maths and Markdown
 
 ${list(textFormatting)}

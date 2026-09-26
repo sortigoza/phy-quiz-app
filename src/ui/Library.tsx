@@ -19,18 +19,19 @@ import {
   type BankSource,
   type StoredBank,
 } from '../storage/db';
-import type { Bank, BankIssue } from '../domain/bank';
+import { BANK_FILE_TYPES, type Bank, type BankIssue } from '../domain/bank';
 import type { ParsedBankLink } from '../domain/private-bank';
 import { storageProblem } from '../storage/problems';
 import { InProgressOffer } from './InProgressOffer';
+import { IssueList } from './IssueList';
 
 /**
  * The library: every question bank held in this browser, and the way to add one.
  *
  * A bank arrives by upload, by URL or by bank link, and from then on they are
  * all the same: each goes through `loadText`. A bank repository, public or
- * private, delivers several banks that way at once. The dedicated validation
- * screen with its richer error reporting is ticket 06.
+ * private, delivers several banks that way at once. Checking a file without
+ * adding it is the Validate a bank screen.
  */
 
 /**
@@ -408,7 +409,7 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
               id="bank-file"
               className="visually-hidden"
               type="file"
-              accept=".json,application/json"
+              accept={BANK_FILE_TYPES}
               disabled={busy}
               onChange={(event) => {
                 void handleFiles(event.target.files);
@@ -419,8 +420,8 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
           </span>
         </div>
         <span className="library__hint">
-          JSON only for now. A bank repository loads every bank it lists. A GitHub file link works
-          from a public repository; other hosts must allow cross-origin requests.
+          A bank may be JSON or YAML. A bank repository loads every bank it lists. A GitHub file
+          link works from a public repository; other hosts must allow cross-origin requests.
         </span>
       </form>
 
@@ -585,18 +586,6 @@ export function Library({ onStart, onResume, bankLink = noBankLink, onBankLinkHa
         </ul>
       )}
     </section>
-  );
-}
-
-function IssueList({ issues }: { issues: BankIssue[] }) {
-  return (
-    <ul className="issues">
-      {issues.map((issue, index) => (
-        <li key={`${issue.path}-${index}`}>
-          {issue.path && <code>{issue.path}</code>} {issue.message}
-        </li>
-      ))}
-    </ul>
   );
 }
 

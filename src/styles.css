@@ -1044,3 +1044,40 @@ fieldset {
 .tag-breakdown td {
   white-space: nowrap;
 }
+
+.issues__more {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.validate h2 {
+  font-size: 1.125rem;
+}
+
+.validate__intro {
+  color: var(--text-muted);
+  margin-top: 0;
+}
+
+/* The drop target, which also holds the file button for those who cannot drag. */
+.validate__drop {
+  border: 2px dashed var(--border);
+  padding: 1.25rem 1rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+  background: var(--surface);
+}
+
+.validate__drop p {
+  margin: 0 0 0.75rem;
+}
+
+.validate__drop--over {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+
+.validate__ok {
+  color: var(--correct);
+}

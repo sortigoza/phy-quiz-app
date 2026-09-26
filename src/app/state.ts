@@ -20,7 +20,9 @@ type WorkScreen =
   | { screen: 'start'; stored: StoredBank; bank: Bank; tagFilter?: TagFilter }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
   | { screen: 'review'; attempt: Attempt; review: AttemptReview; back: ReviewBack }
-  | HistoryScreen;
+  | HistoryScreen
+  /** Checking a bank file without storing it. SPEC section 3.3. */
+  | { screen: 'validate' };
 
 /** History keeps its filters while one of its attempts is reviewed. */
 type HistoryScreen = { screen: 'history'; filter: HistoryFilter };
@@ -37,6 +39,7 @@ export type AppState = WorkScreen | { screen: 'help'; back: WorkScreen };
 export type AppAction =
   | { type: 'open-library' }
   | { type: 'open-history' }
+  | { type: 'open-validate' }
   | { type: 'filter-history'; filter: HistoryFilter }
   | { type: 'open-review'; attempt: Attempt; review: AttemptReview }
   | { type: 'close-review' }
@@ -64,6 +67,9 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'open-history':
       return { screen: 'history', filter: {} };
+
+    case 'open-validate':
+      return { screen: 'validate' };
 
     case 'filter-history':
       return state.screen === 'history' ? { ...state, filter: action.filter } : state;
