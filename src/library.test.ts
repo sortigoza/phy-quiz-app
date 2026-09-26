@@ -50,6 +50,27 @@ describe('addBankFromText', () => {
     expect(result.bank.raw).toBe(validBankText);
   });
 
+  it('stores a YAML bank as the YAML it was given', async () => {
+    const yaml = [
+      'formatVersion: 1',
+      'id: kth.kinematics',
+      'version: 1.0.0',
+      'title: Kinematics in one dimension',
+      'questions:',
+      '  - id: q1',
+      "    prompt: 'A ball falls from rest for $1\\,\\mathrm{s}$. What is its speed?'",
+      '    options: [{ id: a, text: 4.91 m/s }, { id: b, text: 9.81 m/s }]',
+      '    answer: b',
+      '    explanation: From rest, v = gt.',
+    ].join('\n');
+    const result = await addBankFromText(yaml, { kind: 'upload', filename: 'kinematics.yaml' });
+    expect(result).toMatchObject({
+      ok: true,
+      status: 'added',
+      bank: { raw: yaml, questionCount: 1 },
+    });
+  });
+
   it('recognises a byte-identical bank it already holds', async () => {
     await addBankFromText(validBankText, upload);
     const again = await addBankFromText(validBankText, upload);

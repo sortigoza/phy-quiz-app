@@ -164,7 +164,8 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
 
 /** The rules that reject a bank outright, beyond the per-field limits above. */
 export const rejectionRules: string[] = [
-  'The file must be valid JSON.',
+  'The file must be valid JSON, or valid YAML meaning the same thing.',
+  'A control character inside any text, such as the tab that "\\times" becomes in JSON, is an error: it is almost always a LaTeX command whose backslash was not doubled.',
   'Unknown keys anywhere are errors, not warnings, so a misspelled field such as "explaination" fails loudly instead of silently dropping the explanations.',
   'Question ids must be unique within the bank.',
   'Option ids must be unique within their question.',
@@ -235,7 +236,6 @@ export const textFormatting: string[] = [
 
 /** Current limits, stated plainly so nobody is surprised by them. */
 export const currentLimits: string[] = [
-  'Banks are JSON files. Writing banks in YAML is planned.',
   'Loading by URL only works when the server allows cross-origin requests. GitHub (raw links and file links from public repositories) and GitHub Pages do; many university servers and Google Drive do not. If a link fails, download the file and upload it.',
   'Attempts are saved in this browser only. History reopens any attempt’s review while its bank is in the library; to hand results to a teacher, export them from History as a file.',
   'Scores are self-reported. Everything runs in the browser, so a determined participant can change their own record. Use the app for practice and classroom quizzes, not for grading.',
