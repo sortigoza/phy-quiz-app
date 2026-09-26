@@ -1,6 +1,7 @@
 import type { Attempt, Confidence } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
 import { reviewSelection, type AttemptReview } from '../domain/review';
+import type { TagFilter } from '../domain/tags';
 import type { HistoryFilter } from '../history';
 import type { InProgressAttempt } from '../quiz';
 import type { StoredBank } from '../storage/db';
@@ -15,7 +16,8 @@ import type { StoredBank } from '../storage/db';
  */
 type WorkScreen =
   | { screen: 'library' }
-  | { screen: 'start'; stored: StoredBank; bank: Bank }
+  /** `tagFilter` presets the filter, when the tag breakdown opened the screen. */
+  | { screen: 'start'; stored: StoredBank; bank: Bank; tagFilter?: TagFilter }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
   | { screen: 'review'; attempt: Attempt; review: AttemptReview; back: ReviewBack }
   | HistoryScreen;
@@ -38,10 +40,11 @@ export type AppAction =
   | { type: 'filter-history'; filter: HistoryFilter }
   | { type: 'open-review'; attempt: Attempt; review: AttemptReview }
   | { type: 'close-review' }
-  | { type: 'open-start'; stored: StoredBank; bank: Bank }
+  | { type: 'open-start'; stored: StoredBank; bank: Bank; tagFilter?: TagFilter }
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'resume'; inProgress: InProgressAttempt; index: number }
-  | { type: 'choose'; questionId: string; optionId: string }
+  /** `at` is when the option was chosen, ISO 8601, passed in to keep the reducer pure. */
+  | { type: 'choose'; questionId: string; optionId: string; at: string }
   | { type: 'set-confidence'; questionId: string; confidence: Confidence }
   | { type: 'go-to'; index: number }
   | { type: 'submitted'; attempt: Attempt }
@@ -69,7 +72,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return state.screen === 'review' ? state.back : state;
 
     case 'open-start':
-      return { screen: 'start', stored: action.stored, bank: action.bank };
+      return {
+        screen: 'start',
+        stored: action.stored,
+        bank: action.bank,
+        ...(action.tagFilter && { tagFilter: action.tagFilter }),
+      };
 
     case 'begin':
       return { screen: 'attempt', inProgress: action.inProgress, index: 0 };
@@ -85,11 +93,14 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'choose':
       if (state.screen !== 'attempt') return state;
+      // `answeredAt` is when the option last changed, so choosing it again changes nothing.
+      if (state.inProgress.chosen[action.questionId] === action.optionId) return state;
       return {
         ...state,
         inProgress: {
           ...state.inProgress,
           chosen: { ...state.inProgress.chosen, [action.questionId]: action.optionId },
+          answeredAt: { ...state.inProgress.answeredAt, [action.questionId]: action.at },
         },
       };
 

@@ -67,8 +67,9 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
 
 /**
- * `confidence` arrived with ticket 17 and is optional, so files exported before
- * it still read. An unanswered question cannot have one, so any it claims is dropped.
+ * `confidence` arrived with ticket 17 and `answeredAt` with ticket 18. Both are
+ * optional, so files exported before them still read. An unanswered question
+ * can have neither, so any it claims is dropped.
  */
 const answerSchema = z
   .object({
@@ -76,11 +77,25 @@ const answerSchema = z
     chosenOptionId: z.string().min(1).max(16).nullable(),
     correctOptionId: z.string().min(1).max(16),
     confidence: z.enum(CONFIDENCE_LEVELS).optional(),
+    answeredAt: isoTime.optional(),
   })
-  .transform(({ confidence, ...answer }): AttemptAnswer => ({
-    ...answer,
-    ...(confidence && answer.chosenOptionId !== null && { confidence }),
-  }));
+  .transform(({ confidence, answeredAt, ...answer }): AttemptAnswer => {
+    const answered = answer.chosenOptionId !== null;
+    return {
+      ...answer,
+      ...(confidence && answered && { confidence }),
+      ...(answeredAt && answered && { answeredAt }),
+    };
+  });
+
+/**
+ * Ticket 18. The bank format's limits bound what a filter can name: 500
+ * questions of up to 20 tags, each up to 40 characters.
+ */
+const tagFilterSchema = z.object({
+  tags: z.array(z.string().min(1).max(40)).max(10_000),
+  untagged: z.boolean(),
+});
 
 /**
  * One attempt as it arrives in a file. The code is derived again from the id
@@ -111,6 +126,9 @@ const attemptSchema = z
     questionCount: z.int().min(1).max(500),
     correctCount: z.int().min(0),
     answers: z.array(answerSchema).min(1).max(500),
+    tagFilter: tagFilterSchema.optional(),
+    // Kept as the exporting browser wrote it: that browser holds the authoritative annotations (ADR 0004).
+    countedOverride: z.boolean().optional(),
     appVersion: z.string().min(1).max(64),
   })
   .superRefine((attempt, ctx) => {
@@ -137,8 +155,10 @@ const attemptSchema = z
       });
     }
   })
-  .transform((attempt): Attempt => ({
+  .transform(({ tagFilter, countedOverride, ...attempt }): Attempt => ({
     ...attempt,
+    ...(tagFilter && { tagFilter }),
+    ...(countedOverride !== undefined && { countedOverride }),
     code: attemptCode(attempt.id),
     origin: 'imported',
   }));

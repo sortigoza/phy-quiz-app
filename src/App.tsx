@@ -236,6 +236,7 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
         <Start
           stored={state.stored}
           bank={state.bank}
+          tagFilter={state.tagFilter}
           onBegin={(inProgress) => dispatch({ type: 'begin', inProgress })}
           onCancel={() => dispatch({ type: 'open-library' })}
         />
@@ -247,7 +248,9 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           inProgress={state.inProgress}
           index={state.index}
           unsaved={unsaved}
-          onChoose={(questionId, optionId) => dispatch({ type: 'choose', questionId, optionId })}
+          onChoose={(questionId, optionId) =>
+            dispatch({ type: 'choose', questionId, optionId, at: new Date().toISOString() })
+          }
           onSetConfidence={(questionId, confidence) =>
             dispatch({ type: 'set-confidence', questionId, confidence })
           }
@@ -275,6 +278,9 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           filter={state.filter}
           onFilter={(filter) => dispatch({ type: 'filter-history', filter })}
           onReview={(attempt, review) => dispatch({ type: 'open-review', attempt, review })}
+          onPractise={(stored, bank, tagFilter) =>
+            dispatch({ type: 'open-start', stored, bank, tagFilter })
+          }
           onDone={() => dispatch({ type: 'open-library' })}
         />
       );

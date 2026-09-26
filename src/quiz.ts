@@ -7,6 +7,7 @@ import {
 } from './domain/attempt';
 import { parseBank, type Bank, type ParseBankResult } from './domain/bank';
 import { drawSelection, randomSeed, type Selection } from './domain/selection';
+import { narrowingFilter, type TagFilter } from './domain/tags';
 import {
   getBank,
   getInProgress,
@@ -32,11 +33,15 @@ export type InProgressAttempt = {
   bank: Bank;
   name: string;
   seed: number;
+  /** The tags the selection was restricted to, if any. Replayed with the seed. */
+  tagFilter?: TagFilter | undefined;
   selection: Selection;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
   /** Confidence by question id. Kept when the chosen option changes. */
   confidence: Record<string, Confidence>;
+  /** When each question's option was last changed, ISO 8601, by question id. */
+  answeredAt: Record<string, string>;
   startedAt: Date;
 };
 
@@ -59,15 +64,20 @@ export function openStoredBank(stored: StoredBank): ParseBankResult {
   return parseBank(stored.raw);
 }
 
-/** Starts a sitting on a bank already read from the library, remembering the name for next time. */
+/**
+ * Starts a sitting on a bank already read from the library, remembering the
+ * name for next time. `count` is clamped to the questions the tag filter lets through.
+ */
 export async function beginAttempt(
   stored: StoredBank,
   bank: Bank,
   name: string,
   count: number,
+  tagFilter?: TagFilter,
 ): Promise<InProgressAttempt> {
   const seed = randomSeed();
   const participant = normaliseName(name);
+  const narrowing = narrowingFilter(tagFilter);
   await setLastParticipantName(participant);
 
   return {
@@ -75,9 +85,11 @@ export async function beginAttempt(
     bank,
     name: participant,
     seed,
-    selection: drawSelection(bank, count, seed),
+    ...(narrowing && { tagFilter: narrowing }),
+    selection: drawSelection(bank, count, seed, narrowing),
     chosen: {},
     confidence: {},
+    answeredAt: {},
     startedAt: new Date(),
   };
 }
@@ -91,9 +103,11 @@ export async function submitAttempt(inProgress: InProgressAttempt): Promise<Atte
     bank: inProgress.bank,
     bankFingerprint: inProgress.stored.fingerprint,
     seed: inProgress.seed,
+    tagFilter: inProgress.tagFilter,
     selection: inProgress.selection,
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
+    answeredAt: inProgress.answeredAt,
     startedAt: inProgress.startedAt,
     submittedAt,
     appVersion: APP_VERSION,
@@ -111,9 +125,11 @@ export async function saveInProgress(inProgress: InProgressAttempt, index: numbe
     bankTitle: inProgress.bank.title,
     name: inProgress.name,
     seed: inProgress.seed,
+    ...(inProgress.tagFilter && { tagFilter: inProgress.tagFilter }),
     questionCount: inProgress.selection.length,
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
+    answeredAt: inProgress.answeredAt,
     startedAt: inProgress.startedAt.toISOString(),
     index,
   });
@@ -157,9 +173,11 @@ export async function findInProgress(): Promise<PendingAttempt | undefined> {
       bank: parsed.bank,
       name: saved.name,
       seed: saved.seed,
-      selection: drawSelection(parsed.bank, saved.questionCount, saved.seed),
+      tagFilter: saved.tagFilter,
+      selection: drawSelection(parsed.bank, saved.questionCount, saved.seed, saved.tagFilter),
       chosen: saved.chosen,
       confidence: saved.confidence ?? {},
+      answeredAt: saved.answeredAt ?? {},
       startedAt: new Date(saved.startedAt),
     },
     index: saved.index,

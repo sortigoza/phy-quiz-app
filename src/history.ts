@@ -1,8 +1,8 @@
 import type { Attempt } from './domain/attempt';
-import { parseBank } from './domain/bank';
+import { compareVersions, parseBank, type Bank } from './domain/bank';
 import { readHistoryFile, type RejectedAttempt } from './domain/history-file';
 import { reviewAttempt, type AttemptReview, type HeldEdition } from './domain/review';
-import { addAttempts, listEditions } from './storage/db';
+import { addAttempts, listEditions, type StoredBank } from './storage/db';
 
 /**
  * History: narrowing it for display and export, and importing into it. See
@@ -70,9 +70,31 @@ export async function importHistory(text: string): Promise<ImportReport> {
  * were not held.
  */
 export async function reviewFromHistory(attempt: Attempt): Promise<AttemptReview> {
-  const editions = (await listEditions(attempt.bankId)).flatMap((stored): HeldEdition[] => {
-    const parsed = parseBank(stored.raw);
-    return parsed.ok ? [{ bank: parsed.bank, fingerprint: stored.fingerprint }] : [];
-  });
+  const editions = (await openEditions(attempt.bankId)).map(({ stored, bank }): HeldEdition => ({
+    bank,
+    fingerprint: stored.fingerprint,
+  }));
   return reviewAttempt(attempt, editions);
+}
+
+/** An edition of a bank held in the library, opened. */
+export type OpenedEdition = { stored: StoredBank; bank: Bank };
+
+/**
+ * The newest edition of a bank the library holds and can open, which is where
+ * the tag breakdown takes its tags from and a quiz aimed at a tag starts.
+ */
+export async function newestEdition(bankId: string): Promise<OpenedEdition | undefined> {
+  const [newest] = (await openEditions(bankId)).sort((a, b) =>
+    compareVersions(b.bank.version, a.bank.version),
+  );
+  return newest;
+}
+
+/** Every edition of a bank held, opened, passing over any that no longer parses. */
+async function openEditions(bankId: string): Promise<OpenedEdition[]> {
+  return (await listEditions(bankId)).flatMap((stored) => {
+    const parsed = parseBank(stored.raw);
+    return parsed.ok ? [{ stored, bank: parsed.bank }] : [];
+  });
 }

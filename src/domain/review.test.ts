@@ -39,6 +39,7 @@ function attemptOn(bank: Bank, count = 3): Attempt {
     selection,
     chosen: { [first?.question.id ?? '']: 'a', [second?.question.id ?? '']: 'b' },
     confidence: {},
+    answeredAt: {},
     startedAt: new Date('2026-09-23T10:00:00.000Z'),
     submittedAt: new Date('2026-09-23T10:03:20.000Z'),
     appVersion: '0.1.0',
@@ -118,6 +119,37 @@ describe('reviewAttempt', () => {
     expect(review).toMatchObject({ edition: 'other', version: '1.0.0', mismatch: true });
     expect(shape(review).map((entry) => entry.split(':')[0])).toEqual(
       attempt.answers.map((answer) => answer.questionId),
+    );
+  });
+
+  it('replays a filtered attempt exactly, drawing from the questions its filter let through', () => {
+    const tagged = bankOf(
+      firstEdition.questions.map((q, index) => ({ ...q, tags: [index % 2 ? 'odd' : 'even'] })),
+    );
+    const tagFilter = { tags: ['even'], untagged: false };
+    const selection = drawSelection(tagged, 2, seed, tagFilter);
+    const filtered = createAttempt({
+      id: '01890a5d-ac96-774b-bcce-b302099a8057',
+      name: 'Anna',
+      bank: tagged,
+      bankFingerprint: 'tagged',
+      seed,
+      tagFilter,
+      selection,
+      chosen: {},
+      confidence: {},
+      answeredAt: {},
+      startedAt: new Date('2026-09-23T10:00:00.000Z'),
+      submittedAt: new Date('2026-09-23T10:03:20.000Z'),
+      appVersion: '0.1.0',
+    });
+
+    const review = reviewAttempt(filtered, [{ bank: tagged, fingerprint: 'tagged' }]);
+    expect(review.edition).toBe('same');
+    expect(shape(review)).toEqual(
+      selection.map(
+        ({ question, options }) => `${question.id}:${options.map((o) => o.id).join('')}`,
+      ),
     );
   });
 

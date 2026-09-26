@@ -3,9 +3,22 @@ import { createAttempt } from './domain/attempt';
 import type { Bank } from './domain/bank';
 import { writeHistoryFile } from './domain/history-file';
 import { drawSelection } from './domain/selection';
-import { filterHistory, historyFilterValues, importHistory, reviewFromHistory } from './history';
+import {
+  filterHistory,
+  historyFilterValues,
+  importHistory,
+  newestEdition,
+  reviewFromHistory,
+} from './history';
 import { addBankFromText } from './library';
-import { bankKey, db, deleteBank, listAttempts, recordSubmittedAttempt } from './storage/db';
+import {
+  bankKey,
+  db,
+  deleteBank,
+  listAttempts,
+  recordSubmittedAttempt,
+  setCountedOverride,
+} from './storage/db';
 import { attemptRecord } from './test/attempts';
 
 const exportedAt = new Date('2026-09-24T08:30:00.000Z');
@@ -159,6 +172,7 @@ describe('reviewing an attempt from history', () => {
       selection,
       chosen: {},
       confidence: {},
+      answeredAt: {},
       startedAt: new Date('2026-09-23T10:00:00.000Z'),
       submittedAt: new Date('2026-09-23T10:03:20.000Z'),
       appVersion: '0.1.0',
@@ -192,5 +206,66 @@ describe('reviewing an attempt from history', () => {
     await deleteBank(bankKey('test.units', '1.0.0'));
 
     expect(await reviewFromHistory(attempt)).toEqual({ edition: 'none' });
+  });
+});
+
+describe('the newest held edition of a bank', () => {
+  function bankText(version: string): string {
+    const text = JSON.stringify({
+      formatVersion: 1,
+      id: 'test.units',
+      version,
+      title: `SI units ${version}`,
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Prompt q1',
+          options: [
+            { id: 'a', text: 'A' },
+            { id: 'b', text: 'B' },
+          ],
+          answer: 'a',
+          explanation: 'Because.',
+        },
+      ],
+    });
+    return text;
+  }
+
+  it('is the edition with the highest version, whatever order they were added in', async () => {
+    for (const version of ['1.10.0', '2.0.0', '1.2.0']) {
+      await addBankFromText(bankText(version), { kind: 'upload', filename: `${version}.json` });
+    }
+    const newest = await newestEdition('test.units');
+    expect(newest?.bank.version).toBe('2.0.0');
+    expect(newest?.stored.key).toBe(bankKey('test.units', '2.0.0'));
+  });
+
+  it('passes over an edition that no longer opens', async () => {
+    await addBankFromText(bankText('1.0.0'), { kind: 'upload', filename: 'v1.json' });
+    await addBankFromText(bankText('2.0.0'), { kind: 'upload', filename: 'v2.json' });
+    await db.banks.update(bankKey('test.units', '2.0.0'), { raw: '{}' });
+    expect((await newestEdition('test.units'))?.bank.version).toBe('1.0.0');
+  });
+
+  it('is nothing when no edition is held', async () => {
+    expect(await newestEdition('test.units')).toBeUndefined();
+  });
+});
+
+describe('overruling whether an attempt counts', () => {
+  it('records the participant’s ruling on a local attempt, and changes nothing else', async () => {
+    await db.attempts.add(anna);
+    await setCountedOverride(anna.id, true);
+    expect(await db.attempts.get(anna.id)).toEqual({ ...anna, countedOverride: true });
+    await setCountedOverride(anna.id, false);
+    expect((await db.attempts.get(anna.id))?.countedOverride).toBe(false);
+  });
+
+  it('refuses to touch an imported attempt, which is read-only', async () => {
+    const imported = { ...anna, origin: 'imported' as const };
+    await db.attempts.add(imported);
+    await expect(setCountedOverride(anna.id, true)).rejects.toThrow(/imported/);
+    expect(await db.attempts.get(anna.id)).toEqual(imported);
   });
 });
