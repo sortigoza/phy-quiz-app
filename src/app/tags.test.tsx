@@ -84,6 +84,8 @@ describe('the tag filter', () => {
     await user.type(screen.getByLabelText(/your name/i), 'Anna');
     await user.click(within(tagGroup()).getByRole('checkbox', { name: /energy/ }));
     await user.click(screen.getByRole('button', { name: /begin/i }));
+    // Beginning saves the name first, so the attempt screen arrives asynchronously.
+    await screen.findByText(/question 1 of 1/i);
     await answerCurrent(user, { q2: 'right' });
     await user.click(await screen.findByRole('button', { name: /submit/i }));
     await user.click(await screen.findByRole('button', { name: /back to library/i }));
