@@ -22,6 +22,13 @@ export function confidentErrors(answers: readonly AttemptAnswer[]): AttemptAnswe
   return answers.filter((answer) => answer.confidence === 'sure' && outcome(answer) === 'wrong');
 }
 
+/** The 1-based positions in the attempt of its confident errors. */
+export function confidentErrorPositions(answers: readonly AttemptAnswer[]): number[] {
+  return answers.flatMap((answer, index) =>
+    answer.confidence === 'sure' && outcome(answer) === 'wrong' ? [index + 1] : [],
+  );
+}
+
 /**
  * Whether the attempt asked for confidence. Attempts saved before it was asked
  * for carry none at all, which is different from an attempt that has some.
