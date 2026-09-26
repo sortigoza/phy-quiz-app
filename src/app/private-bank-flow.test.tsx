@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { App } from '../App';
 import { encodeBankKey, encryptBank, generateBankKey } from '../domain/private-bank';
 import { db, listAttempts } from '../storage/db';
+import { chooseConfidence } from '../test/quiz';
 
 /**
  * A private bank end to end: opened from a bank link, taken like any other,
@@ -52,6 +53,7 @@ describe('taking a private bank', () => {
     await user.type(screen.getByLabelText(/your name/i), 'Anna');
     await user.click(screen.getByRole('button', { name: /begin/i }));
     await user.click(await screen.findByRole('radio', { name: /newton/i }));
+    await chooseConfidence(user, 'sure');
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await screen.findByText(/force is measured in newtons/i);
 

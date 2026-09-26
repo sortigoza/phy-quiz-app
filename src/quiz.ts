@@ -1,4 +1,10 @@
-import { createAttempt, normaliseName, uuidv7, type Attempt } from './domain/attempt';
+import {
+  createAttempt,
+  normaliseName,
+  uuidv7,
+  type Attempt,
+  type Confidence,
+} from './domain/attempt';
 import { parseBank, type Bank, type ParseBankResult } from './domain/bank';
 import { drawSelection, randomSeed, type Selection } from './domain/selection';
 import {
@@ -29,8 +35,20 @@ export type InProgressAttempt = {
   selection: Selection;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
+  /** Confidence by question id. Kept when the chosen option changes. */
+  confidence: Record<string, Confidence>;
   startedAt: Date;
 };
+
+/**
+ * The 1-based positions of the questions answered without a confidence, which
+ * block submission. Unanswered questions need none.
+ */
+export function missingConfidence(inProgress: InProgressAttempt): number[] {
+  return inProgress.selection.flatMap(({ question }, index) =>
+    question.id in inProgress.chosen && !(question.id in inProgress.confidence) ? [index + 1] : [],
+  );
+}
 
 /**
  * Parses a bank held in the library. Every stored bank validated on the way in,
@@ -59,6 +77,7 @@ export async function beginAttempt(
     seed,
     selection: drawSelection(bank, count, seed),
     chosen: {},
+    confidence: {},
     startedAt: new Date(),
   };
 }
@@ -74,6 +93,7 @@ export async function submitAttempt(inProgress: InProgressAttempt): Promise<Atte
     seed: inProgress.seed,
     selection: inProgress.selection,
     chosen: inProgress.chosen,
+    confidence: inProgress.confidence,
     startedAt: inProgress.startedAt,
     submittedAt,
     appVersion: APP_VERSION,
@@ -93,6 +113,7 @@ export async function saveInProgress(inProgress: InProgressAttempt, index: numbe
     seed: inProgress.seed,
     questionCount: inProgress.selection.length,
     chosen: inProgress.chosen,
+    confidence: inProgress.confidence,
     startedAt: inProgress.startedAt.toISOString(),
     index,
   });
@@ -138,6 +159,7 @@ export async function findInProgress(): Promise<PendingAttempt | undefined> {
       seed: saved.seed,
       selection: drawSelection(parsed.bank, saved.questionCount, saved.seed),
       chosen: saved.chosen,
+      confidence: saved.confidence ?? {},
       startedAt: new Date(saved.startedAt),
     },
     index: saved.index,

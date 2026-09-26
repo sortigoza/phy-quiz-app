@@ -462,6 +462,39 @@ fieldset {
   padding: 0.5rem 0.875rem;
 }
 
+/* Confidence, below the options: how sure the participant is of their choice */
+
+.confidence {
+  margin-top: 0.75rem;
+}
+
+.confidence__legend {
+  margin-bottom: 0.375rem;
+  font-weight: 600;
+}
+
+.confidence__levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.confidence:disabled .radio-card {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.confidence__hint {
+  margin: 0.375rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.actions--start {
+  justify-content: flex-start;
+  margin-top: 0.5rem;
+}
+
 /* Review */
 
 .review__score {
@@ -480,6 +513,43 @@ fieldset {
   margin-left: auto;
   color: var(--text-muted);
   font-family: var(--mono);
+}
+
+.review__calibration {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+.confident-errors {
+  margin-top: 1.25rem;
+  border-color: var(--wrong);
+  border-left-width: 4px;
+  background: var(--danger-bg);
+}
+
+.confident-errors h3 {
+  margin: 0 0 0.25rem;
+  color: var(--wrong);
+  font-size: 1rem;
+}
+
+.confident-errors p {
+  margin: 0 0 0.5rem;
+}
+
+.confident-errors ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mark--confidence {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .review__list {

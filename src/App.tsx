@@ -248,6 +248,9 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
           index={state.index}
           unsaved={unsaved}
           onChoose={(questionId, optionId) => dispatch({ type: 'choose', questionId, optionId })}
+          onSetConfidence={(questionId, confidence) =>
+            dispatch({ type: 'set-confidence', questionId, confidence })
+          }
           onGoTo={(index) => dispatch({ type: 'go-to', index })}
           onSubmitted={(attempt) => dispatch({ type: 'submitted', attempt })}
         />
