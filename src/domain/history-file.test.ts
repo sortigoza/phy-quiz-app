@@ -310,4 +310,17 @@ describe('answer-first mode in a history file', () => {
       answerFirst.answers[1],
     ]);
   });
+
+  it('reads an empty response as no response, with nothing to self-grade', () => {
+    const empty = {
+      ...answerFirst,
+      answers: [{ ...answerFirst.answers[0], response: '  ' }, answerFirst.answers[1]],
+    };
+    const read = readHistoryFile(envelope([empty]));
+    expect(read.ok && read.attempts[0]?.answers[0]).toEqual({
+      questionId: 'q1',
+      chosenOptionId: 'a',
+      correctOptionId: 'a',
+    });
+  });
 });

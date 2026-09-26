@@ -9,13 +9,14 @@ import {
 import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
-import { asksSelfGrade, selfGradeTally } from '../domain/self-grade';
+import { answeredFirst, asksSelfGrade, selfGradeTally } from '../domain/self-grade';
 import { storageProblem } from '../storage/problems';
 import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
 import { confidenceLabel } from './confidence';
 import { ResponseText } from './ResponseText';
+import { selfGradeLabel } from './self-grade';
 
 /**
  * The review: where all the teaching happens.
@@ -49,14 +50,20 @@ type Props = {
   onSelfGrade?: ((questionId: string, grade: SelfGrade) => Promise<void>) | undefined;
 };
 
-const selfGradeLabel: Record<SelfGrade, string> = { yes: 'Yes', partly: 'Partly', no: 'No' };
-
-/** "Self-grade: Yes 3 · Partly 1 · No 0 · 2 to grade". */
-function selfGradeLine(answers: readonly AttemptAnswer[]): string {
-  if (!answers.some(asksSelfGrade)) return 'Self-grade: no responses written';
-  const tally = selfGradeTally(answers);
+/**
+ * "Self-grade: Yes 3 · Partly 1 · No 0 · 2 to grade". Only responses the
+ * review can show beside their explanation are counted as still to grade: an
+ * archived question, or one of a bank no longer held, cannot be graded here.
+ */
+function selfGradeLine(attempt: Attempt, review: AttemptReview): string {
+  if (!attempt.answers.some(asksSelfGrade)) return 'Self-grade: no responses written';
+  const tally = selfGradeTally(attempt.answers);
+  const gradable = review.edition === 'none' ? [] : review.questions;
+  const { ungraded } = selfGradeTally(
+    gradable.flatMap((reviewed) => (reviewed.kind === 'question' ? [reviewed.answer] : [])),
+  );
   const counts = SELF_GRADES.map((grade) => `${selfGradeLabel[grade]} ${tally[grade]}`);
-  if (tally.ungraded > 0) counts.push(`${tally.ungraded} to grade`);
+  if (ungraded > 0) counts.push(`${ungraded} to grade`);
   return `Self-grade: ${counts.join(' · ')}`;
 }
 
@@ -117,8 +124,8 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
         <span className="review__calibration">
           {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
         </span>
-        {attempt.mode === 'answer-first' && (
-          <span className="review__self-grades">{selfGradeLine(attempt.answers)}</span>
+        {(attempt.mode === 'answer-first' || attempt.answers.some(answeredFirst)) && (
+          <span className="review__self-grades">{selfGradeLine(attempt, review)}</span>
         )}
       </p>
 
@@ -313,7 +320,7 @@ function ReviewedCard({
           <BankText text={chosenWrong.why} lang={language} />
         </div>
       )}
-      {hasResponse(answer) ? (
+      {answeredFirst(answer) ? (
         <div className="reviewed__compare">
           <ResponseRecord answer={answer} />
           {explanation}
@@ -361,23 +368,18 @@ function ArchivedCard({
         )}
         The correct option was <code>{answer.correctOptionId}</code>.
       </p>
-      {hasResponse(answer) && <ResponseRecord answer={answer} />}
+      {answeredFirst(answer) && <ResponseRecord answer={answer} />}
     </article>
   );
-}
-
-/** Whether the question was taken answer-first: with a response written or skipped. */
-function hasResponse(answer: AttemptAnswer): boolean {
-  return answer.response !== undefined || answer.responseSkipped === true;
 }
 
 /** What the participant wrote before seeing the options, or that they skipped it. */
 function ResponseRecord({ answer }: { answer: AttemptAnswer }) {
   return (
     <div className="reviewed__response">
-      <h4>Your answer</h4>
+      <h4>Your response</h4>
       {answer.response === undefined ? (
-        <p className="reviewed__skipped">You skipped writing an answer.</p>
+        <p className="reviewed__skipped">You skipped writing a response.</p>
       ) : (
         <ResponseText text={answer.response} />
       )}

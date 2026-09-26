@@ -68,12 +68,17 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
 
+/** Whether a response holds any writing: an empty one counts as none. */
+function written(response: string | undefined): response is string {
+  return response !== undefined && response.trim() !== '';
+}
+
 /**
  * `confidence` arrived with ticket 17, and `response`, `responseSkipped` and
  * `selfGrade` with ticket 19. All are optional, so files exported before them
  * still read. A field that contradicts the rest of its answer is dropped: an
  * unanswered question has no confidence, a written response was not skipped,
- * and only a written response has a self-grade.
+ * only a written response has a self-grade, and an empty one is no response.
  */
 const answerSchema = z
   .object({
@@ -88,9 +93,9 @@ const answerSchema = z
   .transform(({ confidence, response, responseSkipped, selfGrade, ...answer }): AttemptAnswer => ({
     ...answer,
     ...(confidence && answer.chosenOptionId !== null && { confidence }),
-    ...(response !== undefined && { response }),
-    ...(responseSkipped && response === undefined && { responseSkipped }),
-    ...(selfGrade && response !== undefined && { selfGrade }),
+    ...(written(response) && { response }),
+    ...(responseSkipped && !written(response) && { responseSkipped }),
+    ...(selfGrade && written(response) && { selfGrade }),
   }));
 
 /**
