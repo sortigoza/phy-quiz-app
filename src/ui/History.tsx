@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
+import type { Bank } from '../domain/bank';
+import { atReadingPace, isCounted, MIN_MS_PER_QUESTION } from '../domain/counted';
 import { historyFileName, writeHistoryFile, type RejectedAttempt } from '../domain/history-file';
 import type { AttemptReview } from '../domain/review';
 import { percentage } from '../domain/scoring';
+import type { TagFilter } from '../domain/tags';
 import {
   filterHistory,
   historyFilterValues,
@@ -11,10 +14,11 @@ import {
   reviewFromHistory,
   type HistoryFilter,
 } from '../history';
-import { listAttempts } from '../storage/db';
+import { listAttempts, setCountedOverride, type StoredBank } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { APP_VERSION } from '../version';
 import { saveFile } from './download';
+import { TagBreakdown } from './TagBreakdown';
 import { UnverifiedBadge } from './UnverifiedBadge';
 
 /**
@@ -26,12 +30,18 @@ import { UnverifiedBadge } from './UnverifiedBadge';
  *
  * Each row opens its attempt's review. The filter is held by the app, so it is
  * still set on the way back.
+ *
+ * An attempt answered faster than a plausible reading pace is marked not
+ * counted, and left out of the tag breakdown, shown when one bank is chosen.
+ * On an attempt taken here, the participant may overrule that.
  */
 
 type Props = {
   filter: HistoryFilter;
   onFilter: (filter: HistoryFilter) => void;
   onReview: (attempt: Attempt, review: AttemptReview) => void;
+  /** Opens the start screen with a tag filter set, from the tag breakdown. */
+  onPractise: (stored: StoredBank, bank: Bank, tagFilter: TagFilter) => void;
   onDone: () => void;
 };
 
@@ -62,7 +72,7 @@ function formatDuration(ms: number): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
-export function History({ filter, onFilter, onReview, onDone }: Props) {
+export function History({ filter, onFilter, onReview, onPractise, onDone }: Props) {
   // Live, so an import shows up in the table without anything refreshing it.
   const held = useLiveQuery(() =>
     listAttempts().then(
@@ -72,7 +82,8 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
   );
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
   const [importing, setImporting] = useState(false);
-  const [reviewProblem, setReviewProblem] = useState<string | null>(null);
+  // Problems opening a review or saving a counted override.
+  const [rowProblem, setRowProblem] = useState<string | null>(null);
 
   const all = held?.attempts ?? [];
   const shown = filterHistory(all, filter);
@@ -88,7 +99,15 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
     try {
       onReview(attempt, await reviewFromHistory(attempt));
     } catch (error) {
-      setReviewProblem(storageProblem(error));
+      setRowProblem(storageProblem(error));
+    }
+  }
+
+  async function overrule(attempt: Attempt, counted: boolean) {
+    try {
+      await setCountedOverride(attempt.id, counted);
+    } catch (error) {
+      setRowProblem(storageProblem(error));
     }
   }
 
@@ -200,9 +219,9 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
         </div>
       )}
 
-      {reviewProblem && (
+      {rowProblem && (
         <p className="panel panel--error" role="alert">
-          {reviewProblem}
+          {rowProblem}
         </p>
       )}
 
@@ -249,6 +268,10 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
             </label>
           </div>
 
+          {filter.bankId !== undefined && (
+            <TagBreakdown bankId={filter.bankId} attempts={shown} onPractise={onPractise} />
+          )}
+
           <div className="table-scroll">
             <table className="fields history__table">
               <caption className="visually-hidden">Attempts, newest first</caption>
@@ -285,7 +308,10 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
                         </>
                       )}
                     </td>
-                    <td>{formatDuration(attempt.durationMs)}</td>
+                    <td>
+                      {formatDuration(attempt.durationMs)}
+                      <CountedMarker attempt={attempt} onOverrule={overrule} />
+                    </td>
                     <td className="history__code">{attempt.code}</td>
                     <td>
                       <button
@@ -311,5 +337,47 @@ export function History({ filter, onFilter, onReview, onDone }: Props) {
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * The not-counted marker, and on a local attempt the pace rule flagged, the
+ * participant's way to overrule it. Imported attempts are read-only.
+ */
+function CountedMarker({
+  attempt,
+  onOverrule,
+}: {
+  attempt: Attempt;
+  onOverrule: (attempt: Attempt, counted: boolean) => Promise<void>;
+}) {
+  const counted = isCounted(attempt);
+  const overrulable = attempt.origin === 'local' && !atReadingPace(attempt);
+  if (counted && !overrulable) return null;
+  return (
+    <>
+      {!counted && (
+        <>
+          {' '}
+          <span
+            className="badge badge--not-counted"
+            title={`Answered in under ${MIN_MS_PER_QUESTION / 1000} s a question on average, so left out of the tag breakdown`}
+          >
+            Not counted
+          </span>
+        </>
+      )}
+      {overrulable && (
+        <label className="history__count">
+          <input
+            type="checkbox"
+            checked={counted}
+            aria-label={`Count attempt ${attempt.code}`}
+            onChange={(event) => void onOverrule(attempt, event.target.checked)}
+          />
+          Count it
+        </label>
+      )}
+    </>
   );
 }

@@ -79,7 +79,12 @@ export function reviewAttempt(attempt: Attempt, editions: readonly HeldEdition[]
 
   const exact = own.find(({ fingerprint }) => fingerprint === attempt.bankFingerprint);
   if (exact) {
-    const selection = drawSelection(exact.bank, attempt.questionCount, attempt.seed);
+    const selection = drawSelection(
+      exact.bank,
+      attempt.questionCount,
+      attempt.seed,
+      attempt.tagFilter,
+    );
     // An imported attempt can name any fingerprint, so the replay must agree with its answers.
     if (replays(attempt, selection)) {
       return {
@@ -111,18 +116,28 @@ function replays(attempt: Attempt, selection: Selection): boolean {
   );
 }
 
+/**
+ * Whether a question, looked up by id in some edition, can still show what was
+ * recorded for it: it exists, and has both the recorded correct option and the
+ * chosen one. When it cannot, the answer is to an archived question.
+ */
+export function showsRecorded(
+  question: BankQuestion | undefined,
+  answer: AttemptAnswer,
+): question is BankQuestion {
+  const has = (id: string) => question?.options.some((option) => option.id === id) === true;
+  return (
+    question !== undefined &&
+    has(answer.correctOptionId) &&
+    (answer.chosenOptionId === null || has(answer.chosenOptionId))
+  );
+}
+
 /** A recorded answer beside its question, or archived when the question cannot show what was recorded. */
 function reviewedOrArchived(
   answer: AttemptAnswer,
   question: BankQuestion | undefined,
 ): ReviewedQuestion {
-  const has = (id: string) => question?.options.some((option) => option.id === id) === true;
-  if (
-    !question ||
-    !has(answer.correctOptionId) ||
-    (answer.chosenOptionId !== null && !has(answer.chosenOptionId))
-  ) {
-    return { kind: 'archived', answer };
-  }
+  if (!showsRecorded(question, answer)) return { kind: 'archived', answer };
   return { kind: 'question', question, options: question.options, answer };
 }

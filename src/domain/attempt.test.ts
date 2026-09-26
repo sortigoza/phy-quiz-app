@@ -112,6 +112,10 @@ describe('createAttempt', () => {
       [second as string]: bank.questions.find((q) => q.id === second)?.answer === 'a' ? 'b' : 'a',
     },
     confidence: { [first as string]: 'sure', [second as string]: 'guess' },
+    answeredAt: {
+      [first as string]: '2026-09-23T10:01:00.000Z',
+      [second as string]: '2026-09-23T10:02:00.000Z',
+    },
     startedAt: new Date('2026-09-23T10:00:00.000Z'),
     submittedAt: new Date('2026-09-23T10:04:30.500Z'),
     appVersion: '0.1.0',
@@ -143,11 +147,45 @@ describe('createAttempt', () => {
       selection,
       chosen: {},
       confidence: { [third]: 'sure' },
+      answeredAt: { [third]: '2026-09-23T10:01:00.000Z' },
       startedAt: new Date('2026-09-23T10:00:00.000Z'),
       submittedAt: new Date('2026-09-23T10:04:30.500Z'),
       appVersion: '0.1.0',
     });
     expect(blank.answers.every((answer) => !('confidence' in answer))).toBe(true);
+    expect(blank.answers.every((answer) => !('answeredAt' in answer))).toBe(true);
+  });
+
+  it('records when each chosen option was last changed', () => {
+    expect(attempt.answers.map((answer) => answer.answeredAt)).toEqual([
+      '2026-09-23T10:01:00.000Z',
+      '2026-09-23T10:02:00.000Z',
+      undefined,
+    ]);
+  });
+
+  it('records no tag filter when the attempt drew from the whole bank', () => {
+    expect('tagFilter' in attempt).toBe(false);
+  });
+
+  it('records the tag filter the selection was drawn with', () => {
+    const tagFilter = { tags: ['optics'], untagged: true };
+    const filtered = createAttempt({
+      id: '01890a5d-ac96-774b-bcce-b302099a8057',
+      name: 'Anna',
+      bank,
+      bankFingerprint: 'deadbeef',
+      seed: 42,
+      selection,
+      tagFilter,
+      chosen: {},
+      confidence: {},
+      answeredAt: {},
+      startedAt: new Date('2026-09-23T10:00:00.000Z'),
+      submittedAt: new Date('2026-09-23T10:04:30.500Z'),
+      appVersion: '0.1.0',
+    });
+    expect(filtered.tagFilter).toEqual(tagFilter);
   });
 
   it('scores the attempt', () => {

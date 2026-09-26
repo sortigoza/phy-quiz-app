@@ -875,6 +875,29 @@ fieldset {
   letter-spacing: 0.05em;
 }
 
-.badge--unverified {
+.badge--unverified,
+.badge--not-counted,
+.badge--low-data {
   color: var(--unanswered);
+}
+
+.history__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.tag-breakdown {
+  margin-bottom: 1.25rem;
+}
+
+.tag-breakdown h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.tag-breakdown td {
+  white-space: nowrap;
 }
