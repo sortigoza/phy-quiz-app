@@ -4,7 +4,7 @@
 
 This lands after the screens exist so it polishes finished work rather than a moving target.
 
-**Blocked by:** 04, 10
+**Blocked by:** 04. The leaderboard (10) moved to v1.1 and gets its own pass when it lands.
 
 **Status:** ready-for-agent
 

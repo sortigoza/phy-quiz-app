@@ -361,6 +361,10 @@ The library does not remember repositories. When the teacher adds a bank, studen
 
 The start screen asks for a **name** (pre-filled with the last name used in this browser, stored in IndexedDB) and a **question count**: 5, 10, 20 or All, defaulting to the bank's `defaultQuestionCount` or 10, clamped to the bank size with a note when clamped.
 
+It also offers a **tag filter**, a multi-select of the bank's tags with their question counts plus "untagged". A question qualifies when it carries any chosen tag; none chosen means the whole bank, and the count is clamped to the qualifying questions. The filter is applied before the seeded shuffle, so an unfiltered attempt draws exactly as before. It is not remembered between attempts. (Ticket 18.)
+
+And a **mode**: *Standard* or *Answer first*, remembered in this browser. (Ticket 19.)
+
 Identity is the name string and nothing else. The app trims and collapses whitespace, and does not case-fold or fuzzy-match. "anna" and "Anna" are two participants; silently merging two real students would be worse.
 
 ### 4.2 The run
@@ -371,6 +375,8 @@ Identity is the name string and nothing else. The app trims and collapses whites
 - Question order and option order are both shuffled from a recorded 32-bit **seed**, so any attempt can be reconstructed exactly. Selection is a seeded Fisher-Yates shuffle, then take N.
 - Every answer is written to IndexedDB immediately. Reopening the app with an unsubmitted attempt offers "You have a quiz in progress on X, 6 of 10 answered. Resume or discard?". At most one attempt is in progress at a time.
 - Leaving mid-attempt asks for confirmation. Unanswered questions are allowed; submission warns how many are blank.
+- Each chosen option also takes a **confidence**: Sure, Unsure or Guess, as a labelled radio group, enabled once an option is chosen. Submission is blocked while an answered question lacks one, naming those questions. (Ticket 17.)
+- In **answer-first mode**, each question's options stay hidden until the participant writes a response of at least 10 characters and reveals them, or skips the response. The response is then read-only and previews maths live. Number keys select options only once revealed and outside the text field. (Ticket 19.)
 
 ### 4.3 Review
 
@@ -379,9 +385,12 @@ Shown immediately after submission and reachable later from history whenever the
 - Opens with an animated score ring and one line of encouragement keyed to the score band.
 - Then every question in attempt order: the prompt, every option marked correct / chosen / both / neither, the author's `explanation`, and, when the participant chose a wrong option that has a `why`, that option's `why`.
 - Unanswered questions are shown as "not answered", visually distinct from a wrong answer, and scored as wrong.
-- A **Share result** button produces a share link.
+- Where confidence was recorded, a **Confident errors** section at the top links to every question answered Sure but wrong, each answer carries its confidence badge, and the summary gives accuracy per confidence level. (Ticket 17.)
+- In answer-first mode, each response sits beside the explanation with "Did your own answer match?" *Yes / Partly / No*, writable on local attempts from any review. (Ticket 19.)
+- **Copy as Markdown** puts the whole review, with prompts, options and tags, on the clipboard. (Ticket 20.)
+- A **Share result** button produces a share link (v1.1).
 
-When the bank is no longer in the library, review degrades to the score summary plus "import the bank to see the questions".
+Reached from history, the review replays against the edition whose fingerprint matches, else the newest held edition of the same bank, saying so; a question missing from it shows as an **archived question**. (Ticket 16.) When the bank is no longer in the library at all, review degrades to the score summary plus "import the bank to see the questions".
 
 ### 4.4 Scoring
 
@@ -412,11 +421,23 @@ type Attempt = {
     questionId: string;
     chosenOptionId: string | null;   // null means unanswered
     correctOptionId: string;
+    confidence?: "sure" | "unsure" | "guess";   // answered questions only (ticket 17)
+    answeredAt?: string;             // ISO 8601, when the option was last changed (ticket 18)
+    response?: string;               // answer-first mode (ticket 19)
+    responseSkipped?: true;          // answer-first mode, options revealed without a response
+    selfGrade?: "yes" | "partly" | "no";   // participant annotation (ticket 19)
   }>;
+  mode?: "standard" | "answer-first";      // missing means standard (ticket 19)
+  tagFilter?: { tags: string[]; untagged: boolean };   // missing or empty means the whole bank (ticket 18)
+  countedOverride?: boolean;       // participant annotation (ticket 18)
   appVersion: string;
   origin: "local" | "imported";
 };
 ```
+
+Every field marked `?` is optional and additive, so records written before it still read, and the export `formatVersion` stays 1.
+
+**Frozen after submission, except annotations.** Nothing that determines the score ever changes. The participant's own annotations, `selfGrade` and `countedOverride`, may be written later on local attempts only. See [ADR 0004](./docs/adr/0004-participant-annotations-on-submitted-attempts.md).
 
 **Lean by design.** The record references question ids and does not snapshot question text. A teacher collecting results has the bank by definition, and a class of 30 exports as tens of KB rather than megabytes.
 
@@ -428,7 +449,11 @@ type Attempt = {
 
 ### 6.1 History
 
-All attempts in this browser, newest first, filterable by name and by bank. Each row shows date, name, bank title, score, duration, attempt code, and an **unverified** badge when `origin` is `imported`.
+All attempts in this browser, newest first, filterable by name and by bank. Each row shows date, name, bank title, score, duration, attempt code, and an **unverified** badge when `origin` is `imported`. Each row opens the attempt's review (ticket 16).
+
+An attempt averaging under 5 seconds a question is **not counted**, and is marked so. The participant may overrule this on a local attempt.
+
+When the bank filter names one bank, a **tag breakdown** shows accuracy per tag over the counted attempts matching the filters, weakest first, with a "low data" marker under 5 answers and confident-error counts where recorded. Tags come from the newest held edition; answers to questions it no longer has go under "archived question". Tapping a tag opens Start with that tag as the filter. (Ticket 18.)
 
 ### 6.2 Export
 
@@ -458,6 +483,8 @@ Importing the same file twice changes nothing the second time. This is an accept
 ### 6.4 Share links
 
 `https://<host>/<path>#share=<payload>` where payload is base64url of deflate-raw of the attempt JSON, produced with the platform's `CompressionStream` (plain base64 where unavailable). Roughly 300 to 600 characters for a 10-question attempt.
+
+The payload carries the optional `confidence`, `responseSkipped` and `selfGrade` fields but never `response`, whose free text would make links too long for chat apps.
 
 The payload is in the **fragment**, which browsers never send to a server, so sharing stays local even on Vercel.
 
@@ -553,12 +580,12 @@ The library plays Bach's Crab Canon (The Musical Offering, BWV 1079, Canon 1 a 2
 3. Start an attempt, answer N questions, submit, and see review with explanations and distractor `why` text.
 4. Refresh mid-attempt and resume at the same question with previous answers intact.
 5. History shows the attempt; export produces a file; importing that file twice changes nothing the second time.
-6. A share link opened in another browser imports, and the score is recomputed rather than trusted.
-7. The leaderboard ranks correctly and badges a fingerprint mismatch.
+6. A past attempt opens its review from history, with confident errors first, and its review copies as Markdown.
+7. A quiz restricted to one tag draws only that tag's questions, and history's tag breakdown shows accuracy per tag.
 8. Lighthouse PWA install criteria pass; the app installs on Android and iOS.
 9. Every file in `examples/` validates in CI.
 
-Anything not on this list is v1.1.
+Anything not on this list is v1.1, including share links (§6.4) and the leaderboard (§7).
 
 ---
 
