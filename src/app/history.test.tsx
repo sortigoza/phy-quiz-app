@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
 import type { Attempt } from '../domain/attempt';
@@ -198,9 +198,9 @@ describe('importing history', () => {
     const report = await screen.findByRole('status');
     expect(report).toHaveTextContent('Imported 2, skipped 0 duplicates, rejected 1 invalid');
     expect(report).toHaveTextContent(/attempt 2.*correctCount is 3 but the answers score 1/i);
-    const rows = await historyRows();
-    expect(rows).toHaveLength(2);
-    for (const row of rows) expect(row).toHaveTextContent(/unverified/i);
+    // The table is a live query, which can refresh a moment after the import reports.
+    await waitFor(async () => expect(await historyRows()).toHaveLength(2));
+    for (const row of await historyRows()) expect(row).toHaveTextContent(/unverified/i);
   });
 
   it('changes nothing when the same file is imported again', async () => {
@@ -231,7 +231,8 @@ describe('importing history', () => {
     ]);
 
     expect(await screen.findByText(/imported 3, skipped 0 duplicates/i)).toBeInTheDocument();
-    expect(await historyRows()).toHaveLength(3);
+    // The table is a live query, which can refresh a moment after the import reports.
+    await waitFor(async () => expect(await historyRows()).toHaveLength(3));
   });
 
   it('refuses a file of an unknown version, naming it, and imports nothing from it', async () => {
