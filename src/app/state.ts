@@ -1,6 +1,7 @@
 import type { Attempt } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
-import type { Selection } from '../domain/selection';
+import { reviewSelection, type AttemptReview } from '../domain/review';
+import type { HistoryFilter } from '../history';
 import type { InProgressAttempt } from '../quiz';
 import type { StoredBank } from '../storage/db';
 
@@ -16,8 +17,14 @@ type WorkScreen =
   | { screen: 'library' }
   | { screen: 'start'; stored: StoredBank; bank: Bank }
   | { screen: 'attempt'; inProgress: InProgressAttempt; index: number }
-  | { screen: 'review'; attempt: Attempt; selection: Selection; language: string }
-  | { screen: 'history' };
+  | { screen: 'review'; attempt: Attempt; review: AttemptReview; back: ReviewBack }
+  | HistoryScreen;
+
+/** History keeps its filters while one of its attempts is reviewed. */
+type HistoryScreen = { screen: 'history'; filter: HistoryFilter };
+
+/** Where a review returns to: the library after submission, or the history it was opened from. */
+export type ReviewBack = { screen: 'library' } | HistoryScreen;
 
 /**
  * Help sits over whichever screen opened it and returns there on close, so
@@ -28,6 +35,9 @@ export type AppState = WorkScreen | { screen: 'help'; back: WorkScreen };
 export type AppAction =
   | { type: 'open-library' }
   | { type: 'open-history' }
+  | { type: 'filter-history'; filter: HistoryFilter }
+  | { type: 'open-review'; attempt: Attempt; review: AttemptReview }
+  | { type: 'close-review' }
   | { type: 'open-start'; stored: StoredBank; bank: Bank }
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'resume'; inProgress: InProgressAttempt; index: number }
@@ -45,7 +55,17 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return { screen: 'library' };
 
     case 'open-history':
-      return { screen: 'history' };
+      return { screen: 'history', filter: {} };
+
+    case 'filter-history':
+      return state.screen === 'history' ? { ...state, filter: action.filter } : state;
+
+    case 'open-review':
+      if (state.screen !== 'history') return state;
+      return { screen: 'review', attempt: action.attempt, review: action.review, back: state };
+
+    case 'close-review':
+      return state.screen === 'review' ? state.back : state;
 
     case 'open-start':
       return { screen: 'start', stored: action.stored, bank: action.bank };
@@ -89,8 +109,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return {
         screen: 'review',
         attempt: action.attempt,
-        selection: state.inProgress.selection,
-        language: bankLanguage(state.inProgress.bank),
+        review: {
+          edition: 'same',
+          language: bankLanguage(state.inProgress.bank),
+          questions: reviewSelection(action.attempt, state.inProgress.selection),
+        },
+        back: { screen: 'library' },
       };
   }
 }

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
 import type { Attempt } from '../domain/attempt';
-import { db } from '../storage/db';
+import { bankKey, db, deleteBank } from '../storage/db';
 import { attemptRecord } from '../test/attempts';
-import { answerAllAndSubmit, startQuiz } from '../test/quiz';
+import { answerAllAndSubmit, bankFile, prompts, startQuiz } from '../test/quiz';
 
 /**
  * History, export and import, driven through the whole app: a participant
@@ -231,7 +231,8 @@ describe('importing history', () => {
     ]);
 
     expect(await screen.findByText(/imported 3, skipped 0 duplicates/i)).toBeInTheDocument();
-    expect(await historyRows()).toHaveLength(3);
+    // The report can show before the live table catches up.
+    await waitFor(async () => expect(await historyRows()).toHaveLength(3));
   });
 
   it('refuses a file of an unknown version, naming it, and imports nothing from it', async () => {
@@ -248,5 +249,96 @@ describe('importing history', () => {
     expect(alert).toHaveTextContent('future.json');
     expect(alert).toHaveTextContent(/newer version of the app/);
     expect(await db.attempts.count()).toBe(0);
+  });
+});
+
+describe('reviewing from history', () => {
+  /** The questions of the review on screen, in order, by their accessible names. */
+  function reviewedQuestions(): string[] {
+    return screen.getAllByRole('article').map((article) => article.textContent ?? '');
+  }
+
+  async function takeQuizAndGoToHistory(user: UserEvent): Promise<string[]> {
+    await startQuiz(user, 'Anna');
+    await answerAllAndSubmit(user, { q1: 'right', q2: 'wrong', q3: 'right' });
+    await screen.findByRole('heading', { name: /review/i });
+    const asSubmitted = reviewedQuestions();
+    await user.click(screen.getByRole('button', { name: /back to library/i }));
+    await openHistory(user);
+    return asSubmitted;
+  }
+
+  it('opens an attempt’s review exactly as it looked after submission, and goes back to history', async () => {
+    const user = userEvent.setup();
+    const asSubmitted = await takeQuizAndGoToHistory(user);
+
+    const [row] = await historyRows();
+    await user.click(within(row as HTMLElement).getByRole('button', { name: /review/i }));
+
+    expect(await screen.findByRole('heading', { name: /review/i })).toBeInTheDocument();
+    expect(screen.getByText(/2 of 3 correct/i)).toBeInTheDocument();
+    expect(reviewedQuestions()).toEqual(asSubmitted);
+    expect(screen.queryByText(/version/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unverified/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back to history/i }));
+    expect(await screen.findByRole('heading', { name: 'History' })).toBeInTheDocument();
+  });
+
+  it('uses another edition of the bank when the exact one is gone, says so, and archives what it lost', async () => {
+    const user = userEvent.setup();
+    await takeQuizAndGoToHistory(user);
+    await user.click(screen.getByRole('button', { name: /back to library/i }));
+    const [q1, q2] = (JSON.parse(await bankFile().text()) as { questions: unknown[] }).questions;
+    await user.upload(
+      screen.getByLabelText(/bank file/i),
+      bankFile({ version: '2.0.0', questions: [q1, q2] }),
+    );
+    await screen.findByText(/2\.0\.0/);
+    await deleteBank(bankKey('test.units', '1.0.0'));
+    await openHistory(user);
+
+    await user.click(await screen.findByRole('button', { name: /review/i }));
+
+    await screen.findByRole('heading', { name: /review/i });
+    expect(screen.getByText(/version 2\.0\.0/)).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: new RegExp(prompts.q1) })).toBeInTheDocument();
+    const archived = screen.getByRole('article', { name: /archived question/i });
+    expect(archived).toHaveTextContent(/correct/i);
+    expect(screen.getByText(/2 of 3 correct/i)).toBeInTheDocument();
+  });
+
+  it('shows only the score when the bank is no longer held, and keeps history’s filters on the way back', async () => {
+    await db.attempts.bulkAdd([anna, ben, cleoOptics]);
+    const user = userEvent.setup();
+    render(<App />);
+    await openHistory(user);
+    await user.selectOptions(screen.getByLabelText('Participant'), 'Ben');
+
+    const [row] = await historyRows();
+    await user.click(within(row as HTMLElement).getByRole('button', { name: /review/i }));
+
+    expect(await screen.findByText(/import the bank to see the questions/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 2 correct/i)).toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back to history/i }));
+    expect(await screen.findByLabelText('Participant')).toHaveValue('Ben');
+    const rows = await historyRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent('Ben');
+  });
+
+  it('opens an imported attempt with the unverified badge', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openHistory(user);
+    await user.upload(screen.getByLabelText(/import history/i), historyFile([anna]));
+    await screen.findByText(/imported 1/i);
+
+    await user.click(await screen.findByRole('button', { name: /review/i }));
+
+    await screen.findByRole('heading', { name: /review/i });
+    expect(screen.getByText(/unverified/i)).toBeInTheDocument();
   });
 });
