@@ -17,6 +17,30 @@ export type Confidence = 'sure' | 'unsure' | 'guess';
 
 export const CONFIDENCE_LEVELS: readonly Confidence[] = ['sure', 'unsure', 'guess'];
 
+/**
+ * How the attempt was taken. In answer-first mode each question's options stay
+ * hidden until the participant writes a response or skips it.
+ */
+export type AttemptMode = 'standard' | 'answer-first';
+
+export const ATTEMPT_MODES: readonly AttemptMode[] = ['standard', 'answer-first'];
+
+/** How the options of a question were revealed in answer-first mode: after a response, or without one. */
+export type Reveal = 'written' | 'skipped';
+
+/** The shortest response, once trimmed, that reveals the options. Anything less must be skipped. */
+export const MIN_RESPONSE_LENGTH = 10;
+
+/** Whether a response is long enough to reveal the options. */
+export function canReveal(response: string): boolean {
+  return response.trim().length >= MIN_RESPONSE_LENGTH;
+}
+
+/** Whether the participant's own response matched the explanation, in their judgement. */
+export type SelfGrade = 'yes' | 'partly' | 'no';
+
+export const SELF_GRADES: readonly SelfGrade[] = ['yes', 'partly', 'no'];
+
 export type AttemptAnswer = {
   questionId: string;
   /** Null means the question was left unanswered. */
@@ -33,6 +57,15 @@ export type AttemptAnswer = {
    * kept for a spaced-review scheduler.
    */
   answeredAt?: string;
+  /** Answer-first mode only: what the participant wrote before the options were revealed. */
+  response?: string;
+  /** Answer-first mode only: the options were revealed without a response. */
+  responseSkipped?: true;
+  /**
+   * Written responses only, and only in review: a participant annotation, the
+   * one field of an answer that may change after submission. See ADR 0004.
+   */
+  selfGrade?: SelfGrade;
 };
 
 export type Attempt = {
@@ -69,6 +102,8 @@ export type Attempt = {
    * submission, on local attempts only. See ADR 0004.
    */
   countedOverride?: boolean;
+  /** Missing on attempts saved before answer-first mode existed (ticket 19), which were standard. */
+  mode?: AttemptMode;
   appVersion: string;
   origin: 'local' | 'imported';
 };
@@ -128,12 +163,17 @@ export type CreateAttemptInput = {
   selection: Selection;
   /** The tag filter the selection was drawn with, if any. */
   tagFilter?: TagFilter | undefined;
+  mode: AttemptMode;
   /** Chosen option id by question id. A question missing here was left unanswered. */
   chosen: Readonly<Record<string, string>>;
   /** Confidence by question id. Ignored for a question left unanswered. */
   confidence: Readonly<Record<string, Confidence>>;
   /** When each question's option was last changed, ISO 8601, by question id. Ignored for a question left unanswered. */
   answeredAt: Readonly<Record<string, string>>;
+  /** Answer-first mode: the response written, by question id. Kept only once its options were revealed. */
+  responses: Readonly<Record<string, string>>;
+  /** Answer-first mode: how each question's options were revealed. A question missing here never was. */
+  revealed: Readonly<Record<string, Reveal>>;
   startedAt: Date;
   submittedAt: Date;
   appVersion: string;
@@ -151,6 +191,7 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
       correctOptionId: question.answer,
       ...(confidence && { confidence }),
       ...(answeredAt && { answeredAt }),
+      ...(input.mode === 'answer-first' && responseFields(input, question.id)),
     };
   });
 
@@ -171,7 +212,19 @@ export function createAttempt(input: CreateAttemptInput): Attempt {
     correctCount: correctCount(answers),
     answers,
     ...(tagFilter && { tagFilter }),
+    mode: input.mode,
     appVersion: input.appVersion,
     origin: 'local',
   };
+}
+
+/** The response fields of one answer: a draft never revealed is not kept. */
+function responseFields(
+  input: CreateAttemptInput,
+  questionId: string,
+): Pick<AttemptAnswer, 'response' | 'responseSkipped'> {
+  const reveal = input.revealed[questionId];
+  if (reveal === 'written') return { response: (input.responses[questionId] ?? '').trim() };
+  if (reveal === 'skipped') return { responseSkipped: true };
+  return {};
 }

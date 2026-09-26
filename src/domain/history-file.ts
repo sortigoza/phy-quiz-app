@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
+  ATTEMPT_MODES,
   attemptCode,
   CONFIDENCE_LEVELS,
   normaliseName,
+  SELF_GRADES,
   type Attempt,
   type AttemptAnswer,
 } from './attempt';
@@ -66,10 +68,18 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
 
+/** Whether a response holds any writing: an empty one counts as none. */
+function written(response: string | undefined): response is string {
+  return response !== undefined && response.trim() !== '';
+}
+
 /**
- * `confidence` arrived with ticket 17 and `answeredAt` with ticket 18. Both are
- * optional, so files exported before them still read. An unanswered question
- * can have neither, so any it claims is dropped.
+ * `confidence` arrived with ticket 17, `answeredAt` with ticket 18, and
+ * `response`, `responseSkipped` and `selfGrade` with ticket 19. All are
+ * optional, so files exported before them still read. A field that
+ * contradicts the rest of its answer is dropped: an unanswered question has no
+ * confidence and no answer time, a written response was not skipped, only a
+ * written response has a self-grade, and an empty one is no response.
  */
 const answerSchema = z
   .object({
@@ -78,15 +88,30 @@ const answerSchema = z
     correctOptionId: z.string().min(1).max(16),
     confidence: z.enum(CONFIDENCE_LEVELS).optional(),
     answeredAt: isoTime.optional(),
+    response: z.string().max(20_000).optional(),
+    responseSkipped: z.literal(true).optional(),
+    selfGrade: z.enum(SELF_GRADES).optional(),
   })
-  .transform(({ confidence, answeredAt, ...answer }): AttemptAnswer => {
-    const answered = answer.chosenOptionId !== null;
-    return {
-      ...answer,
-      ...(confidence && answered && { confidence }),
-      ...(answeredAt && answered && { answeredAt }),
-    };
-  });
+  .transform(
+    ({
+      confidence,
+      answeredAt,
+      response,
+      responseSkipped,
+      selfGrade,
+      ...answer
+    }): AttemptAnswer => {
+      const answered = answer.chosenOptionId !== null;
+      return {
+        ...answer,
+        ...(confidence && answered && { confidence }),
+        ...(answeredAt && answered && { answeredAt }),
+        ...(written(response) && { response }),
+        ...(responseSkipped && !written(response) && { responseSkipped }),
+        ...(selfGrade && written(response) && { selfGrade }),
+      };
+    },
+  );
 
 /**
  * Ticket 18. The bank format's limits bound what a filter can name: 500
@@ -129,6 +154,8 @@ const attemptSchema = z
     tagFilter: tagFilterSchema.optional(),
     // Kept as the exporting browser wrote it: that browser holds the authoritative annotations (ADR 0004).
     countedOverride: z.boolean().optional(),
+    // Missing means standard: attempts taken before ticket 19 had no other mode.
+    mode: z.enum(ATTEMPT_MODES).optional(),
     appVersion: z.string().min(1).max(64),
   })
   .superRefine((attempt, ctx) => {
@@ -155,10 +182,11 @@ const attemptSchema = z
       });
     }
   })
-  .transform(({ tagFilter, countedOverride, ...attempt }): Attempt => ({
+  .transform(({ tagFilter, countedOverride, mode, ...attempt }): Attempt => ({
     ...attempt,
     ...(tagFilter && { tagFilter }),
     ...(countedOverride !== undefined && { countedOverride }),
+    ...(mode && { mode }),
     code: attemptCode(attempt.id),
     origin: 'imported',
   }));

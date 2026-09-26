@@ -175,12 +175,14 @@ export const rejectionRules: string[] = [
 /** What a participant can do today, in order. */
 export const quizSteps: string[] = [
   'Load a question bank on the library screen: from your device with "Upload a bank file", or from a link with "Load from URL". A GitHub file link works as it is, from a public repository. A link to a bank repository loads every bank it lists.',
-  'Press Start on the bank, type your name, and choose how many questions to answer.',
-  'Answer one question per screen. Previous and Next move freely; nothing tells you whether you are right until the end.',
+  'Press Start on the bank, type your name, and choose how many questions to answer, and how: Standard, or Answer first.',
+  'In Answer first, each question shows only its prompt at first. Write your own answer or reasoning, at least 10 characters, and press Reveal options; or press Skip when the question needs its options. What you wrote then stays, read-only, while you choose.',
+  'Answer one question per screen. Previous and Next move freely; nothing tells you whether you are right until the end. Number keys 1 to 9 choose an option, except while you are typing.',
   'With each answer, say how sure you are: Sure, Unsure or Guess. Be honest: the review uses it to show which mistakes you were sure of, and how often you were right at each level.',
   'Every answer is saved in this browser as you give it. If the page is closed mid-quiz, open the app again and the library offers to resume the quiz where you left off, or to discard it. One quiz can be in progress at a time.',
   'Submit on the last question. Every answered question needs a confidence first. If any are blank, you are warned; blank questions score as wrong.',
   'Read the review. It opens with your confident errors, the answers you were sure of that were wrong, because those are the ones most worth correcting. Then every question with the correct option, the option you chose, the explanation, and a note on why your option was wrong when the author wrote one.',
+  'After an Answer first quiz, the review shows what you wrote beside the explanation and asks whether your answer matched: Yes, Partly or No. You can answer that later too, from History.',
 ];
 
 /**

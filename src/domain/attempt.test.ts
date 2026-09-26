@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Bank } from './bank';
-import { attemptCode, createAttempt, normaliseName, uuidv7 } from './attempt';
+import {
+  attemptCode,
+  createAttempt,
+  normaliseName,
+  uuidv7,
+  type CreateAttemptInput,
+} from './attempt';
 import { drawSelection } from './selection';
 
 const bank: Bank = {
@@ -95,11 +101,30 @@ describe('normaliseName', () => {
   });
 });
 
+const input: CreateAttemptInput = {
+  id: '01890a5d-ac96-774b-bcce-b302099a8057',
+  name: 'Anna',
+  bank,
+  bankFingerprint: 'deadbeef',
+  seed: 42,
+  selection: drawSelection(bank, 3, 42),
+  mode: 'standard',
+  chosen: {},
+  confidence: {},
+  answeredAt: {},
+  responses: {},
+  revealed: {},
+  startedAt: new Date('2026-09-23T10:00:00.000Z'),
+  submittedAt: new Date('2026-09-23T10:04:30.500Z'),
+  appVersion: '0.1.0',
+};
+
 describe('createAttempt', () => {
   const selection = drawSelection(bank, 3, 42);
   const [first, second] = selection.map(({ question }) => question.id);
 
   const attempt = createAttempt({
+    ...input,
     id: '01890a5d-ac96-774b-bcce-b302099a8057',
     name: '  Anna  Svensson ',
     bank,
@@ -139,6 +164,7 @@ describe('createAttempt', () => {
   it('never records a confidence for an unanswered question', () => {
     const third = selection[2]?.question.id as string;
     const blank = createAttempt({
+      ...input,
       id: '01890a5d-ac96-774b-bcce-b302099a8057',
       name: 'Anna',
       bank,
@@ -178,9 +204,12 @@ describe('createAttempt', () => {
       seed: 42,
       selection,
       tagFilter,
+      mode: 'standard',
       chosen: {},
       confidence: {},
       answeredAt: {},
+      responses: {},
+      revealed: {},
       startedAt: new Date('2026-09-23T10:00:00.000Z'),
       submittedAt: new Date('2026-09-23T10:04:30.500Z'),
       appVersion: '0.1.0',
@@ -215,5 +244,58 @@ describe('createAttempt', () => {
     expect(attempt.answers.map((answer) => [answer.questionId, answer.correctOptionId])).toEqual(
       selection.map(({ question }) => [question.id, question.answer]),
     );
+  });
+
+  it('records the mode it was taken in', () => {
+    expect(attempt.mode).toBe('standard');
+  });
+
+  it('records no responses in standard mode, even if some were somehow given', () => {
+    const standard = createAttempt({
+      ...input,
+      responses: { [first as string]: 'Force is mass times acceleration.' },
+      revealed: { [first as string]: 'written' },
+    });
+    expect(standard.answers.some((answer) => 'response' in answer)).toBe(false);
+    expect(standard.answers.some((answer) => 'responseSkipped' in answer)).toBe(false);
+  });
+});
+
+describe('createAttempt in answer-first mode', () => {
+  const selection = drawSelection(bank, 3, 42);
+  const [first, second, third] = selection.map(({ question }) => question.id) as [
+    string,
+    string,
+    string,
+  ];
+
+  const attempt = createAttempt({
+    ...input,
+    mode: 'answer-first',
+    chosen: { [first]: 'a', [second]: 'b' },
+    confidence: { [first]: 'sure', [second]: 'guess' },
+    // The first written and revealed, the second skipped, the third drafted but never revealed.
+    responses: { [first]: '  Because $F = ma$.  ', [third]: 'Still thinking about it' },
+    revealed: { [first]: 'written', [second]: 'skipped' },
+  });
+
+  it('records the mode', () => {
+    expect(attempt.mode).toBe('answer-first');
+  });
+
+  it('records a written response, trimmed, and marks a skipped one', () => {
+    expect(attempt.answers[0]).toMatchObject({ response: 'Because $F = ma$.' });
+    expect(attempt.answers[0]).not.toHaveProperty('responseSkipped');
+    expect(attempt.answers[1]).toMatchObject({ responseSkipped: true });
+    expect(attempt.answers[1]).not.toHaveProperty('response');
+  });
+
+  it('keeps no draft of a question whose options were never revealed', () => {
+    expect(attempt.answers[2]).not.toHaveProperty('response');
+    expect(attempt.answers[2]).not.toHaveProperty('responseSkipped');
+  });
+
+  it('records no self-grade, which is made only in review', () => {
+    expect(attempt.answers.some((answer) => 'selfGrade' in answer)).toBe(false);
   });
 });

@@ -1,21 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { normaliseName } from '../domain/attempt';
+import { normaliseName, type AttemptMode } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
 import { defaultQuestionCount } from '../domain/selection';
 import { bankTags, isWholeBank, qualifyingQuestions, type TagFilter } from '../domain/tags';
 import { beginAttempt, type InProgressAttempt } from '../quiz';
-import { getLastParticipantName, type StoredBank } from '../storage/db';
+import { getAttemptMode, getLastParticipantName, type StoredBank } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
 
 /**
- * The start screen: who is taking the quiz, how many questions, and, when the
- * bank has tags, which of them to draw from.
+ * The start screen: who is taking the quiz, how many questions, in which mode
+ * and, when the bank has tags, which of them to draw from.
  *
  * The name is the participant's whole identity, so it is offered back from the
  * last attempt in this browser rather than asked for from scratch each time.
- * The tag filter is not remembered: it starts empty, unless the tag breakdown
- * opened this screen to practise one tag.
+ * The mode is offered back the same way. The tag filter is not remembered: it
+ * starts empty, unless the tag breakdown opened this screen to practise one tag.
  */
 
 /** The fixed counts offered, before the bank's own default and "All" are added. */
@@ -56,6 +56,10 @@ export function Start({ stored, bank, tagFilter: preset = noTags, onBegin, onCan
 
   const [name, setName] = useState('');
   const [count, setCount] = useState(suggested.count);
+  // Undefined until the participant picks one, so the remembered mode never overrides their pick.
+  const [pickedMode, setPickedMode] = useState<AttemptMode>();
+  const [rememberedMode, setRememberedMode] = useState<AttemptMode>('standard');
+  const mode = pickedMode ?? rememberedMode;
   const [starting, setStarting] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -71,6 +75,11 @@ export function Start({ stored, bank, tagFilter: preset = noTags, onBegin, onCan
       },
       () => {},
     );
+    // Likewise the mode: without storage, it stays standard.
+    getAttemptMode().then(
+      (remembered) => !cancelled && setRememberedMode(remembered),
+      () => {},
+    );
     return () => {
       cancelled = true;
     };
@@ -84,7 +93,7 @@ export function Start({ stored, bank, tagFilter: preset = noTags, onBegin, onCan
     setStarting(true);
     setProblem(null);
     try {
-      onBegin(await beginAttempt(stored, bank, name, Math.min(count, size), tagFilter));
+      onBegin(await beginAttempt(stored, bank, name, Math.min(count, size), mode, tagFilter));
     } catch (error) {
       setStarting(false);
       setProblem(storageProblem(error));
@@ -179,6 +188,33 @@ export function Start({ stored, bank, tagFilter: preset = noTags, onBegin, onCan
               This bank only has {size} question{size === 1 ? '' : 's'}.
             </p>
           )}
+        </fieldset>
+
+        <fieldset className="field modes">
+          <legend>How do you want to answer?</legend>
+          <label className="radio-card">
+            <input
+              type="radio"
+              name="attempt-mode"
+              checked={mode === 'standard'}
+              onChange={() => setPickedMode('standard')}
+            />
+            Standard
+          </label>
+          <label className="radio-card">
+            <input
+              type="radio"
+              name="attempt-mode"
+              aria-describedby="answer-first-note"
+              checked={mode === 'answer-first'}
+              onChange={() => setPickedMode('answer-first')}
+            />
+            Answer first
+          </label>
+          <p id="answer-first-note" className="field__note">
+            Answer first: write your own answer to each question before its options appear, then
+            compare it with the explanation in the review.
+          </p>
         </fieldset>
 
         {problem && (

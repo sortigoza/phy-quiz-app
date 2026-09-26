@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Attempt, Confidence } from '../domain/attempt';
+import type { Attempt, AttemptMode, Confidence, Reveal, SelfGrade } from '../domain/attempt';
+import { withSelfGrade } from '../domain/self-grade';
 import type { TagFilter } from '../domain/tags';
 
 /**
@@ -82,6 +83,12 @@ export type StoredInProgress = {
   confidence?: Record<string, Confidence>;
   /** When each option was last changed, ISO 8601, by question id. Missing on a record saved before ticket 18. */
   answeredAt?: Record<string, string>;
+  /** Missing on a record saved before ticket 19, which was standard. */
+  mode?: AttemptMode;
+  /** Answer-first mode: the response written so far, by question id, revealed or not. */
+  responses?: Record<string, string>;
+  /** Answer-first mode: how each question's options were revealed. */
+  revealed?: Record<string, Reveal>;
   /** ISO 8601. */
   startedAt: string;
   /** The question on screen, so resuming lands where the participant was. */
@@ -92,7 +99,9 @@ const IN_PROGRESS_KEY = 'current';
 
 /** Small preferences remembered in this browser, one row per setting. */
 type Setting =
-  { key: 'lastParticipantName'; value: string } | { key: 'music'; value: 'on' | 'off' };
+  | { key: 'lastParticipantName'; value: string }
+  | { key: 'music'; value: 'on' | 'off' }
+  | { key: 'attemptMode'; value: AttemptMode };
 
 const database = new Dexie('physics-quiz') as Dexie & {
   banks: EntityTable<StoredBank, 'key'>;
@@ -218,6 +227,24 @@ export async function deleteInProgress(): Promise<void> {
   await db.inProgress.delete(IN_PROGRESS_KEY);
 }
 
+/**
+ * Writes the participant's self-grade of one response into a held attempt and
+ * returns the attempt as stored. Only local attempts take it (ADR 0004).
+ */
+export async function gradeResponse(
+  attemptId: string,
+  questionId: string,
+  grade: SelfGrade,
+): Promise<Attempt> {
+  return db.transaction('rw', db.attempts, async () => {
+    const held = await db.attempts.get(attemptId);
+    if (!held) throw new Error('This attempt is no longer in your history.');
+    const graded = withSelfGrade(held, questionId, grade);
+    await db.attempts.put(graded);
+    return graded;
+  });
+}
+
 /** Every attempt held in this browser, newest first. */
 export async function listAttempts(): Promise<Attempt[]> {
   return db.attempts.orderBy('submittedAt').reverse().toArray();
@@ -273,6 +300,16 @@ export async function getMusicOn(): Promise<boolean> {
 
 export async function setMusicOn(on: boolean): Promise<void> {
   await db.settings.put({ key: 'music', value: on ? 'on' : 'off' });
+}
+
+/** The mode the last attempt here was started in, so the start screen can offer it again. */
+export async function getAttemptMode(): Promise<AttemptMode> {
+  const setting = await db.settings.get('attemptMode');
+  return setting?.value === 'answer-first' ? 'answer-first' : 'standard';
+}
+
+export async function setAttemptMode(mode: AttemptMode): Promise<void> {
+  await db.settings.put({ key: 'attemptMode', value: mode });
 }
 
 export async function setLastParticipantName(name: string): Promise<void> {

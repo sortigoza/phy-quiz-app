@@ -299,3 +299,103 @@ describe('ticket 18 fields in a history file', () => {
     });
   });
 });
+
+describe('answer-first mode in a history file', () => {
+  const answerFirst = attempt({
+    mode: 'answer-first',
+    answers: [
+      {
+        questionId: 'q1',
+        chosenOptionId: 'a',
+        correctOptionId: 'a',
+        response: 'Newton, since $F = ma$.',
+        selfGrade: 'partly',
+      },
+      { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b', responseSkipped: true },
+    ],
+  });
+
+  it('round-trips the mode, responses, skipped responses and self-grades', () => {
+    expect(readHistoryFile(writeHistoryFile([answerFirst], exportedAt, '0.1.0'))).toEqual({
+      ok: true,
+      attempts: [{ ...answerFirst, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+
+  it('still reads an attempt with no mode, which was taken in standard mode', () => {
+    const read = readHistoryFile(envelope([attempt()]));
+    expect(read.ok && read.attempts[0]).not.toHaveProperty('mode');
+  });
+
+  it('rejects a mode or a self-grade this app does not know', () => {
+    const oddMode = { ...answerFirst, mode: 'essay' };
+    const oddGrade = {
+      ...answerFirst,
+      answers: [{ ...answerFirst.answers[0], selfGrade: 'mostly' }, answerFirst.answers[1]],
+    };
+    expect(readHistoryFile(envelope([oddMode, oddGrade]))).toMatchObject({
+      ok: true,
+      attempts: [],
+      rejected: [
+        { position: 1, reason: expect.stringMatching(/^mode: /) },
+        { position: 2, reason: expect.stringMatching(/^answers\[0\]\.selfGrade: /) },
+      ],
+    });
+  });
+
+  it('drops a self-grade with no response to grade, and a skip that has a response', () => {
+    const muddled = {
+      ...answerFirst,
+      answers: [
+        { ...answerFirst.answers[0], responseSkipped: true },
+        { ...answerFirst.answers[1], selfGrade: 'yes' },
+      ],
+    };
+    const read = readHistoryFile(envelope([muddled]));
+    expect(read.ok && read.attempts[0]?.answers).toEqual([
+      answerFirst.answers[0],
+      answerFirst.answers[1],
+    ]);
+  });
+
+  it('reads an empty response as no response, with nothing to self-grade', () => {
+    const empty = {
+      ...answerFirst,
+      answers: [{ ...answerFirst.answers[0], response: '  ' }, answerFirst.answers[1]],
+    };
+    const read = readHistoryFile(envelope([empty]));
+    expect(read.ok && read.attempts[0]?.answers[0]).toEqual({
+      questionId: 'q1',
+      chosenOptionId: 'a',
+      correctOptionId: 'a',
+    });
+  });
+});
+
+describe('ticket 18 and 19 fields together in a history file', () => {
+  it('round-trips a filtered answer-first attempt with every optional field on one answer', () => {
+    const everything = attempt({
+      mode: 'answer-first',
+      tagFilter: { tags: ['mechanics'], untagged: false },
+      countedOverride: false,
+      answers: [
+        {
+          questionId: 'q1',
+          chosenOptionId: 'a',
+          correctOptionId: 'a',
+          confidence: 'sure',
+          answeredAt: '2026-09-23T10:01:00.000Z',
+          response: 'Newton, since $F = ma$.',
+          selfGrade: 'yes',
+        },
+        { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b', responseSkipped: true },
+      ],
+    });
+    expect(readHistoryFile(writeHistoryFile([everything], exportedAt, '0.1.0'))).toEqual({
+      ok: true,
+      attempts: [{ ...everything, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+});
