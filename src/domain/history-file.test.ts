@@ -251,3 +251,63 @@ describe('confidence in a history file', () => {
     });
   });
 });
+
+describe('answer-first mode in a history file', () => {
+  const answerFirst = attempt({
+    mode: 'answer-first',
+    answers: [
+      {
+        questionId: 'q1',
+        chosenOptionId: 'a',
+        correctOptionId: 'a',
+        response: 'Newton, since $F = ma$.',
+        selfGrade: 'partly',
+      },
+      { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b', responseSkipped: true },
+    ],
+  });
+
+  it('round-trips the mode, responses, skipped responses and self-grades', () => {
+    expect(readHistoryFile(writeHistoryFile([answerFirst], exportedAt, '0.1.0'))).toEqual({
+      ok: true,
+      attempts: [{ ...answerFirst, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+
+  it('still reads an attempt with no mode, which was taken in standard mode', () => {
+    const read = readHistoryFile(envelope([attempt()]));
+    expect(read.ok && read.attempts[0]).not.toHaveProperty('mode');
+  });
+
+  it('rejects a mode or a self-grade this app does not know', () => {
+    const oddMode = { ...answerFirst, mode: 'essay' };
+    const oddGrade = {
+      ...answerFirst,
+      answers: [{ ...answerFirst.answers[0], selfGrade: 'mostly' }, answerFirst.answers[1]],
+    };
+    expect(readHistoryFile(envelope([oddMode, oddGrade]))).toMatchObject({
+      ok: true,
+      attempts: [],
+      rejected: [
+        { position: 1, reason: expect.stringMatching(/^mode: /) },
+        { position: 2, reason: expect.stringMatching(/^answers\[0\]\.selfGrade: /) },
+      ],
+    });
+  });
+
+  it('drops a self-grade with no response to grade, and a skip that has a response', () => {
+    const muddled = {
+      ...answerFirst,
+      answers: [
+        { ...answerFirst.answers[0], responseSkipped: true },
+        { ...answerFirst.answers[1], selfGrade: 'yes' },
+      ],
+    };
+    const read = readHistoryFile(envelope([muddled]));
+    expect(read.ok && read.attempts[0]?.answers).toEqual([
+      answerFirst.answers[0],
+      answerFirst.answers[1],
+    ]);
+  });
+});

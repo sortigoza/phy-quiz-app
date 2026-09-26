@@ -187,6 +187,20 @@ a {
   border-color: var(--accent);
 }
 
+/* A button that reads as a link, for the lesser of two choices */
+.button--link {
+  background: transparent;
+  border-color: transparent;
+  color: var(--link);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.button--link:hover:not(:disabled) {
+  box-shadow: none;
+  text-decoration-thickness: 2px;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -401,12 +415,14 @@ fieldset {
   min-width: 0;
 }
 
-.counts {
+.counts,
+.modes {
   flex-direction: row;
   flex-wrap: wrap;
 }
 
-.counts legend {
+.counts legend,
+.modes legend {
   margin-bottom: 0.375rem;
 }
 
@@ -490,6 +506,51 @@ fieldset {
   font-size: 0.875rem;
 }
 
+/* Answer-first mode: the participant's own response, before the options */
+
+.response {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.response__label {
+  font-weight: 600;
+}
+
+.response__field {
+  min-height: 6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.response__field:read-only {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.response__preview {
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--border);
+}
+
+.response__hint,
+.response__skipped {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.response__skipped {
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
 .actions--start {
   justify-content: flex-start;
   margin-top: 0.5rem;
@@ -515,7 +576,8 @@ fieldset {
   font-family: var(--mono);
 }
 
-.review__calibration {
+.review__calibration,
+.review__self-grades {
   flex-basis: 100%;
   color: var(--text-muted);
   font-size: 0.9375rem;
@@ -661,9 +723,60 @@ fieldset {
 }
 
 .reviewed__why h4,
-.reviewed__explanation h4 {
+.reviewed__explanation h4,
+.reviewed__response h4 {
   margin: 0 0 0.25rem;
   font-size: inherit;
+}
+
+/* Answer-first mode: the response beside the explanation, side by side where there is room */
+
+.reviewed__compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.reviewed__compare .reviewed__explanation {
+  margin: 0;
+}
+
+.reviewed__response {
+  font-size: 0.9375rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--link);
+}
+
+.reviewed__skipped {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.self-grade {
+  margin-top: 0.75rem;
+}
+
+.self-grade__legend {
+  margin-bottom: 0.375rem;
+  font-weight: 600;
+}
+
+.self-grade__levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.self-grade:disabled .radio-card {
+  cursor: not-allowed;
+}
+
+.self-grade__hint {
+  margin: 0.375rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 /* Bank text: what a bank author wrote, rendered from Markdown and maths */

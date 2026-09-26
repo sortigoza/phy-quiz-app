@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
+  ATTEMPT_MODES,
   attemptCode,
   CONFIDENCE_LEVELS,
   normaliseName,
+  SELF_GRADES,
   type Attempt,
   type AttemptAnswer,
 } from './attempt';
@@ -67,8 +69,11 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isoTime = z.iso.datetime({ offset: true }).transform((time) => new Date(time).toISOString());
 
 /**
- * `confidence` arrived with ticket 17 and is optional, so files exported before
- * it still read. An unanswered question cannot have one, so any it claims is dropped.
+ * `confidence` arrived with ticket 17, and `response`, `responseSkipped` and
+ * `selfGrade` with ticket 19. All are optional, so files exported before them
+ * still read. A field that contradicts the rest of its answer is dropped: an
+ * unanswered question has no confidence, a written response was not skipped,
+ * and only a written response has a self-grade.
  */
 const answerSchema = z
   .object({
@@ -76,10 +81,16 @@ const answerSchema = z
     chosenOptionId: z.string().min(1).max(16).nullable(),
     correctOptionId: z.string().min(1).max(16),
     confidence: z.enum(CONFIDENCE_LEVELS).optional(),
+    response: z.string().max(20_000).optional(),
+    responseSkipped: z.literal(true).optional(),
+    selfGrade: z.enum(SELF_GRADES).optional(),
   })
-  .transform(({ confidence, ...answer }): AttemptAnswer => ({
+  .transform(({ confidence, response, responseSkipped, selfGrade, ...answer }): AttemptAnswer => ({
     ...answer,
     ...(confidence && answer.chosenOptionId !== null && { confidence }),
+    ...(response !== undefined && { response }),
+    ...(responseSkipped && response === undefined && { responseSkipped }),
+    ...(selfGrade && response !== undefined && { selfGrade }),
   }));
 
 /**
@@ -111,6 +122,8 @@ const attemptSchema = z
     questionCount: z.int().min(1).max(500),
     correctCount: z.int().min(0),
     answers: z.array(answerSchema).min(1).max(500),
+    // Missing means standard: attempts taken before ticket 19 had no other mode.
+    mode: z.enum(ATTEMPT_MODES).optional(),
     appVersion: z.string().min(1).max(64),
   })
   .superRefine((attempt, ctx) => {
@@ -137,8 +150,9 @@ const attemptSchema = z
       });
     }
   })
-  .transform((attempt): Attempt => ({
+  .transform(({ mode, ...attempt }): Attempt => ({
     ...attempt,
+    ...(mode && { mode }),
     code: attemptCode(attempt.id),
     origin: 'imported',
   }));

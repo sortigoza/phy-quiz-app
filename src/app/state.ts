@@ -1,8 +1,8 @@
-import type { Attempt, Confidence } from '../domain/attempt';
+import { canReveal, type Attempt, type Confidence, type Reveal } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
-import { reviewSelection, type AttemptReview } from '../domain/review';
+import { reviewSelection, withAnswersOf, type AttemptReview } from '../domain/review';
 import type { HistoryFilter } from '../history';
-import type { InProgressAttempt } from '../quiz';
+import { optionsShown, type InProgressAttempt } from '../quiz';
 import type { StoredBank } from '../storage/db';
 
 /**
@@ -38,11 +38,15 @@ export type AppAction =
   | { type: 'filter-history'; filter: HistoryFilter }
   | { type: 'open-review'; attempt: Attempt; review: AttemptReview }
   | { type: 'close-review' }
+  /** The attempt on review, as stored after the participant annotated it. */
+  | { type: 'annotated'; attempt: Attempt }
   | { type: 'open-start'; stored: StoredBank; bank: Bank }
   | { type: 'begin'; inProgress: InProgressAttempt }
   | { type: 'resume'; inProgress: InProgressAttempt; index: number }
   | { type: 'choose'; questionId: string; optionId: string }
   | { type: 'set-confidence'; questionId: string; confidence: Confidence }
+  | { type: 'write-response'; questionId: string; text: string }
+  | { type: 'reveal'; questionId: string; reveal: Reveal }
   | { type: 'go-to'; index: number }
   | { type: 'submitted'; attempt: Attempt }
   | { type: 'open-help' }
@@ -68,6 +72,14 @@ export function reducer(state: AppState, action: AppAction): AppState {
     case 'close-review':
       return state.screen === 'review' ? state.back : state;
 
+    case 'annotated':
+      if (state.screen !== 'review' || state.attempt.id !== action.attempt.id) return state;
+      return {
+        ...state,
+        attempt: action.attempt,
+        review: withAnswersOf(state.review, action.attempt),
+      };
+
     case 'open-start':
       return { screen: 'start', stored: action.stored, bank: action.bank };
 
@@ -85,6 +97,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'choose':
       if (state.screen !== 'attempt') return state;
+      // In answer-first mode, nothing can be chosen before the options are revealed.
+      if (!optionsShown(state.inProgress, action.questionId)) return state;
       return {
         ...state,
         inProgress: {
@@ -104,6 +118,38 @@ export function reducer(state: AppState, action: AppAction): AppState {
           confidence: { ...state.inProgress.confidence, [action.questionId]: action.confidence },
         },
       };
+
+    case 'write-response':
+      if (state.screen !== 'attempt' || state.inProgress.mode !== 'answer-first') return state;
+      // Once the options are revealed, the response is read-only.
+      if (action.questionId in state.inProgress.revealed) return state;
+      return {
+        ...state,
+        inProgress: {
+          ...state.inProgress,
+          responses: { ...state.inProgress.responses, [action.questionId]: action.text },
+        },
+      };
+
+    case 'reveal': {
+      if (state.screen !== 'attempt' || state.inProgress.mode !== 'answer-first') return state;
+      const { responses, revealed } = state.inProgress;
+      if (action.questionId in revealed) return state;
+      if (action.reveal === 'written' && !canReveal(responses[action.questionId] ?? '')) {
+        return state;
+      }
+      // A skip reveals the options with no response, so any draft goes with it.
+      const kept = { ...responses };
+      if (action.reveal === 'skipped') delete kept[action.questionId];
+      return {
+        ...state,
+        inProgress: {
+          ...state.inProgress,
+          responses: kept,
+          revealed: { ...revealed, [action.questionId]: action.reveal },
+        },
+      };
+    }
 
     case 'go-to': {
       if (state.screen !== 'attempt') return state;

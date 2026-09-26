@@ -1,17 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { normaliseName } from '../domain/attempt';
+import { normaliseName, type AttemptMode } from '../domain/attempt';
 import { bankLanguage, type Bank } from '../domain/bank';
 import { defaultQuestionCount } from '../domain/selection';
 import { beginAttempt, type InProgressAttempt } from '../quiz';
-import { getLastParticipantName, type StoredBank } from '../storage/db';
+import { getAttemptMode, getLastParticipantName, type StoredBank } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
 
 /**
- * The start screen: who is taking the quiz, and how many questions.
+ * The start screen: who is taking the quiz, how many questions, and in which
+ * mode.
  *
  * The name is the participant's whole identity, so it is offered back from the
  * last attempt in this browser rather than asked for from scratch each time.
+ * The mode is offered back the same way.
  */
 
 /** The fixed counts offered, before the bank's own default and "All" are added. */
@@ -38,6 +40,10 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
 
   const [name, setName] = useState('');
   const [count, setCount] = useState(suggested.count);
+  // Undefined until the participant picks one, so the remembered mode never overrides their pick.
+  const [pickedMode, setPickedMode] = useState<AttemptMode>();
+  const [rememberedMode, setRememberedMode] = useState<AttemptMode>('standard');
+  const mode = pickedMode ?? rememberedMode;
   const [starting, setStarting] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -53,6 +59,11 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
       },
       () => {},
     );
+    // Likewise the mode: without storage, it stays standard.
+    getAttemptMode().then(
+      (remembered) => !cancelled && setRememberedMode(remembered),
+      () => {},
+    );
     return () => {
       cancelled = true;
     };
@@ -66,7 +77,7 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
     setStarting(true);
     setProblem(null);
     try {
-      onBegin(await beginAttempt(stored, bank, name, count));
+      onBegin(await beginAttempt(stored, bank, name, count, mode));
     } catch (error) {
       setStarting(false);
       setProblem(storageProblem(error));
@@ -121,6 +132,33 @@ export function Start({ stored, bank, onBegin, onCancel }: Props) {
               This bank only has {size} question{size === 1 ? '' : 's'}.
             </p>
           )}
+        </fieldset>
+
+        <fieldset className="field modes">
+          <legend>How do you want to answer?</legend>
+          <label className="radio-card">
+            <input
+              type="radio"
+              name="attempt-mode"
+              checked={mode === 'standard'}
+              onChange={() => setPickedMode('standard')}
+            />
+            Standard
+          </label>
+          <label className="radio-card">
+            <input
+              type="radio"
+              name="attempt-mode"
+              aria-describedby="answer-first-note"
+              checked={mode === 'answer-first'}
+              onChange={() => setPickedMode('answer-first')}
+            />
+            Answer first
+          </label>
+          <p id="answer-first-note" className="field__note">
+            Answer first: write your own answer to each question before its options appear, then
+            compare it with the explanation in the review.
+          </p>
         </fieldset>
 
         {problem && (

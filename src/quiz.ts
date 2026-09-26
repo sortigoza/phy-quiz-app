@@ -3,7 +3,9 @@ import {
   normaliseName,
   uuidv7,
   type Attempt,
+  type AttemptMode,
   type Confidence,
+  type Reveal,
 } from './domain/attempt';
 import { parseBank, type Bank, type ParseBankResult } from './domain/bank';
 import { drawSelection, randomSeed, type Selection } from './domain/selection';
@@ -12,6 +14,7 @@ import {
   getInProgress,
   recordSubmittedAttempt,
   putInProgress,
+  setAttemptMode,
   setLastParticipantName,
   type StoredBank,
 } from './storage/db';
@@ -33,12 +36,22 @@ export type InProgressAttempt = {
   name: string;
   seed: number;
   selection: Selection;
+  mode: AttemptMode;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
   /** Confidence by question id. Kept when the chosen option changes. */
   confidence: Record<string, Confidence>;
+  /** Answer-first mode: the response written so far by question id, a draft until revealed. */
+  responses: Record<string, string>;
+  /** Answer-first mode: how each question's options were revealed. Missing means still hidden. */
+  revealed: Record<string, Reveal>;
   startedAt: Date;
 };
+
+/** Whether the options of a question are on screen: always in standard mode, once revealed in answer-first. */
+export function optionsShown(inProgress: InProgressAttempt, questionId: string): boolean {
+  return inProgress.mode === 'standard' || questionId in inProgress.revealed;
+}
 
 /**
  * The 1-based positions of the questions answered without a confidence, which
@@ -59,16 +72,18 @@ export function openStoredBank(stored: StoredBank): ParseBankResult {
   return parseBank(stored.raw);
 }
 
-/** Starts a sitting on a bank already read from the library, remembering the name for next time. */
+/** Starts a sitting on a bank already read from the library, remembering the name and mode for next time. */
 export async function beginAttempt(
   stored: StoredBank,
   bank: Bank,
   name: string,
   count: number,
+  mode: AttemptMode = 'standard',
 ): Promise<InProgressAttempt> {
   const seed = randomSeed();
   const participant = normaliseName(name);
   await setLastParticipantName(participant);
+  await setAttemptMode(mode);
 
   return {
     stored,
@@ -76,8 +91,11 @@ export async function beginAttempt(
     name: participant,
     seed,
     selection: drawSelection(bank, count, seed),
+    mode,
     chosen: {},
     confidence: {},
+    responses: {},
+    revealed: {},
     startedAt: new Date(),
   };
 }
@@ -92,8 +110,11 @@ export async function submitAttempt(inProgress: InProgressAttempt): Promise<Atte
     bankFingerprint: inProgress.stored.fingerprint,
     seed: inProgress.seed,
     selection: inProgress.selection,
+    mode: inProgress.mode,
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
+    responses: inProgress.responses,
+    revealed: inProgress.revealed,
     startedAt: inProgress.startedAt,
     submittedAt,
     appVersion: APP_VERSION,
@@ -114,6 +135,9 @@ export async function saveInProgress(inProgress: InProgressAttempt, index: numbe
     questionCount: inProgress.selection.length,
     chosen: inProgress.chosen,
     confidence: inProgress.confidence,
+    mode: inProgress.mode,
+    responses: inProgress.responses,
+    revealed: inProgress.revealed,
     startedAt: inProgress.startedAt.toISOString(),
     index,
   });
@@ -158,8 +182,11 @@ export async function findInProgress(): Promise<PendingAttempt | undefined> {
       name: saved.name,
       seed: saved.seed,
       selection: drawSelection(parsed.bank, saved.questionCount, saved.seed),
+      mode: saved.mode ?? 'standard',
       chosen: saved.chosen,
       confidence: saved.confidence ?? {},
+      responses: saved.responses ?? {},
+      revealed: saved.revealed ?? {},
       startedAt: new Date(saved.startedAt),
     },
     index: saved.index,
