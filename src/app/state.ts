@@ -93,6 +93,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'choose':
       if (state.screen !== 'attempt') return state;
+      // `answeredAt` is when the option last changed, so choosing it again changes nothing.
+      if (state.inProgress.chosen[action.questionId] === action.optionId) return state;
       return {
         ...state,
         inProgress: {

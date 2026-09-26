@@ -3,6 +3,7 @@ import type { Bank } from './bank';
 import { confidentErrors } from './confidence';
 import { isCounted } from './counted';
 import { showsRecorded } from './review';
+import { questionTags, type TagFilter } from './tags';
 import { outcome } from './scoring';
 
 /**
@@ -55,7 +56,7 @@ export function tagBreakdown(attempts: readonly Attempt[], bank: Bank): TagRow[]
         add(archived, answer);
         continue;
       }
-      const own = new Set(question.tags ?? []);
+      const own = questionTags(question);
       if (own.size === 0) add(untagged, answer);
       for (const tag of own) {
         const tally = tags.get(tag) ?? emptyTally();
@@ -91,10 +92,33 @@ function weakestFirst(a: TagRow, b: TagRow): number {
   return (
     a.correct * b.total - b.correct * a.total ||
     b.total - a.total ||
-    label(a).localeCompare(label(b))
+    rowLabel(a).localeCompare(rowLabel(b))
   );
 }
 
-function label(row: TagRow): string {
-  return row.kind === 'tag' ? row.tag : row.kind;
+/** What a row is called: the tag itself, "untagged", or "Archived question". */
+export function rowLabel(row: TagRow): string {
+  switch (row.kind) {
+    case 'tag':
+      return row.tag;
+    case 'untagged':
+      return 'untagged';
+    case 'archived':
+      return 'Archived question';
+  }
+}
+
+/**
+ * The filter that practises a row: its tag, or the untagged questions.
+ * Archived questions cannot be practised, being in no edition held.
+ */
+export function practiseFilter(row: TagRow): TagFilter | undefined {
+  switch (row.kind) {
+    case 'tag':
+      return { tags: [row.tag], untagged: false };
+    case 'untagged':
+      return { tags: [], untagged: true };
+    case 'archived':
+      return undefined;
+  }
 }

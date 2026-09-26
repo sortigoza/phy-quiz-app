@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { attemptRecord } from '../test/attempts';
 import type { AttemptAnswer } from './attempt';
 import type { Bank, BankQuestion } from './bank';
-import { tagBreakdown, type TagRow } from './tag-breakdown';
+import { practiseFilter, tagBreakdown, type TagRow } from './tag-breakdown';
 
 function question(id: string, tags?: string[]): BankQuestion {
   return {
@@ -126,5 +126,16 @@ describe('tagBreakdown', () => {
 
   it('is empty when there is nothing to count', () => {
     expect(tagBreakdown([], bank)).toEqual([]);
+  });
+});
+
+describe('practiseFilter', () => {
+  it('aims a quiz at a row’s tag or at the untagged questions, and never at archived ones', () => {
+    const rows = tagBreakdown([attemptOf([right('q1'), right('q3'), right('gone')])], bank);
+    expect(rows.map(practiseFilter)).toEqual([
+      { tags: ['force'], untagged: false },
+      { tags: [], untagged: true },
+      undefined,
+    ]);
   });
 });
