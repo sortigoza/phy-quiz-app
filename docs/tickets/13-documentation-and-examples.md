@@ -4,7 +4,7 @@
 
 The published schema is generated from the same definitions the app validates with, so the documentation cannot drift from the behaviour.
 
-**Blocked by:** 06, 09
+**Blocked by:** 06. Share links (09) moved to v1.1; document them when they land.
 
 **Status:** ready-for-agent
 

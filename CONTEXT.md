@@ -54,6 +54,10 @@ One prompt with a fixed set of options, exactly one of which is correct.
 One selectable answer belonging to a question.
 _Avoid_: Choice, alternative, answer (an option is not "the answer" unless it is the correct one)
 
+**Tag**:
+A short label an author puts on a question to say what it is about. A question may have several, or none ("untagged"). Tags belong to a bank: the same word in two banks is not assumed to mean the same thing.
+_Avoid_: Topic, category, subject
+
 **Distractor**:
 An option that is not the correct one. A term of art from assessment design, used when talking about question quality.
 
@@ -83,13 +87,53 @@ _Avoid_: Attempt number, receipt, reference
 The N questions drawn from the bank for one attempt, in the order they will be presented.
 _Avoid_: Question set, sample, batch
 
+**Tag Filter**:
+The tags an attempt's selection was restricted to. A question qualifies when it carries any one of them. An empty filter means the whole bank.
+_Avoid_: Topic filter, quiz scope
+
+**Answer-first Mode**:
+A way of taking an attempt in which each question's options stay hidden until the participant has written a Response or chosen to skip it. The ordinary way is Standard mode.
+_Avoid_: Generation mode, open mode, free-text mode
+
+**Response**:
+What the participant writes in answer-first mode before seeing the options: their own answer or reasoning, in their own words. It is never scored.
+_Avoid_: Free text, answer (the answer is the chosen option), note
+
+**Self-Grade**:
+The participant's own judgement, made in review, of whether their Response matched the explanation: Yes, Partly or No.
+_Avoid_: Self-assessment, self-score
+
+**Confidence**:
+How sure the participant says they are of one chosen option: Sure, Unsure or Guess. It belongs to an answered question only; an unanswered question has none.
+_Avoid_: Certainty, rating, self-assessment (that is the Self-Grade)
+
+**Confident Error**:
+A wrong option chosen with Confidence "Sure". The mistakes most worth correcting, so the review puts them first.
+_Avoid_: Sure-wrong, overconfident answer
+
+**Skipped Response**:
+In answer-first mode, revealing the options without first writing a response. It says nothing about whether an option was then chosen: a question can have a Skipped Response and still be answered.
+_Avoid_: Skipped question (that is an unanswered question)
+
+**Counted Attempt**:
+An attempt that feeds the Tag Breakdown. An attempt answered faster than a plausible reading pace is not counted, but it stays in history, and the participant can overrule that judgement for their own attempt.
+_Avoid_: Valid attempt (invalid suggests a broken record), flagged attempt
+
 **Review**:
-The screen shown after submission, listing every question in the attempt with the participant's choice, the correct option and the explanation. There is no feedback before it.
+The screen shown after submission, listing every question in the attempt with the participant's choice, the correct option and the explanation. It opens again from history while the bank is held. There is no feedback before it.
 _Avoid_: Results, summary, report card
 
 **History**:
 Every attempt held in this browser, newest first, and the place where export and import live. Spans all banks.
 _Avoid_: Log, records, past quizzes
+
+**Tag Breakdown**:
+One participant's accuracy on one bank, per tag, across their counted attempts, weakest tag first. Part of History, scoped by History's name and bank filters.
+_Avoid_: Dashboard, progress screen, topic analysis
+
+**Archived Question**:
+A question an attempt answered that no longer exists in the newest held edition of its bank. Its answers still count towards the attempt's score, but belong to no tag.
+_Avoid_: Deleted question, missing question, orphan
 
 **Leaderboard**:
 A ranking of the attempts held in this browser for one bank. It ranks attempts, not people, and it never spans banks, because scores on different banks are not comparable.

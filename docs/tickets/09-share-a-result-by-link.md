@@ -6,7 +6,7 @@ The receiving app recomputes the score from the answers against its own copy of 
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent, v1.1. Moved after v1.0.0 in favour of tickets 16 to 20.
 
 - [ ] A Share button in review produces a link and copies it to the clipboard
 - [ ] Opening that link in another browser decodes the attempt and shows a confirmation before storing anything
@@ -15,3 +15,4 @@ The receiving app recomputes the score from the answers against its own copy of 
 - [ ] The fragment is cleared from the address bar after handling, so a reload does not re-import
 - [ ] Encoding falls back gracefully where the platform compression API is unavailable
 - [ ] A round-trip test proves encode then decode is lossless
+- [ ] The link carries the optional per-answer fields `confidence`, `responseSkipped` and `selfGrade` (tickets 17 and 19) but never `response`, whose free text would push links past what chat apps accept
