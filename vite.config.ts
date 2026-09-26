@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json' with { type: 'json' };
 import { renderLlmsTxt } from './src/docs/llms';
 
@@ -48,7 +49,49 @@ export default defineConfig({
   // Relative base: the same build works at a domain root, on a GitHub Pages
   // project subpath, or from any static host, with no rebuild. See SPEC section 11.
   base: './',
-  plugins: [react(), publishedFiles()],
+  plugins: [
+    react(),
+    publishedFiles(),
+    // Prompt mode: a new service worker waits until the app offers a reload,
+    // and the app never offers it during an attempt. See SPEC section 8.4.
+    VitePWA({
+      registerType: 'prompt',
+      injectRegister: false,
+      // The glob below already takes the icons; listing them again duplicates them.
+      includeManifestIcons: false,
+      manifest: {
+        name: 'Physics Quiz',
+        short_name: 'Physics Quiz',
+        description: 'Local-first progressive web app for multiple-choice physics quizzes.',
+        // Relative, so the app installs and works at a GitHub Pages project
+        // subpath as well as at a domain root. See SPEC section 11.
+        start_url: '.',
+        scope: './',
+        display: 'standalone',
+        theme_color: '#07050d',
+        background_color: '#07050d',
+        icons: [
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // The app shell, its icons, the KaTeX fonts (woff2 is all a browser
+        // that runs a service worker asks for) and the library music. Banks are
+        // data, held in IndexedDB, so the examples and llms.txt stay out.
+        globPatterns: ['**/*.{html,js,css,woff2,png,svg,ico,mid}'],
+        // Every navigation is the one page: bank links live in the fragment.
+        navigateFallback: 'index.html',
+      },
+    }),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
