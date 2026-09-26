@@ -2,12 +2,20 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Attempt } from '../domain/attempt';
 import { historyFileName, writeHistoryFile, type RejectedAttempt } from '../domain/history-file';
+import type { AttemptReview } from '../domain/review';
 import { percentage } from '../domain/scoring';
-import { filterHistory, historyFilterValues, importHistory, type HistoryFilter } from '../history';
+import {
+  filterHistory,
+  historyFilterValues,
+  importHistory,
+  reviewFromHistory,
+  type HistoryFilter,
+} from '../history';
 import { listAttempts } from '../storage/db';
 import { storageProblem } from '../storage/problems';
 import { APP_VERSION } from '../version';
 import { saveFile } from './download';
+import { UnverifiedBadge } from './UnverifiedBadge';
 
 /**
  * History: every attempt held in this browser, newest first, and where export
@@ -15,9 +23,15 @@ import { saveFile } from './download';
  *
  * Attempts that arrived by import are badged unverified: the app cannot prove
  * they are genuine, and says so rather than implying otherwise.
+ *
+ * Each row opens its attempt's review. The filter is held by the app, so it is
+ * still set on the way back.
  */
 
 type Props = {
+  filter: HistoryFilter;
+  onFilter: (filter: HistoryFilter) => void;
+  onReview: (attempt: Attempt, review: AttemptReview) => void;
   onDone: () => void;
 };
 
@@ -48,7 +62,7 @@ function formatDuration(ms: number): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
-export function History({ onDone }: Props) {
+export function History({ filter, onFilter, onReview, onDone }: Props) {
   // Live, so an import shows up in the table without anything refreshing it.
   const held = useLiveQuery(() =>
     listAttempts().then(
@@ -56,9 +70,9 @@ export function History({ onDone }: Props) {
       (error: unknown) => ({ attempts: [] as Attempt[], problem: storageProblem(error) }),
     ),
   );
-  const [filter, setFilter] = useState<HistoryFilter>({});
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
   const [importing, setImporting] = useState(false);
+  const [reviewProblem, setReviewProblem] = useState<string | null>(null);
 
   const all = held?.attempts ?? [];
   const shown = filterHistory(all, filter);
@@ -68,6 +82,14 @@ export function History({ onDone }: Props) {
   function exportAttempts(attempts: Attempt[]) {
     const now = new Date();
     saveFile(historyFileName(now), writeHistoryFile(attempts, now, APP_VERSION));
+  }
+
+  async function openReview(attempt: Attempt) {
+    try {
+      onReview(attempt, await reviewFromHistory(attempt));
+    } catch (error) {
+      setReviewProblem(storageProblem(error));
+    }
   }
 
   async function importFiles(files: FileList | null) {
@@ -178,6 +200,12 @@ export function History({ onDone }: Props) {
         </div>
       )}
 
+      {reviewProblem && (
+        <p className="panel panel--error" role="alert">
+          {reviewProblem}
+        </p>
+      )}
+
       {held?.problem && (
         <p className="panel panel--error" role="alert">
           {held.problem}
@@ -193,9 +221,7 @@ export function History({ onDone }: Props) {
               Participant
               <select
                 value={filter.name ?? ''}
-                onChange={(event) =>
-                  setFilter({ ...filter, name: event.target.value || undefined })
-                }
+                onChange={(event) => onFilter({ ...filter, name: event.target.value || undefined })}
               >
                 <option value="">Everyone</option>
                 {filterValues.names.map((name) => (
@@ -210,7 +236,7 @@ export function History({ onDone }: Props) {
               <select
                 value={filter.bankId ?? ''}
                 onChange={(event) =>
-                  setFilter({ ...filter, bankId: event.target.value || undefined })
+                  onFilter({ ...filter, bankId: event.target.value || undefined })
                 }
               >
                 <option value="">All banks</option>
@@ -234,6 +260,9 @@ export function History({ onDone }: Props) {
                   <th scope="col">Score</th>
                   <th scope="col">Duration</th>
                   <th scope="col">Code</th>
+                  <th scope="col">
+                    <span className="visually-hidden">Review</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -252,17 +281,22 @@ export function History({ onDone }: Props) {
                       {attempt.origin === 'imported' && (
                         <>
                           {' '}
-                          <span
-                            className="badge badge--unverified"
-                            title="Imported from a file: this browser cannot check it is genuine"
-                          >
-                            Unverified
-                          </span>
+                          <UnverifiedBadge />
                         </>
                       )}
                     </td>
                     <td>{formatDuration(attempt.durationMs)}</td>
                     <td className="history__code">{attempt.code}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button button--quiet"
+                        aria-label={`Review attempt ${attempt.code}`}
+                        onClick={() => void openReview(attempt)}
+                      >
+                        Review
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

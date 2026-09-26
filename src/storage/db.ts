@@ -160,6 +160,11 @@ export async function listBanks(): Promise<StoredBank[]> {
   return db.banks.orderBy('addedAt').reverse().toArray();
 }
 
+/** Every edition of one bank held in the library, in no particular order. */
+export async function listEditions(id: string): Promise<StoredBank[]> {
+  return db.banks.where('id').equals(id).toArray();
+}
+
 /** Deletes a bank, and with it any key it held that no other bank holds. */
 export async function deleteBank(key: string): Promise<void> {
   await db.transaction('rw', db.banks, db.bankKeys, async () => {

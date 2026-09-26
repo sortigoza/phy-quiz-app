@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createAttempt } from './domain/attempt';
+import type { Bank } from './domain/bank';
 import { writeHistoryFile } from './domain/history-file';
-import { filterHistory, historyFilterValues, importHistory } from './history';
-import { db, listAttempts, recordSubmittedAttempt } from './storage/db';
+import { drawSelection } from './domain/selection';
+import { filterHistory, historyFilterValues, importHistory, reviewFromHistory } from './history';
+import { addBankFromText } from './library';
+import { bankKey, db, deleteBank, listAttempts, recordSubmittedAttempt } from './storage/db';
 import { attemptRecord } from './test/attempts';
 
 const exportedAt = new Date('2026-09-24T08:30:00.000Z');
@@ -112,5 +116,80 @@ describe('importing a history file', () => {
     const report = await importHistory('{"format":"physics-quiz-history","formatVersion":9}');
     expect(report).toMatchObject({ ok: false });
     expect(await listAttempts()).toEqual([]);
+  });
+});
+
+describe('reviewing an attempt from history', () => {
+  function bankText(version: string, questionIds: string[]): string {
+    const bank: Bank = {
+      formatVersion: 1,
+      id: 'test.units',
+      version,
+      title: 'SI units',
+      questions: questionIds.map((id) => ({
+        id,
+        type: 'single-choice',
+        prompt: `Prompt ${id}`,
+        options: [
+          { id: 'a', text: 'A' },
+          { id: 'b', text: 'B' },
+        ],
+        answer: 'a',
+        explanation: `Because ${id}.`,
+      })),
+    };
+    return JSON.stringify(bank);
+  }
+
+  /** Adds the first edition and takes an attempt of every question on it. */
+  async function attemptOnFirstEdition() {
+    const added = await addBankFromText(bankText('1.0.0', ['q1', 'q2', 'q3']), {
+      kind: 'upload',
+      filename: 'units.json',
+    });
+    if (!added.ok || added.status !== 'added') throw new Error('bank not added');
+    const bank = JSON.parse(added.bank.raw) as Bank;
+    const selection = drawSelection(bank, 3, 42);
+    return createAttempt({
+      id: anna.id,
+      name: 'Anna',
+      bank,
+      bankFingerprint: added.bank.fingerprint,
+      seed: 42,
+      selection,
+      chosen: {},
+      startedAt: new Date('2026-09-23T10:00:00.000Z'),
+      submittedAt: new Date('2026-09-23T10:03:20.000Z'),
+      appVersion: '0.1.0',
+    });
+  }
+
+  it('replays the attempt against the edition it was taken on', async () => {
+    const attempt = await attemptOnFirstEdition();
+    await addBankFromText(bankText('2.0.0', ['q1', 'q2']), { kind: 'upload', filename: 'v2.json' });
+
+    const review = await reviewFromHistory(attempt);
+
+    expect(review.edition).toBe('same');
+  });
+
+  it('uses the newest other edition held when that one is gone', async () => {
+    const attempt = await attemptOnFirstEdition();
+    await addBankFromText(bankText('2.0.0', ['q1', 'q2']), { kind: 'upload', filename: 'v2.json' });
+    await addBankFromText(bankText('3.0.0', ['q1']), { kind: 'upload', filename: 'v3.json' });
+    await deleteBank(bankKey('test.units', '1.0.0'));
+
+    const review = await reviewFromHistory(attempt);
+
+    expect(review).toMatchObject({ edition: 'other', version: '3.0.0' });
+    if (review.edition === 'none') throw new Error('unreachable');
+    expect(review.questions.filter((reviewed) => reviewed.kind === 'archived')).toHaveLength(2);
+  });
+
+  it('has only the score when no edition of the bank is held', async () => {
+    const attempt = await attemptOnFirstEdition();
+    await deleteBank(bankKey('test.units', '1.0.0'));
+
+    expect(await reviewFromHistory(attempt)).toEqual({ edition: 'none' });
   });
 });

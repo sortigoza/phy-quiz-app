@@ -1,6 +1,8 @@
 import type { Attempt } from './domain/attempt';
+import { parseBank } from './domain/bank';
 import { readHistoryFile, type RejectedAttempt } from './domain/history-file';
-import { addAttempts } from './storage/db';
+import { reviewAttempt, type AttemptReview, type HeldEdition } from './domain/review';
+import { addAttempts, listEditions } from './storage/db';
 
 /**
  * History: narrowing it for display and export, and importing into it. See
@@ -60,4 +62,17 @@ export async function importHistory(text: string): Promise<ImportReport> {
   if (!read.ok) return read;
   const { added, duplicates } = await addAttempts(read.attempts);
   return { ok: true, added, duplicates, rejected: read.rejected };
+}
+
+/**
+ * The review of an attempt in history, against whichever editions of its bank
+ * the library holds. An edition that no longer parses is passed over, as if it
+ * were not held.
+ */
+export async function reviewFromHistory(attempt: Attempt): Promise<AttemptReview> {
+  const editions = (await listEditions(attempt.bankId)).flatMap((stored): HeldEdition[] => {
+    const parsed = parseBank(stored.raw);
+    return parsed.ok ? [{ bank: parsed.bank, fingerprint: stored.fingerprint }] : [];
+  });
+  return reviewAttempt(attempt, editions);
 }
