@@ -158,6 +158,7 @@ describe('reviewing an attempt from history', () => {
       seed: 42,
       selection,
       chosen: {},
+      confidence: {},
       startedAt: new Date('2026-09-23T10:00:00.000Z'),
       submittedAt: new Date('2026-09-23T10:03:20.000Z'),
       appVersion: '0.1.0',

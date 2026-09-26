@@ -64,8 +64,8 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 13 | Documentation and examples | 06 | [ ] |
 | 14 | Release v1.0.0 | 07, 11, 12, 13, 16 to 20 | [ ] |
 | 15 | Music on the library | 03 | [x] |
-| 16 | Review from history | 08 | [ ] |
-| 17 | Confidence per answer | 03 | [ ] |
+| 16 | Review from history | 08 | [x] |
+| 17 | Confidence per answer | 03 | [x] |
 | 18 | Tag filter and tag breakdown | 08, 16 | [ ] |
 | 19 | Answer-first mode | 16 | [ ] |
 | 20 | Copy review as Markdown | 16 | [ ] |

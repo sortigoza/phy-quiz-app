@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Attempt } from '../domain/attempt';
+import type { Attempt, Confidence } from '../domain/attempt';
 
 /**
  * Where a bank came from. Recorded so the library can show it, and so ticket 05
@@ -75,6 +75,8 @@ export type StoredInProgress = {
   questionCount: number;
   /** Chosen option id by question id. */
   chosen: Record<string, string>;
+  /** Confidence by question id. Missing on a record saved before ticket 17. */
+  confidence?: Record<string, Confidence>;
   /** ISO 8601. */
   startedAt: string;
   /** The question on screen, so resuming lands where the participant was. */

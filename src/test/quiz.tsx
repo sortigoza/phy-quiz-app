@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { App } from '../App';
+import type { Confidence } from '../domain/attempt';
 
 /**
  * Driving the attempt flow through the whole app, the way a participant uses it.
@@ -49,12 +50,39 @@ export function currentQuestion(): keyof typeof prompts {
   return entry[0] as keyof typeof prompts;
 }
 
-export async function answerCurrent(user: UserEvent, plan: Plan): Promise<void> {
-  const choice = plan[currentQuestion()];
+/** The confidence given with each answer. Missing means Sure; null means none is given. */
+export type ConfidencePlan = Partial<Record<keyof typeof prompts, Confidence | null>>;
+
+const confidenceLabel: Record<Confidence, string> = {
+  sure: 'Sure',
+  unsure: 'Unsure',
+  guess: 'Guess',
+};
+
+/** The Sure / Unsure / Guess control of the question on screen. */
+export function confidenceGroup(): HTMLElement {
+  return screen.getByRole('group', { name: /how sure/i });
+}
+
+export async function chooseConfidence(user: UserEvent, confidence: Confidence): Promise<void> {
+  await user.click(
+    within(confidenceGroup()).getByRole('radio', { name: confidenceLabel[confidence] }),
+  );
+}
+
+export async function answerCurrent(
+  user: UserEvent,
+  plan: Plan,
+  confidence: ConfidencePlan = {},
+): Promise<void> {
+  const question = currentQuestion();
+  const choice = plan[question];
   if (choice === undefined) return;
   await user.click(
     screen.getByRole('radio', { name: choice === 'right' ? /right one/ : /Pascal/ }),
   );
+  const given = confidence[question] === undefined ? 'sure' : confidence[question];
+  if (given !== null) await chooseConfidence(user, given);
 }
 
 export async function loadBankAndOpenStart(user: UserEvent, file = bankFile()): Promise<void> {
@@ -76,9 +104,13 @@ export async function startQuiz(user: UserEvent, name = 'Anna'): Promise<void> {
 }
 
 /** Answers every question according to the plan, then presses submit. */
-export async function answerAllAndSubmit(user: UserEvent, plan: Plan): Promise<void> {
+export async function answerAllAndSubmit(
+  user: UserEvent,
+  plan: Plan,
+  confidence: ConfidencePlan = {},
+): Promise<void> {
   for (let i = 0; i < 3; i++) {
-    await answerCurrent(user, plan);
+    await answerCurrent(user, plan, confidence);
     if (i < 2) await user.click(screen.getByRole('button', { name: /next/i }));
   }
   await user.click(screen.getByRole('button', { name: /submit/i }));

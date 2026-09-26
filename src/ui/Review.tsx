@@ -1,9 +1,11 @@
-import type { Attempt, AttemptAnswer } from '../domain/attempt';
+import { CONFIDENCE_LEVELS, type Attempt, type AttemptAnswer } from '../domain/attempt';
+import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
 import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
+import { confidenceLabel } from './confidence';
 
 /**
  * The review: where all the teaching happens.
@@ -15,6 +17,11 @@ import { UnverifiedBadge } from './UnverifiedBadge';
  *
  * Opened from history, the review may be against another edition of the bank,
  * which it says, or against none, when only the score is left.
+ *
+ * Where confidence was recorded, the review opens with the confident errors,
+ * the wrong answers the participant was sure of, because correcting those
+ * matters most, and the score line says how well-calibrated they were. Attempts
+ * saved before confidence was asked for say it was not recorded.
  */
 
 type Props = {
@@ -31,7 +38,35 @@ const outcomeLabel: Record<Outcome, string> = {
   unanswered: 'Not answered',
 };
 
+/** "Sure: 6/7 (86%) · Unsure: 1/2 (50%)", leaving out levels never given. */
+function calibrationLine(answers: readonly AttemptAnswer[]): string {
+  const tallies = calibration(answers);
+  return CONFIDENCE_LEVELS.filter((level) => tallies[level].total > 0)
+    .map((level) => {
+      const { correct, total } = tallies[level];
+      return `${confidenceLabel[level]}: ${correct}/${total} (${percentage(correct, total)}%)`;
+    })
+    .join(' · ');
+}
+
+/** The anchor of one question in the list, by its 1-based position. */
+function questionAnchor(position: number): string {
+  return `review-question-${position}`;
+}
+
 export function Review({ attempt, review, backTo, onDone }: Props) {
+  const withConfidence = confidenceRecorded(attempt.answers);
+  // The review lists questions in attempt order, whichever edition it is shown against.
+  const positionById = new Map(
+    attempt.answers.map(({ questionId }, index) => [questionId, index + 1]),
+  );
+  const errorPositions = confidentErrors(attempt.answers).flatMap(({ questionId }) => {
+    const position = positionById.get(questionId);
+    return position === undefined ? [] : [position];
+  });
+  // Without the bank there are no question cards to link to.
+  const linkable = review.edition !== 'none';
+
   return (
     <section className="review">
       <h2>Review</h2>
@@ -51,7 +86,37 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
         <span className="review__code" title="Attempt code">
           {attempt.code}
         </span>
+        <span className="review__calibration">
+          {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
+        </span>
       </p>
+
+      {withConfidence && (
+        <section className="card confident-errors" aria-labelledby="confident-errors-heading">
+          <h3 id="confident-errors-heading">Confident errors</h3>
+          {errorPositions.length === 0 ? (
+            <p>None: every answer you were sure of was right.</p>
+          ) : (
+            <>
+              <p>
+                You were sure of these, and they were wrong. They are the ones most worth reading
+                again.
+              </p>
+              <ul>
+                {errorPositions.map((position) => (
+                  <li key={position}>
+                    {linkable ? (
+                      <a href={`#${questionAnchor(position)}`}>Question {position}</a>
+                    ) : (
+                      <>Question {position}</>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
 
       {review.edition === 'none' ? (
         <p className="panel panel--notice">
@@ -73,7 +138,12 @@ export function Review({ attempt, review, backTo, onDone }: Props) {
           <ol className="review__list">
             {review.questions.map((reviewed, index) => (
               <li key={reviewed.answer.questionId}>
-                <ReviewedCard reviewed={reviewed} index={index} language={review.language} />
+                <ReviewedCard
+                  reviewed={reviewed}
+                  index={index}
+                  language={review.language}
+                  withConfidence={withConfidence}
+                />
               </li>
             ))}
           </ol>
@@ -117,16 +187,45 @@ function OtherEditionNotice({
   );
 }
 
+/** The outcome line of a card, with the confidence given or, for an attempt that asked for none, a note saying so. */
+function OutcomeLine({
+  answer,
+  withConfidence,
+}: {
+  answer: AttemptAnswer;
+  withConfidence: boolean;
+}) {
+  const result = outcome(answer);
+  return (
+    <p className={`outcome outcome--${result}`}>
+      {outcomeLabel[result]}
+      {answer.confidence ? (
+        <span className="mark mark--confidence">
+          {' · '}Confidence: {confidenceLabel[answer.confidence]}
+        </span>
+      ) : (
+        !withConfidence &&
+        result !== 'unanswered' && (
+          <span className="mark mark--confidence">{' · '}Confidence not recorded</span>
+        )
+      )}
+    </p>
+  );
+}
+
 function ReviewedCard({
   reviewed,
   index,
   language,
+  withConfidence,
 }: {
   reviewed: ReviewedQuestion;
   index: number;
   language: string;
+  withConfidence: boolean;
 }) {
-  if (reviewed.kind === 'archived') return <ArchivedCard answer={reviewed.answer} index={index} />;
+  if (reviewed.kind === 'archived')
+    return <ArchivedCard answer={reviewed.answer} index={index} withConfidence={withConfidence} />;
 
   const { question, options, answer } = reviewed;
   const result = outcome(answer);
@@ -136,8 +235,12 @@ function ReviewedCard({
     result === 'wrong' ? options.find((option) => option.id === chosenId) : undefined;
 
   return (
-    <article className={`card reviewed reviewed--${result}`} aria-labelledby={promptId}>
-      <p className={`outcome outcome--${result}`}>{outcomeLabel[result]}</p>
+    <article
+      id={questionAnchor(index + 1)}
+      className={`card reviewed reviewed--${result}`}
+      aria-labelledby={promptId}
+    >
+      <OutcomeLine answer={answer} withConfidence={withConfidence} />
       <h3 className="reviewed__number">Question {index + 1}</h3>
       <BankText id={promptId} className="reviewed__prompt" text={question.prompt} lang={language} />
 
@@ -179,12 +282,24 @@ function ReviewedCard({
 }
 
 /** A question the edition shown no longer has: only what the attempt recorded. */
-function ArchivedCard({ answer, index }: { answer: AttemptAnswer; index: number }) {
+function ArchivedCard({
+  answer,
+  index,
+  withConfidence,
+}: {
+  answer: AttemptAnswer;
+  index: number;
+  withConfidence: boolean;
+}) {
   const result = outcome(answer);
   const labelId = `review-archived-${index}`;
   return (
-    <article className={`card reviewed reviewed--${result}`} aria-labelledby={labelId}>
-      <p className={`outcome outcome--${result}`}>{outcomeLabel[result]}</p>
+    <article
+      id={questionAnchor(index + 1)}
+      className={`card reviewed reviewed--${result}`}
+      aria-labelledby={labelId}
+    >
+      <OutcomeLine answer={answer} withConfidence={withConfidence} />
       <h3 className="reviewed__number">Question {index + 1}</h3>
       <p id={labelId} className="reviewed__prompt reviewed__archived">
         Archived question: this edition of the bank no longer has it as it was answered.

@@ -6,6 +6,8 @@ import {
   answerAllAndSubmit,
   answerCurrent,
   bankFile,
+  chooseConfidence,
+  confidenceGroup,
   currentQuestion,
   loadBankAndOpenStart,
   prompts,
@@ -162,5 +164,131 @@ describe('taking a quiz', () => {
 
     await user.click(await screen.findByRole('button', { name: /start SI units/i }));
     expect(await screen.findByDisplayValue('Anna')).toBeInTheDocument();
+  });
+});
+
+describe('confidence per answer', () => {
+  it('asks how sure the participant is, as a labelled radio group enabled once an option is chosen', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+
+    const group = confidenceGroup();
+    expect(group.tagName).toBe('FIELDSET');
+    const levels = within(group).getAllByRole('radio');
+    expect(levels.map((radio) => radio.closest('label')?.textContent)).toEqual([
+      'Sure',
+      'Unsure',
+      'Guess',
+    ]);
+    for (const radio of levels) expect(radio).toBeDisabled();
+
+    await answerCurrent(user, { [currentQuestion()]: 'wrong' }, { [currentQuestion()]: null });
+    for (const radio of levels) expect(radio).toBeEnabled();
+  });
+
+  it('keeps the confidence when the chosen option changes, and across navigation', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    await answerCurrent(user, { [currentQuestion()]: 'wrong' }, { [currentQuestion()]: 'unsure' });
+    await user.click(screen.getByRole('radio', { name: /right one/ }));
+    expect(within(confidenceGroup()).getByRole('radio', { name: 'Unsure' })).toBeChecked();
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    expect(within(confidenceGroup()).getByRole('radio', { name: 'Unsure' })).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: /previous/i }));
+    expect(within(confidenceGroup()).getByRole('radio', { name: 'Unsure' })).toBeChecked();
+  });
+
+  it('blocks submission while an answered question has no confidence, naming it', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    const order: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      order.push(currentQuestion());
+      if (i < 2) await user.click(screen.getByRole('button', { name: /next/i }));
+    }
+    // Answer the second question without confidence, leave the third blank.
+    await user.click(screen.getByRole('button', { name: /previous/i }));
+    await user.click(screen.getByRole('button', { name: /previous/i }));
+    await answerCurrent(user, { [order[0] as string]: 'right' });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await answerCurrent(user, { [order[1] as string]: 'wrong' }, { [order[1] as string]: null });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/how sure you are/i);
+    expect(alert).toHaveTextContent(/question 2\b/i);
+    expect(alert).not.toHaveTextContent(/question 3\b/i);
+    expect(await listAttempts()).toHaveLength(0);
+
+    await user.click(within(alert).getByRole('button', { name: /question 2/i }));
+    expect(screen.getByText(/question 2 of 3/i)).toBeInTheDocument();
+    await chooseConfidence(user, 'guess');
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    // Now only the existing blank-answer warning stands in the way.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/1 question unanswered/i);
+    await user.click(screen.getByRole('button', { name: /submit anyway/i }));
+    expect(await screen.findByRole('heading', { name: /review/i })).toBeInTheDocument();
+  });
+
+  it('stores the confidence with each answered question, and none with an unanswered one', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    await answerAllAndSubmit(user, { q1: 'right', q2: 'wrong' }, { q2: 'guess' });
+    await user.click(await screen.findByRole('button', { name: /submit anyway/i }));
+    await screen.findByRole('heading', { name: /review/i });
+
+    const [attempt] = await listAttempts();
+    const byQuestion = Object.fromEntries(
+      attempt?.answers.map((answer) => [answer.questionId, answer]) ?? [],
+    );
+    expect(byQuestion.q1?.confidence).toBe('sure');
+    expect(byQuestion.q2?.confidence).toBe('guess');
+    expect(byQuestion.q3).not.toHaveProperty('confidence');
+  });
+
+  it('opens the review with the confident errors, badges each answer and gives accuracy per confidence', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    await answerAllAndSubmit(
+      user,
+      { q1: 'wrong', q2: 'right', q3: 'wrong' },
+      { q1: 'sure', q2: 'sure', q3: 'unsure' },
+    );
+    await screen.findByRole('heading', { name: /review/i });
+
+    expect(screen.getByText('Sure: 1/2 (50%) · Unsure: 0/1 (0%)')).toBeInTheDocument();
+
+    const errors = screen.getByRole('region', { name: /confident errors/i });
+    const links = within(errors).getAllByRole('link');
+    expect(links).toHaveLength(1);
+    const target = document.getElementById(links[0]?.getAttribute('href')?.slice(1) ?? '');
+    expect(target).toHaveTextContent(prompts.q1);
+
+    const reviewOf = (id: keyof typeof prompts) =>
+      screen.getByRole('article', { name: new RegExp(prompts[id]) });
+    expect(reviewOf('q1')).toHaveTextContent(/confidence: sure/i);
+    expect(reviewOf('q3')).toHaveTextContent(/confidence: unsure/i);
+
+    // The full list stays in attempt order, after the confident errors.
+    const articles = screen.getAllByRole('article');
+    expect(articles).toHaveLength(3);
+    expect(errors.compareDocumentPosition(articles[0] as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('says when an attempt had no confident errors', async () => {
+    const user = userEvent.setup();
+    await startQuiz(user);
+    await answerAllAndSubmit(user, { q1: 'right', q2: 'right', q3: 'wrong' }, { q3: 'guess' });
+    await screen.findByRole('heading', { name: /review/i });
+
+    const errors = screen.getByRole('region', { name: /confident errors/i });
+    expect(errors).toHaveTextContent(/none/i);
+    expect(within(errors).queryByRole('link')).not.toBeInTheDocument();
   });
 });

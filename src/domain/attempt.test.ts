@@ -111,6 +111,7 @@ describe('createAttempt', () => {
       [first as string]: bank.questions.find((q) => q.id === first)?.answer as string,
       [second as string]: bank.questions.find((q) => q.id === second)?.answer === 'a' ? 'b' : 'a',
     },
+    confidence: { [first as string]: 'sure', [second as string]: 'guess' },
     startedAt: new Date('2026-09-23T10:00:00.000Z'),
     submittedAt: new Date('2026-09-23T10:04:30.500Z'),
     appVersion: '0.1.0',
@@ -121,6 +122,32 @@ describe('createAttempt', () => {
       selection.map(({ question }) => question.id),
     );
     expect(attempt.answers[2]?.chosenOptionId).toBeNull();
+  });
+
+  it('records the confidence given with each chosen option', () => {
+    expect(attempt.answers.map((answer) => answer.confidence)).toEqual([
+      'sure',
+      'guess',
+      undefined,
+    ]);
+  });
+
+  it('never records a confidence for an unanswered question', () => {
+    const third = selection[2]?.question.id as string;
+    const blank = createAttempt({
+      id: '01890a5d-ac96-774b-bcce-b302099a8057',
+      name: 'Anna',
+      bank,
+      bankFingerprint: 'deadbeef',
+      seed: 42,
+      selection,
+      chosen: {},
+      confidence: { [third]: 'sure' },
+      startedAt: new Date('2026-09-23T10:00:00.000Z'),
+      submittedAt: new Date('2026-09-23T10:04:30.500Z'),
+      appVersion: '0.1.0',
+    });
+    expect(blank.answers.every((answer) => !('confidence' in answer))).toBe(true);
   });
 
   it('scores the attempt', () => {
