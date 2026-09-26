@@ -232,7 +232,7 @@ export const textFormatting: string[] = [
 export const currentLimits: string[] = [
   'Banks are JSON files. Writing banks in YAML is planned.',
   'Loading by URL only works when the server allows cross-origin requests. GitHub (raw links and file links from public repositories) and GitHub Pages do; many university servers and Google Drive do not. If a link fails, download the file and upload it.',
-  'Attempts are saved in this browser, but there is no history screen to browse them yet. To hand a score to a teacher, take a screenshot of the review, which shows the attempt code.',
+  'Attempts are saved in this browser only. History reopens any attempt’s review while its bank is in the library; to hand results to a teacher, export them from History as a file.',
   'Scores are self-reported. Everything runs in the browser, so a determined participant can change their own record. Use the app for practice and classroom quizzes, not for grading.',
 ];
 
