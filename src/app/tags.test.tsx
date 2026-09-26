@@ -84,6 +84,7 @@ describe('the tag filter', () => {
     await user.type(screen.getByLabelText(/your name/i), 'Anna');
     await user.click(within(tagGroup()).getByRole('checkbox', { name: /energy/ }));
     await user.click(screen.getByRole('button', { name: /begin/i }));
+    await screen.findByRole('group', { name: /SI unit/ });
     await answerCurrent(user, { q2: 'right' });
     await user.click(await screen.findByRole('button', { name: /submit/i }));
     await user.click(await screen.findByRole('button', { name: /back to library/i }));

@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { AttemptReview } from '../domain/review';
 import type { Selection } from '../domain/selection';
 import type { Attempt } from '../domain/attempt';
 import { attemptRecord } from '../test/attempts';
+import { reviewMarkdown } from '../domain/review-markdown';
 import { Review } from './Review';
 
 /**
@@ -91,5 +93,38 @@ describe('self-grades of questions the review cannot show', () => {
       <Review attempt={attempt} review={{ edition: 'none' }} backTo="history" onDone={() => {}} />,
     );
     expect(screen.getByText(/^Self-grade:/)).not.toHaveTextContent(/to grade/);
+  });
+});
+
+describe('copying the review as Markdown', () => {
+  const attempt = attemptRecord();
+  const review: AttemptReview = { edition: 'none' };
+  const clipboard = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
+
+  afterEach(() => {
+    if (clipboard) Object.defineProperty(window.navigator, 'clipboard', clipboard);
+    else Reflect.deleteProperty(window.navigator, 'clipboard');
+  });
+
+  it('puts the whole review on the clipboard and says so', async () => {
+    const user = userEvent.setup();
+    render(<Review attempt={attempt} review={review} backTo="history" onDone={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /copy as markdown/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/copied/i);
+    expect(await navigator.clipboard.readText()).toBe(reviewMarkdown(attempt, review));
+  });
+
+  it('offers the Markdown to select by hand where the clipboard is unavailable', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window.navigator, 'clipboard', { value: undefined, configurable: true });
+    render(<Review attempt={attempt} review={review} backTo="history" onDone={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /copy as markdown/i }));
+
+    const text = await screen.findByRole('textbox', { name: /review as markdown/i });
+    expect(text).toHaveValue(reviewMarkdown(attempt, review));
+    expect(text).toHaveAttribute('readonly');
   });
 });

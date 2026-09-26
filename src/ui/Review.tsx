@@ -1,22 +1,26 @@
 import { useState } from 'react';
+import { SELF_GRADES, type Attempt, type AttemptAnswer, type SelfGrade } from '../domain/attempt';
 import {
-  CONFIDENCE_LEVELS,
-  SELF_GRADES,
-  type Attempt,
-  type AttemptAnswer,
-  type SelfGrade,
-} from '../domain/attempt';
-import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
+  calibrationLine,
+  confidenceLabel,
+  confidenceRecorded,
+  confidentErrorPositions,
+} from '../domain/confidence';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
-import { outcome, percentage, type Outcome } from '../domain/scoring';
-import { answeredFirst, asksSelfGrade, selfGradeTally } from '../domain/self-grade';
+import { reviewMarkdown } from '../domain/review-markdown';
+import { outcome, outcomeLabel, percentage } from '../domain/scoring';
+import {
+  answeredFirst,
+  asksSelfGrade,
+  reportsSelfGrades,
+  selfGradeCounts,
+  selfGradeLabel,
+} from '../domain/self-grade';
 import { storageProblem } from '../storage/problems';
 import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
-import { confidenceLabel } from './confidence';
 import { ResponseText } from './ResponseText';
-import { selfGradeLabel } from './self-grade';
 
 /**
  * The review: where all the teaching happens.
@@ -38,6 +42,9 @@ import { selfGradeLabel } from './self-grade';
  * explanation and asks whether it matched. The participant may answer that on
  * a local attempt at any time, from any review (ADR 0004); an imported
  * attempt shows its self-grades read-only.
+ *
+ * Copy as Markdown puts the whole review on the clipboard, question text
+ * included, for a note or an AI assistant that does not have the bank.
  */
 
 type Props = {
@@ -50,40 +57,6 @@ type Props = {
   onSelfGrade?: ((questionId: string, grade: SelfGrade) => Promise<void>) | undefined;
 };
 
-/**
- * "Self-grade: Yes 3 · Partly 1 · No 0 · 2 to grade". Only responses the
- * review can show beside their explanation are counted as still to grade: an
- * archived question, or one of a bank no longer held, cannot be graded here.
- */
-function selfGradeLine(attempt: Attempt, review: AttemptReview): string {
-  if (!attempt.answers.some(asksSelfGrade)) return 'Self-grade: no responses written';
-  const tally = selfGradeTally(attempt.answers);
-  const gradable = review.edition === 'none' ? [] : review.questions;
-  const { ungraded } = selfGradeTally(
-    gradable.flatMap((reviewed) => (reviewed.kind === 'question' ? [reviewed.answer] : [])),
-  );
-  const counts = SELF_GRADES.map((grade) => `${selfGradeLabel[grade]} ${tally[grade]}`);
-  if (ungraded > 0) counts.push(`${ungraded} to grade`);
-  return `Self-grade: ${counts.join(' · ')}`;
-}
-
-const outcomeLabel: Record<Outcome, string> = {
-  correct: 'Correct',
-  wrong: 'Wrong',
-  unanswered: 'Not answered',
-};
-
-/** "Sure: 6/7 (86%) · Unsure: 1/2 (50%)", leaving out levels never given. */
-function calibrationLine(answers: readonly AttemptAnswer[]): string {
-  const tallies = calibration(answers);
-  return CONFIDENCE_LEVELS.filter((level) => tallies[level].total > 0)
-    .map((level) => {
-      const { correct, total } = tallies[level];
-      return `${confidenceLabel[level]}: ${correct}/${total} (${percentage(correct, total)}%)`;
-    })
-    .join(' · ');
-}
-
 /** The anchor of one question in the list, by its 1-based position. */
 function questionAnchor(position: number): string {
   return `review-question-${position}`;
@@ -91,14 +64,8 @@ function questionAnchor(position: number): string {
 
 export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) {
   const withConfidence = confidenceRecorded(attempt.answers);
-  // The review lists questions in attempt order, whichever edition it is shown against.
-  const positionById = new Map(
-    attempt.answers.map(({ questionId }, index) => [questionId, index + 1]),
-  );
-  const errorPositions = confidentErrors(attempt.answers).flatMap(({ questionId }) => {
-    const position = positionById.get(questionId);
-    return position === undefined ? [] : [position];
-  });
+  // Attempt order is the order the review lists questions in, whichever edition it is shown against.
+  const errorPositions = confidentErrorPositions(attempt.answers);
   // Without the bank there are no question cards to link to.
   const linkable = review.edition !== 'none';
 
@@ -124,8 +91,10 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
         <span className="review__calibration">
           {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
         </span>
-        {(attempt.mode === 'answer-first' || attempt.answers.some(answeredFirst)) && (
-          <span className="review__self-grades">{selfGradeLine(attempt, review)}</span>
+        {reportsSelfGrades(attempt) && (
+          <span className="review__self-grades">
+            Self-grade: {selfGradeCounts(attempt, review)}
+          </span>
         )}
       </p>
 
@@ -193,8 +162,55 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
         <button type="button" className="button" onClick={onDone}>
           {backTo === 'history' ? 'Back to history' : 'Back to library'}
         </button>
+        <CopyAsMarkdown markdown={() => reviewMarkdown(attempt, review)} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Copies the review as Markdown. Where the clipboard API is missing or refuses,
+ * the Markdown is shown in a text area instead, selected for copying by hand.
+ */
+function CopyAsMarkdown({ markdown }: { markdown: () => string }) {
+  const [copyState, setCopyState] = useState<
+    { kind: 'copied' } | { kind: 'by-hand'; text: string } | null
+  >(null);
+
+  async function copyMarkdown() {
+    const text = markdown();
+    try {
+      // Missing outside a secure context, and in some embedded browsers.
+      if (!navigator.clipboard) throw new Error('No clipboard');
+      await navigator.clipboard.writeText(text);
+      setCopyState({ kind: 'copied' });
+    } catch {
+      setCopyState({ kind: 'by-hand', text });
+    }
+  }
+
+  return (
+    <div className="copy-markdown">
+      <button type="button" className="button button--quiet" onClick={() => void copyMarkdown()}>
+        Copy as Markdown
+      </button>
+      <p className="copy-markdown__status" role="status">
+        {copyState?.kind === 'copied' && 'Copied the review to the clipboard.'}
+        {copyState?.kind === 'by-hand' &&
+          'This browser would not copy it. Select the text below and copy it yourself.'}
+      </p>
+      {copyState?.kind === 'by-hand' && (
+        <textarea
+          className="copy-markdown__text"
+          aria-label="Review as Markdown"
+          rows={10}
+          readOnly
+          autoFocus
+          value={copyState.text}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+      )}
+    </div>
   );
 }
 
