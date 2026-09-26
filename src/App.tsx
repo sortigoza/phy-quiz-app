@@ -260,14 +260,21 @@ function Screen({ state, dispatch, unsaved, bankLink, onBankLinkHandled }: Scree
       return (
         <Review
           attempt={state.attempt}
-          selection={state.selection}
-          language={state.language}
-          onDone={() => dispatch({ type: 'open-library' })}
+          review={state.review}
+          backTo={state.back.screen}
+          onDone={() => dispatch({ type: 'close-review' })}
         />
       );
 
     case 'history':
-      return <History onDone={() => dispatch({ type: 'open-library' })} />;
+      return (
+        <History
+          filter={state.filter}
+          onFilter={(filter) => dispatch({ type: 'filter-history', filter })}
+          onReview={(attempt, review) => dispatch({ type: 'open-review', attempt, review })}
+          onDone={() => dispatch({ type: 'open-library' })}
+        />
+      );
   }
 }
 
