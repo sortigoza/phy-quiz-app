@@ -51,7 +51,7 @@ export const staticPwa: Pwa = {
  * browser's install offer.
  */
 export function connectPwa(target: EventTarget, register: RegisterServiceWorker): Pwa {
-  let state: PwaState = { updateWaiting: false, installable: false };
+  let state = staticState;
   let offer: InstallPromptEvent | undefined;
   const listeners = new Set<() => void>();
 

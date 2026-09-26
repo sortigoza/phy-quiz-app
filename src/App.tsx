@@ -54,8 +54,7 @@ export function App({
   const unsaved = usePersistAttempt(state);
   const [musicOn, toggleMusic] = useMusicSetting();
   useBackgroundMusic(music, state.screen === 'library' && musicOn === true);
-  const { updateWaiting, installable } = useSyncExternalStore(pwa.subscribe, pwa.snapshot);
-  const [updatePutOff, setUpdatePutOff] = useState(false);
+  const { updateOffered, deferUpdate, installable } = usePwa(pwa, attemptInProgress);
 
   return (
     <div className="app">
@@ -115,19 +114,14 @@ export function App({
         </div>
       </header>
 
-      {/* Reloading mid-attempt would swap the code under the participant: wait for submit. */}
-      {updateWaiting && !updatePutOff && !attemptInProgress && (
+      {updateOffered && (
         <div className="panel panel--notice update-offer" role="status" aria-label="New version">
           <span>A new version of Physics Quiz is ready.</span>
           <span className="update-offer__actions">
             <button type="button" className="button" onClick={pwa.applyUpdate}>
               Reload
             </button>
-            <button
-              type="button"
-              className="button button--quiet"
-              onClick={() => setUpdatePutOff(true)}
-            >
+            <button type="button" className="button button--quiet" onClick={deferUpdate}>
               Not now
             </button>
           </span>
@@ -174,6 +168,24 @@ function useLeaveWarning(active: boolean): void {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [active]);
+}
+
+/**
+ * The service worker and install offer. A waiting update is offered unless
+ * the participant put it off, or an attempt is on screen: reloading then would
+ * swap the code under them, so the offer waits for submit. An unsubmitted
+ * attempt left in the library's resume offer does not hold it back; it is
+ * stored, and resumes on the new version as it would after any restart.
+ */
+function usePwa(pwa: Pwa, attemptInProgress: boolean) {
+  const { updateWaiting, installable } = useSyncExternalStore(pwa.subscribe, pwa.snapshot);
+  const [updateDeferred, setUpdateDeferred] = useState(false);
+  const deferUpdate = useCallback(() => setUpdateDeferred(true), []);
+  return {
+    updateOffered: updateWaiting && !updateDeferred && !attemptInProgress,
+    deferUpdate,
+    installable,
+  };
 }
 
 /**

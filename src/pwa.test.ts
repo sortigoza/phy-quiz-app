@@ -18,10 +18,10 @@ function fakeRegistration() {
 }
 
 /** The event Chromium fires when it would install the page. */
-function installPrompt(outcome: 'accepted' | 'dismissed' = 'accepted') {
+function installPrompt() {
   const event = new Event('beforeinstallprompt', { cancelable: true });
   const prompt = vi.fn(() => Promise.resolve());
-  Object.assign(event, { prompt, userChoice: Promise.resolve({ outcome, platform: 'web' }) });
+  Object.assign(event, { prompt });
   return { event, prompt };
 }
 
@@ -65,7 +65,7 @@ describe('the offer to install', () => {
   it('is spent once used, whatever the answer', async () => {
     const target = new EventTarget();
     const pwa = connectPwa(target, fakeRegistration().register);
-    target.dispatchEvent(installPrompt('dismissed').event);
+    target.dispatchEvent(installPrompt().event);
 
     await pwa.install();
     expect(pwa.snapshot().installable).toBe(false);

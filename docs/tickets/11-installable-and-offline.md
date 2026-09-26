@@ -18,5 +18,6 @@
 
 - Icons are drawn in `public/icon.svg` and generated into `public/` by `pnpm pwa-assets`; the output is committed.
 - Only Chromium fires `beforeinstallprompt`, so the Install button appears in Chrome and Edge. Firefox installs from its own menu (Android) and never fires the event, so it gets no button. iOS Safari gets no button or instruction line.
+- "In progress" means an attempt on screen, Help over one included. An unsubmitted attempt waiting in the library's resume offer does not hold the update back: it is stored, and resumes on the new version as it would after any restart.
 - The precache holds the shell, icons, KaTeX woff2 fonts and the library music. The example banks and `llms.txt` stay out: banks are data.
 - Verified locally in Chromium with the build served at a `/phy-quiz-app/` subpath: service worker scope, offline reload with a stored bank, a full attempt offline with KaTeX fonts, no update offer mid-attempt, the offer after submit, and Reload activating the waiting worker.
