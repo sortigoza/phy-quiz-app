@@ -1,4 +1,5 @@
 import type { Bank, BankOption, BankQuestion } from './bank';
+import { qualifyingQuestions, type TagFilter } from './tags';
 
 /**
  * Choosing which questions an attempt asks, and in what order.
@@ -45,14 +46,25 @@ function shuffle<T>(items: readonly T[], random: () => number): T[] {
 
 /**
  * Draws `count` questions from the bank, clamped to its size, with each
- * question's options shuffled. The same bank, count and seed always give the
- * same selection.
+ * question's options shuffled. The same bank, count, seed and tag filter always
+ * give the same selection.
+ *
+ * The tag filter narrows the bank before the shuffle, so an attempt without
+ * one draws exactly as attempts did before filters existed.
  */
-export function drawSelection(bank: Bank, count: number, seed: number): Selection {
+export function drawSelection(
+  bank: Bank,
+  count: number,
+  seed: number,
+  tagFilter?: TagFilter,
+): Selection {
   const random = mulberry32(seed);
   // Questions are shuffled whole before taking the first `count`, so the
   // option shuffles below consume the generator in a fixed order.
-  const questions = shuffle(bank.questions, random).slice(0, Math.max(0, count));
+  const questions = shuffle(qualifyingQuestions(bank, tagFilter), random).slice(
+    0,
+    Math.max(0, count),
+  );
   return questions.map((question) => ({ question, options: shuffle(question.options, random) }));
 }
 

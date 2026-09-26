@@ -251,3 +251,51 @@ describe('confidence in a history file', () => {
     });
   });
 });
+
+describe('ticket 18 fields in a history file', () => {
+  const annotated = attempt({
+    answers: [
+      {
+        questionId: 'q1',
+        chosenOptionId: 'a',
+        correctOptionId: 'a',
+        answeredAt: '2026-09-23T10:01:00.000Z',
+      },
+      { questionId: 'q2', chosenOptionId: null, correctOptionId: 'b' },
+    ],
+    tagFilter: { tags: ['mechanics'], untagged: true },
+    countedOverride: true,
+  });
+
+  it('round-trips the tag filter, the counted override and when each option was chosen', () => {
+    const written = writeHistoryFile([annotated], exportedAt, '0.1.0');
+    expect(readHistoryFile(written)).toEqual({
+      ok: true,
+      attempts: [{ ...annotated, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+
+  it('writes an answer time the way this app does, and drops one on an unanswered question', () => {
+    const odd = {
+      ...annotated,
+      answers: [
+        { ...annotated.answers[0], answeredAt: '2026-09-23T12:01:00+02:00' },
+        { ...annotated.answers[1], answeredAt: '2026-09-23T10:02:00.000Z' },
+      ],
+    };
+    expect(readHistoryFile(envelope([odd]))).toEqual({
+      ok: true,
+      attempts: [{ ...annotated, origin: 'imported' }],
+      rejected: [],
+    });
+  });
+
+  it('rejects a tag filter of the wrong shape', () => {
+    expect(readHistoryFile(envelope([{ ...annotated, tagFilter: ['mechanics'] }]))).toMatchObject({
+      ok: true,
+      attempts: [],
+      rejected: [{ position: 1, reason: expect.stringMatching(/^tagFilter: /) }],
+    });
+  });
+});

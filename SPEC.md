@@ -118,7 +118,7 @@ A bank is identified by `id` plus `version`. Because authors forget to bump vers
 | `options` | Option[] | **yes** | 2 to 8 entries, unique `id`s. |
 | `answer` | string | **yes** | Must equal the `id` of one option. |
 | `explanation` | string | **yes** | 1 to 4000 chars. Required on purpose: an explanation-free bank is a scoreboard, not a lesson. |
-| `tags` | string[] | no | Up to 20. Recorded; unused in v1 UI. |
+| `tags` | string[] | no | Up to 20. Drive the start screen's tag filter and history's tag breakdown (ticket 18). |
 | `difficulty` | string | no | `easy` \| `medium` \| `hard`. Recorded; unused in v1 UI. |
 
 **Option object**

@@ -16,9 +16,14 @@ export const prompts = {
   q3: 'What is the SI unit of power?',
 };
 
-export function bankFile(overrides: Record<string, unknown> = {}): File {
+/** The bank file, with `tags` put on the questions it names. */
+export function bankFile(
+  overrides: Record<string, unknown> = {},
+  tags: Partial<Record<keyof typeof prompts, string[]>> = {},
+): File {
   const question = (id: keyof typeof prompts, right: string) => ({
     id,
+    ...(tags[id] && { tags: tags[id] }),
     prompt: prompts[id],
     options: [
       { id: 'a', text: `${right}, the right one` },

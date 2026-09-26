@@ -110,6 +110,26 @@ describe('resuming an interrupted attempt', () => {
     expect(within(confidenceGroup()).getByRole('radio', { name: 'Guess' })).toBeChecked();
   });
 
+  it('keeps when each option was last changed through a resume, and records it on submission', async () => {
+    const user = userEvent.setup();
+    await answerTwoThenStop(user);
+    const saved = await db.inProgress.get('current');
+    const times = Object.values(saved?.answeredAt ?? {});
+    expect(times).toHaveLength(2);
+
+    reopen();
+    await user.click(await screen.findByRole('button', { name: /resume/i }));
+    await user.click(await screen.findByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await user.click(screen.getByRole('button', { name: /submit anyway/i }));
+    await screen.findByRole('heading', { name: /review/i });
+
+    const [attempt] = await listAttempts();
+    const recorded = attempt?.answers.map((answer) => answer.answeredAt) ?? [];
+    expect(recorded.filter((time) => time !== undefined).sort()).toEqual([...times].sort());
+    for (const time of times) expect(new Date(time).toISOString()).toBe(time);
+  });
+
   it('resumes an attempt saved before confidence was asked for', async () => {
     const user = userEvent.setup();
     await answerTwoThenStop(user);
