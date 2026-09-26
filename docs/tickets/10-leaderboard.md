@@ -6,7 +6,7 @@ One bank at a time, never across banks: ninety percent on a five-question warm-u
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent, v1.1. Moved after v1.0.0 in favour of tickets 16 to 20.
 
 - [ ] The leaderboard is chosen per bank and never mixes banks
 - [ ] Ranking is by score percentage, then shorter duration, then earlier submission
