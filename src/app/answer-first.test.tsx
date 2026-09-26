@@ -268,6 +268,26 @@ describe('self-grading in review', () => {
     expect((await listAttempts())[0]?.answers[0]?.selfGrade).toBe('no');
   });
 
+  it('copies the review as Markdown, with the self-grade just given', async () => {
+    const user = userEvent.setup();
+    await takeAnswerFirstAttempt(user);
+    await user.click(
+      within(selfGradeGroups()[0] as HTMLElement).getByRole('radio', { name: 'Partly' }),
+    );
+    await screen.findByText(/Partly 1/);
+
+    await user.click(screen.getByRole('button', { name: /copy as markdown/i }));
+    await screen.findByText(/copied the review/i);
+
+    const markdown = await navigator.clipboard.readText();
+    expect(markdown).toMatch(/^# Review: /);
+    expect(markdown).toContain('- **Participant:** Anna\n');
+    expect(markdown).toContain('- **Mode:** Answer first\n');
+    expect(markdown).toContain('> My own reasoning here\n\n**Self-grade:** Partly');
+    expect(markdown).toContain('**Response:** skipped');
+    expect(markdown).toContain('## Question 3: Not answered');
+  });
+
   it('leaves an imported attempt’s self-grades read-only', async () => {
     const user = userEvent.setup();
     await takeAnswerFirstAttempt(user);

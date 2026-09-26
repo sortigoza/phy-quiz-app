@@ -183,6 +183,7 @@ export const quizSteps: string[] = [
   'Submit on the last question. Every answered question needs a confidence first. If any are blank, you are warned; blank questions score as wrong.',
   'Read the review. It opens with your confident errors, the answers you were sure of that were wrong, because those are the ones most worth correcting. Then every question with the correct option, the option you chose, the explanation, and a note on why your option was wrong when the author wrote one.',
   'After an Answer first quiz, the review shows what you wrote beside the explanation and asks whether your answer matched: Yes, Partly or No. You can answer that later too, from History.',
+  'Copy as Markdown, at the end of the review, puts the whole review on the clipboard: every question with its tags, options and explanation, and what you answered. Paste it into your notes, or give it to an AI assistant to go through your mistakes with you; it does not need the bank.',
 ];
 
 /**

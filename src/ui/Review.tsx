@@ -1,22 +1,20 @@
 import { useState } from 'react';
+import { SELF_GRADES, type Attempt, type AttemptAnswer, type SelfGrade } from '../domain/attempt';
 import {
-  CONFIDENCE_LEVELS,
-  SELF_GRADES,
-  type Attempt,
-  type AttemptAnswer,
-  type SelfGrade,
-} from '../domain/attempt';
-import { calibration, confidenceRecorded, confidentErrors } from '../domain/confidence';
+  calibrationLine,
+  confidenceLabel,
+  confidenceRecorded,
+  confidentErrors,
+} from '../domain/confidence';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
+import { reviewMarkdown } from '../domain/review-markdown';
 import { outcome, percentage, type Outcome } from '../domain/scoring';
-import { answeredFirst, asksSelfGrade, selfGradeTally } from '../domain/self-grade';
+import { answeredFirst, asksSelfGrade, selfGradeLabel, selfGradeTally } from '../domain/self-grade';
 import { storageProblem } from '../storage/problems';
 import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
-import { confidenceLabel } from './confidence';
 import { ResponseText } from './ResponseText';
-import { selfGradeLabel } from './self-grade';
 
 /**
  * The review: where all the teaching happens.
@@ -38,6 +36,9 @@ import { selfGradeLabel } from './self-grade';
  * explanation and asks whether it matched. The participant may answer that on
  * a local attempt at any time, from any review (ADR 0004); an imported
  * attempt shows its self-grades read-only.
+ *
+ * Copy as Markdown puts the whole review on the clipboard, question text
+ * included, for a note or an AI assistant that does not have the bank.
  */
 
 type Props = {
@@ -72,17 +73,6 @@ const outcomeLabel: Record<Outcome, string> = {
   wrong: 'Wrong',
   unanswered: 'Not answered',
 };
-
-/** "Sure: 6/7 (86%) · Unsure: 1/2 (50%)", leaving out levels never given. */
-function calibrationLine(answers: readonly AttemptAnswer[]): string {
-  const tallies = calibration(answers);
-  return CONFIDENCE_LEVELS.filter((level) => tallies[level].total > 0)
-    .map((level) => {
-      const { correct, total } = tallies[level];
-      return `${confidenceLabel[level]}: ${correct}/${total} (${percentage(correct, total)}%)`;
-    })
-    .join(' · ');
-}
 
 /** The anchor of one question in the list, by its 1-based position. */
 function questionAnchor(position: number): string {
@@ -193,8 +183,55 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
         <button type="button" className="button" onClick={onDone}>
           {backTo === 'history' ? 'Back to history' : 'Back to library'}
         </button>
+        <CopyAsMarkdown markdown={() => reviewMarkdown(attempt, review)} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Copies the review as Markdown. Where the clipboard API is missing or refuses,
+ * the Markdown is shown in a text area instead, selected for copying by hand.
+ */
+function CopyAsMarkdown({ markdown }: { markdown: () => string }) {
+  const [copy, setCopy] = useState<{ kind: 'copied' } | { kind: 'by-hand'; text: string } | null>(
+    null,
+  );
+
+  async function copyMarkdown() {
+    const text = markdown();
+    try {
+      // Missing outside a secure context, and in some embedded browsers.
+      if (!navigator.clipboard) throw new Error('No clipboard');
+      await navigator.clipboard.writeText(text);
+      setCopy({ kind: 'copied' });
+    } catch {
+      setCopy({ kind: 'by-hand', text });
+    }
+  }
+
+  return (
+    <div className="copy-markdown">
+      <button type="button" className="button button--quiet" onClick={() => void copyMarkdown()}>
+        Copy as Markdown
+      </button>
+      <p className="copy-markdown__status" role="status">
+        {copy?.kind === 'copied' && 'Copied the review to the clipboard.'}
+        {copy?.kind === 'by-hand' &&
+          'This browser would not copy it. Select the text below and copy it yourself.'}
+      </p>
+      {copy?.kind === 'by-hand' && (
+        <textarea
+          className="copy-markdown__text"
+          aria-label="Review as Markdown"
+          rows={10}
+          readOnly
+          autoFocus
+          value={copy.text}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+      )}
+    </div>
   );
 }
 

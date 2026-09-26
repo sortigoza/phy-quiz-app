@@ -8,10 +8,10 @@ import {
   type Reveal,
 } from '../domain/attempt';
 import { bankLanguage } from '../domain/bank';
+import { confidenceLabel } from '../domain/confidence';
 import { missingConfidence, optionsShown, submitAttempt, type InProgressAttempt } from '../quiz';
 import { storageProblem } from '../storage/problems';
 import { BankText } from './BankText';
-import { confidenceLabel } from './confidence';
 import { ResponseText } from './ResponseText';
 
 /**
