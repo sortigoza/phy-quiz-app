@@ -61,7 +61,7 @@ The graph is wide on purpose. After 02, tickets 03, 05 and 06 can run in paralle
 | 10 | Leaderboard (v1.1) | 03 | [ ] |
 | 11 | Installable and offline | 03, 05 | [ ] |
 | 12 | Presentation and accessibility | 04 | [ ] |
-| 13 | Documentation and examples | 06 | [ ] |
+| 13 | Documentation and examples | 06 | [x] |
 | 14 | Release v1.0.0 | 07, 11, 12, 13, 16 to 20 | [ ] |
 | 15 | Music on the library | 03 | [x] |
 | 16 | Review from history | 08 | [x] |
