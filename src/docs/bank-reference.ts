@@ -10,6 +10,9 @@
  * ticket that alters the format or how banks load.
  */
 
+/** Where the app serves the bank JSON Schema, relative to itself. Stable: banks point at it. */
+export const BANK_SCHEMA_PATH = 'schema/bank-v1.schema.json';
+
 export type FieldDoc = {
   name: string;
   type: string;
@@ -23,8 +26,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: '$schema',
       type: 'string',
       required: false,
-      rules:
-        'Up to 500 characters. The URL of the bank JSON Schema, which the app serves at schema/bank-v1.schema.json, so an editor checks the bank as you type. Ignored by the app.',
+      rules: `Up to 500 characters. The URL of the bank JSON Schema, which the app serves at ${BANK_SCHEMA_PATH}, so an editor checks the bank as you type. Ignored by the app.`,
     },
     { name: 'formatVersion', type: 'integer', required: true, rules: 'Must be 1.' },
     {

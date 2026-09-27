@@ -1,18 +1,18 @@
 # Physics Quiz
 
-A local-first web app for multiple-choice physics quizzes that teach. A teacher, or an AI assistant, writes a **question bank** as one JSON or YAML file. A student loads it, answers a random selection of its questions, and then gets a review with the correct answers, the author's explanations, and a note on the mistake behind each wrong answer they chose.
+A local-first web app for multiple-choice physics quizzes that teach. A teacher, or an AI assistant, writes a **question bank** as one JSON or YAML file. A participant loads it, answers a random selection of its questions, and then gets a review with the correct answers, the author's explanations, and a note on the mistake behind each wrong answer they chose.
 
 **Live: <https://sortigoza.github.io/phy-quiz-app/>**
 
 <p>
-  <img src="docs/images/attempt.png" alt="A question on braking time with four options in rendered maths, and the choice of how sure you are: Sure, Unsure or Guess" width="400">
+  <img src="docs/images/attempt.png" alt="A question on braking time with four options in rendered maths, and and a confidence to give: Sure, Unsure or Guess" width="400">
   <img src="docs/images/review.png" alt="The review after a quiz: the score, the confident errors listed first, and a question with its correct answer and a worked explanation" width="400">
 </p>
 
 - **Maths that renders.** LaTeX through KaTeX, and Markdown, in every question, option and explanation.
 - **A review that teaches.** Every question with the correct option and a worked explanation. Answers you were sure of but got wrong come first.
 - **Answer first**, if you like: write your own answer before the options appear, then grade yourself against the explanation.
-- **History** of every attempt, with accuracy per topic, export and import, and any past review reopened.
+- **History** of every attempt, with accuracy per tag, export and import, and any past review reopened.
 - **No server, no account.** Everything stays in the browser. The app installs, and works offline after the first visit.
 - **Private banks.** A bank can be published encrypted, and opened only through the link a teacher sends.
 

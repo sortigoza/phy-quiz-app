@@ -366,7 +366,7 @@ To check your own output, `pnpm --dir path/to/phy-quiz-app bank-crypto decrypt k
 
 What privacy here does and does not mean:
 
-- A bank link is a password anyone can use. Whoever it is forwarded to can open the bank. Send it to the class, not to the world.
+- A bank link opens the bank for anyone who has it, including whoever it is forwarded to. Send it to the class, not to the world.
 - Anyone who can take the quiz can copy its questions and explanations. Encryption protects the file on the public host, not the bank from its readers.
 - `--rotate` makes a new key, so links sent before stop opening **new** editions. Files already published stay readable with the old key, including in git history. After rotating a bank, encrypt again every private course that lists it.
 - Never write a key into a repository by hand. A plaintext repository holding a key is refused, because that key is now public.

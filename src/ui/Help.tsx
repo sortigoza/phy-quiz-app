@@ -1,4 +1,5 @@
 import {
+  BANK_SCHEMA_PATH,
   bankRepositories,
   currentLimits,
   fieldReference,
@@ -10,7 +11,6 @@ import {
   textFormatting,
   type FieldDoc,
 } from '../docs/bank-reference';
-import { BANK_SCHEMA_PATH } from '../docs/bank-json-schema';
 
 /**
  * Help: what the app is, how to take a quiz, and how to write a bank.

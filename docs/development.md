@@ -84,7 +84,7 @@ pnpm test
 
 ## Continuous integration
 
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request: typecheck, lint, format check, tests, `pnpm validate-banks examples`, and a production build. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) publishes to GitHub Pages; it verifies again rather than trusting CI, because the two run in parallel.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request: typecheck, lint, format check, tests, `pnpm validate-banks examples`, and a production build. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) publishes to GitHub Pages; it lints and tests again rather than trusting CI, because the two run in parallel.
 
 ## Working on a change
 
@@ -98,7 +98,7 @@ pnpm test
 
 Versions follow semver, in `package.json`. The app shows its version in the footer and stamps it on every attempt.
 
-1. Add the release's entry to `CHANGELOG.md`, in [Keep a Changelog](https://keepachangelog.com) form, and commit it. The next step refuses to run on a working tree with changes.
+1. Add the release's entry to `CHANGELOG.md`, in [Keep a Changelog](https://keepachangelog.com) form, creating the file on the first release, and commit it. The next step refuses to run on a working tree with changes.
 2. Bump the version: `pnpm version minor` (or `patch`, or `major`). It updates `package.json`, commits, and tags the commit `v<version>`.
 3. Push the commit and the tag: `git push --follow-tags`.
 4. Once it is live, open the deployed app on a phone, check the footer shows the new version, and check it still works offline.

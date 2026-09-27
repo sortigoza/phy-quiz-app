@@ -23,15 +23,17 @@ function publishedFiles(): Plugin {
       read: () => `${JSON.stringify(bankJsonSchema(), null, 2)}\n`,
     },
     ...Object.fromEntries(
-      readdirSync(new URL('./examples/', import.meta.url)).map((name) => [
-        `examples/${name}`,
-        {
-          type: name.endsWith('.json')
-            ? 'application/json; charset=utf-8'
-            : 'application/yaml; charset=utf-8',
-          read: () => readFileSync(new URL(`./examples/${name}`, import.meta.url), 'utf8'),
-        },
-      ]),
+      readdirSync(new URL('./examples/', import.meta.url))
+        .filter((name) => /\.(json|ya?ml)$/.test(name))
+        .map((name) => [
+          `examples/${name}`,
+          {
+            type: name.endsWith('.json')
+              ? 'application/json; charset=utf-8'
+              : 'application/yaml; charset=utf-8',
+            read: () => readFileSync(new URL(`./examples/${name}`, import.meta.url), 'utf8'),
+          },
+        ]),
     ),
   };
 
