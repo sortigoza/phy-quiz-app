@@ -190,7 +190,7 @@ export const quizSteps: string[] = [
 
 /**
  * Private banks, from the participant's side. How a teacher publishes one is
- * the teacher guide's job (ticket 13); this says they exist and how to open one.
+ * in the teacher guide, `docs/bank-format.md`; this says they exist and how to open one.
  */
 export const privateBanks: string[] = [
   'A teacher can publish a private bank: an encrypted file that nobody can read without its bank link. The file itself shows nothing, not even its title.',

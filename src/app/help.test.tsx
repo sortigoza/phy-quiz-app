@@ -55,6 +55,16 @@ describe('Help', () => {
     }
   });
 
+  it('gives the JSON Schema address to put in a bank, so an editor checks it', async () => {
+    render(<App />);
+    const help = await openHelp(userEvent.setup());
+    const link = within(help).getByRole('link', { name: /json schema/i });
+    expect(link).toHaveAttribute('href', 'schema/bank-v1.schema.json');
+    expect(help).toHaveTextContent(
+      `"$schema": "${new URL('schema/bank-v1.schema.json', document.baseURI).href}"`,
+    );
+  });
+
   it('explains the backslash trap and how maths and Markdown are written', async () => {
     render(<App />);
     const help = await openHelp(userEvent.setup());
