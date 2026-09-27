@@ -31,9 +31,9 @@ export type Io = {
 };
 
 type Verdict =
-  | { ok: true; summary: string }
-  | { ok: false; issues: BankIssue[] }
-  | { ok: 'skipped'; reason: string };
+  | { status: 'passed'; summary: string }
+  | { status: 'failed'; issues: BankIssue[] }
+  | { status: 'skipped'; reason: string };
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
@@ -49,7 +49,7 @@ async function bankFilesAt(path: string): Promise<string[]> {
     .map((name) => resolve(path, name));
 }
 
-async function exists(path: string): Promise<boolean> {
+async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
   } catch {
@@ -59,37 +59,40 @@ async function exists(path: string): Promise<boolean> {
 
 async function checkRepository(text: string, path: string): Promise<Verdict> {
   const parsed = parseBankRepository(text, pathToFileURL(path).href);
-  if (!parsed.ok) return parsed;
+  if (!parsed.ok) return { status: 'failed', issues: parsed.issues };
 
   const issues: BankIssue[] = [];
   for (const [index, entry] of parsed.repository.entries.entries()) {
     // Entries on the web are the app's to fetch; entries beside the file must be there.
-    if (entry.url?.startsWith('file:') && !(await exists(fileURLToPath(entry.url)))) {
+    if (entry.url?.startsWith('file:') && !(await isFile(fileURLToPath(entry.url)))) {
       issues.push({
         path: `banks[${index}].url`,
         message: `"${entry.given}" is not beside this repository, so the app could not load it`,
       });
     }
   }
-  if (issues.length > 0) return { ok: false, issues };
+  if (issues.length > 0) return { status: 'failed', issues };
   const count = parsed.repository.entries.length;
   return {
-    ok: true,
+    status: 'passed',
     summary: `bank repository "${parsed.repository.title}", ${plural(count, 'bank')}`,
   };
 }
 
-async function check(path: string): Promise<Verdict> {
+async function verdictFor(path: string): Promise<Verdict> {
   const text = await readFile(path, 'utf8');
   if (readPrivateBankHeader(text)) {
-    return { ok: 'skipped', reason: 'a private bank: validate its plaintext before encrypting' };
+    return {
+      status: 'skipped',
+      reason: 'a private bank: validate its plaintext before encrypting',
+    };
   }
   if (isBankRepository(text)) return checkRepository(text, path);
 
   const parsed = parseBank(text);
-  if (!parsed.ok) return parsed;
+  if (!parsed.ok) return { status: 'failed', issues: parsed.issues };
   return {
-    ok: true,
+    status: 'passed',
     summary: `"${parsed.bank.title}", ${plural(parsed.bank.questions.length, 'question')}`,
   };
 }
@@ -116,10 +119,10 @@ export async function run(args: string[], io: Io): Promise<number> {
 
     for (const file of files) {
       const shown = relative(io.cwd, file) || file;
-      const verdict = await check(file);
+      const verdict = await verdictFor(file);
       checked++;
-      if (verdict.ok === 'skipped') io.stdout(`- ${shown}: skipped, ${verdict.reason}\n`);
-      else if (verdict.ok) io.stdout(`✓ ${shown}: ${verdict.summary}\n`);
+      if (verdict.status === 'skipped') io.stdout(`- ${shown}: skipped, ${verdict.reason}\n`);
+      else if (verdict.status === 'passed') io.stdout(`✓ ${shown}: ${verdict.summary}\n`);
       else {
         failed++;
         io.stdout(`✗ ${shown}\n`);

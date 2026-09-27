@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { bankSchema } from '../domain/bank';
-import { fieldReference, type FieldDoc } from './bank-reference';
+import { BANK_SCHEMA_PATH, fieldReference, type FieldDoc } from './bank-reference';
 
 /**
  * The bank format as a JSON Schema, for editors. SPEC section 2.3.
@@ -15,8 +15,7 @@ import { fieldReference, type FieldDoc } from './bank-reference';
  * holds a LaTeX command whose backslash was lost.
  */
 
-/** Where the schema is served, relative to the app. Stable: banks point at it. */
-export const BANK_SCHEMA_PATH = 'schema/bank-v1.schema.json';
+export { BANK_SCHEMA_PATH };
 
 /** Enough of a JSON Schema to walk into its properties. */
 export type JsonSchema = {

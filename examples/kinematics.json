@@ -230,7 +230,7 @@
         {
           "id": "c",
           "text": "Distance travelled",
-          "why": "Distance is read from the vertical axis itself, not from the slope."
+          "why": "The vertical axis shows position. Distance travelled comes from how far that position changes, not from the slope."
         },
         {
           "id": "d",

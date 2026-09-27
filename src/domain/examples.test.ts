@@ -19,9 +19,15 @@ const files = readdirSync(examplesDir).filter((name) => /\.(json|ya?ml)$/.test(n
 const exampleFiles = files.filter((name) => !isBankRepository(read(name)));
 const repositoryFiles = files.filter((name) => isBankRepository(read(name)));
 
+function problems(result: ReturnType<typeof parseBank>): string {
+  return result.ok
+    ? ''
+    : result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n');
+}
+
 function parsed(filename: string) {
   const result = parseBank(read(filename));
-  if (!result.ok) throw new Error(result.issues.map((i) => `${i.path}: ${i.message}`).join('\n'));
+  if (!result.ok) throw new Error(problems(result));
   return result.bank;
 }
 
@@ -37,10 +43,7 @@ describe('the example banks', () => {
 
   it.each(exampleFiles)('%s validates against the bank schema', (filename) => {
     const result = parseBank(read(filename));
-    const problems = result.ok
-      ? ''
-      : result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n');
-    expect(problems).toBe('');
+    expect(problems(result)).toBe('');
     expect(result.ok).toBe(true);
   });
 
