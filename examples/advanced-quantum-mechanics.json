@@ -1,7 +1,8 @@
 {
+  "$schema": "https://sortigoza.github.io/phy-quiz-app/schema/bank-v1.schema.json",
   "formatVersion": 1,
   "id": "physics.quantum.advanced-qm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title": "Advanced quantum mechanics: conceptual questions",
   "description": "Calculation-free conceptual questions on the formal structure of quantum mechanics, dynamics, symmetries, angular momentum, identical particles and approximation methods, following the topics of an advanced quantum mechanics course.",
   "author": "Physics Quiz examples",

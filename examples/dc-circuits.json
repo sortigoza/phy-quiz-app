@@ -1,0 +1,305 @@
+{
+  "$schema": "https://sortigoza.github.io/phy-quiz-app/schema/bank-v1.schema.json",
+  "formatVersion": 1,
+  "id": "example.electricity.dc-circuits",
+  "version": "1.0.0",
+  "title": "DC circuits",
+  "description": "Ohm's law, series and parallel resistors, power, energy, and internal resistance. An example bank: see docs/bank-format.md for how to write your own.",
+  "author": "Physics Quiz examples",
+  "license": "CC-BY-4.0",
+  "language": "en",
+  "tags": ["electricity", "circuits"],
+  "defaultQuestionCount": 5,
+  "questions": [
+    {
+      "id": "ohms-law-current",
+      "prompt": "A $4.0\\,\\Omega$ resistor is connected across an ideal $12\\,\\mathrm{V}$ battery. What current flows through it?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$3.0\\,\\mathrm{A}$"
+        },
+        {
+          "id": "b",
+          "text": "$48\\,\\mathrm{A}$",
+          "why": "This is $VR$. Ohm's law divides: $I = V/R$. A bigger resistance should mean **less** current, not more."
+        },
+        {
+          "id": "c",
+          "text": "$0.33\\,\\mathrm{A}$",
+          "why": "This is $R/V$, the ratio upside down. Its units are $\\Omega/\\mathrm{V} = 1/\\mathrm{A}$, not amperes."
+        },
+        {
+          "id": "d",
+          "text": "$36\\,\\mathrm{W}$",
+          "why": "$V^2/R = 36\\,\\mathrm{W}$ is the **power** dissipated in the resistor. The question asks for a current."
+        }
+      ],
+      "answer": "a",
+      "explanation": "Ohm's law gives $I = V/R = 12 / 4.0 = 3.0\\,\\mathrm{A}$. Checking units helps: volts per ohm is amperes.",
+      "tags": ["ohms-law"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "series-resistance",
+      "prompt": "Resistors of $2.0\\,\\Omega$ and $3.0\\,\\Omega$ are connected in **series**. What is their combined resistance?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$1.2\\,\\Omega$",
+          "why": "That is the combination in **parallel**, $(1/2.0 + 1/3.0)^{-1}$. In series the same current must push through both, so the resistances add."
+        },
+        {
+          "id": "b",
+          "text": "$5.0\\,\\Omega$"
+        },
+        {
+          "id": "c",
+          "text": "$6.0\\,\\Omega$",
+          "why": "Multiplying resistances has no physical meaning; the units would be $\\Omega^2$."
+        },
+        {
+          "id": "d",
+          "text": "$0.83\\,\\Omega$",
+          "why": "This is $1/2.0 + 1/3.0$, the first step of the **parallel** rule, and without taking the reciprocal. Its units are $\\Omega^{-1}$."
+        }
+      ],
+      "answer": "b",
+      "explanation": "In series the same current flows through each resistor, and the voltages across them add, so the resistances add: $R = 2.0 + 3.0 = 5.0\\,\\Omega$.",
+      "tags": ["series-and-parallel"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "parallel-identical-resistors",
+      "prompt": "Two identical $6.0\\,\\Omega$ resistors are connected in **parallel**. What is their combined resistance?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$12\\,\\Omega$",
+          "why": "That is the series combination. In parallel the current has two paths, so it is **easier** for it to flow and the resistance goes down."
+        },
+        {
+          "id": "b",
+          "text": "$6.0\\,\\Omega$",
+          "why": "Adding a second path always lowers the resistance; it cannot leave it unchanged."
+        },
+        {
+          "id": "c",
+          "text": "$3.0\\,\\Omega$"
+        },
+        {
+          "id": "d",
+          "text": "$0.33\\,\\Omega$",
+          "why": "This is $1/6.0 + 1/6.0 = 1/3.0$, which is $1/R$ in $\\Omega^{-1}$. Take the reciprocal to get $R$."
+        }
+      ],
+      "answer": "c",
+      "explanation": "For parallel resistors $1/R = 1/R_1 + 1/R_2 = 1/6.0 + 1/6.0 = 1/3.0$, so $R = 3.0\\,\\Omega$. For $n$ identical resistors in parallel the result is always $R/n$: two equal paths carry twice the current at the same voltage.",
+      "tags": ["series-and-parallel"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "lamp-current",
+      "prompt": "A lamp is rated $60\\,\\mathrm{W}$ at $230\\,\\mathrm{V}$. What current does it draw when working normally?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$0.26\\,\\mathrm{A}$"
+        },
+        {
+          "id": "b",
+          "text": "$3.8\\,\\mathrm{A}$",
+          "why": "This is $V/P$, the ratio upside down. Power is voltage **times** current, so current is power divided by voltage."
+        },
+        {
+          "id": "c",
+          "text": "$882\\,\\Omega$",
+          "why": "$V^2/P \\approx 882\\,\\Omega$ is the lamp's resistance when lit, not the current it draws."
+        },
+        {
+          "id": "d",
+          "text": "$13.8\\,\\mathrm{kA}$",
+          "why": "This multiplies power by voltage. A current of thousands of amperes would melt the wiring of any house."
+        }
+      ],
+      "answer": "a",
+      "explanation": "From $P = VI$, $I = P/V = 60/230 = 0.26\\,\\mathrm{A}$ to two significant figures.",
+      "tags": ["power-and-energy"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "series-current",
+      "prompt": "Two lamps with **different** resistances are connected in series to a battery. How do the currents through them compare?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The current is the same in both"
+        },
+        {
+          "id": "b",
+          "text": "More current flows through the lamp with the smaller resistance",
+          "why": "That is true in **parallel**, where the current has a choice of path. In series there is only one path."
+        },
+        {
+          "id": "c",
+          "text": "More current flows through the lamp with the larger resistance",
+          "why": "A larger resistance never draws more current at the same voltage, and in series there is no choice of path anyway."
+        },
+        {
+          "id": "d",
+          "text": "The current is used up in the first lamp, so less reaches the second",
+          "why": "Current is not used up. Charge is conserved: what flows into a lamp flows out of it. It is **energy** that the lamps take from the charge."
+        }
+      ],
+      "answer": "a",
+      "explanation": "In a series circuit there is a single path, and charge is conserved, so the same current passes through every component. What differs between the lamps is the voltage across each, $V = IR$, and so the power each dissipates.",
+      "tags": ["series-and-parallel"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "adding-parallel-branch",
+      "prompt": "A resistor is connected across an ideal battery. A second resistor is then connected in **parallel** with the first. What happens to the current drawn from the battery?",
+      "options": [
+        {
+          "id": "a",
+          "text": "It increases"
+        },
+        {
+          "id": "b",
+          "text": "It decreases",
+          "why": "Adding a resistor in series would do this. In parallel it adds a second path, which lowers the total resistance."
+        },
+        {
+          "id": "c",
+          "text": "It stays the same",
+          "why": "The current through the **first** resistor stays the same, because the voltage across it has not changed. The battery now supplies that current plus the new branch's."
+        },
+        {
+          "id": "d",
+          "text": "It becomes zero",
+          "why": "A parallel branch does not break the circuit; both paths still connect the battery's terminals."
+        }
+      ],
+      "answer": "a",
+      "explanation": "An ideal battery holds the voltage across each branch fixed, so the first branch carries the same current as before. The new branch carries its own current as well, and the battery supplies both: the total rises. Equivalently, the combined resistance has fallen, and $I = V/R$.",
+      "tags": ["series-and-parallel"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "heater-energy",
+      "prompt": "A $2.0\\,\\mathrm{kW}$ heater runs for $3.0$ hours. How much energy does it use?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$0.67\\,\\mathrm{kWh}$",
+          "why": "This is power divided by time. Energy is power **multiplied** by time."
+        },
+        {
+          "id": "b",
+          "text": "$1.5\\,\\mathrm{kWh}$",
+          "why": "This is time divided by power, which has units of hours per kilowatt."
+        },
+        {
+          "id": "c",
+          "text": "$6.0\\,\\mathrm{kWh}$"
+        },
+        {
+          "id": "d",
+          "text": "$6000\\,\\mathrm{kWh}$",
+          "why": "The heater's power is $2000\\,\\mathrm{W}$, and $2000\\,\\mathrm{W} \\times 3.0\\,\\mathrm{h} = 6000\\,\\mathrm{Wh}$, which is $6.0\\,\\mathrm{kWh}$. The kilo was counted twice."
+        }
+      ],
+      "answer": "c",
+      "explanation": "Energy is power times time: $E = Pt = 2.0\\,\\mathrm{kW} \\times 3.0\\,\\mathrm{h} = 6.0\\,\\mathrm{kWh}$. In SI units that is $2000\\,\\mathrm{W} \\times 10\\,800\\,\\mathrm{s} = 21.6\\,\\mathrm{MJ}$; the kilowatt-hour is simply a more convenient unit for household bills.",
+      "tags": ["power-and-energy"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "terminal-voltage",
+      "prompt": "A battery has an emf of $9.0\\,\\mathrm{V}$ and an internal resistance of $1.0\\,\\Omega$. It is connected to an $8.0\\,\\Omega$ resistor. What is the voltage across the battery's terminals?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$9.0\\,\\mathrm{V}$",
+          "why": "That would be true with no current flowing, or with no internal resistance. Here a current flows, and some voltage is lost inside the battery."
+        },
+        {
+          "id": "b",
+          "text": "$8.0\\,\\mathrm{V}$"
+        },
+        {
+          "id": "c",
+          "text": "$1.0\\,\\mathrm{V}$",
+          "why": "That is the voltage **lost** across the internal resistance, $Ir$, not what is left at the terminals."
+        },
+        {
+          "id": "d",
+          "text": "$10\\,\\mathrm{V}$",
+          "why": "The internal voltage drop was added to the emf instead of subtracted. A battery delivering current always shows **less** than its emf."
+        }
+      ],
+      "answer": "b",
+      "explanation": "The current is $I = \\varepsilon/(R + r) = 9.0/(8.0 + 1.0) = 1.0\\,\\mathrm{A}$. The terminal voltage is $V = \\varepsilon - Ir = 9.0 - 1.0 \\times 1.0 = 8.0\\,\\mathrm{V}$, which is also $IR = 1.0 \\times 8.0$, the voltage across the external resistor.",
+      "tags": ["emf"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "ammeter-connection",
+      "prompt": "How should an ammeter be connected to measure the current through a resistor?",
+      "options": [
+        {
+          "id": "a",
+          "text": "In series with the resistor"
+        },
+        {
+          "id": "b",
+          "text": "In parallel with the resistor",
+          "why": "That is how a **voltmeter** is connected. An ammeter has a very low resistance, so in parallel it would carry nearly all the current and short out the resistor."
+        },
+        {
+          "id": "c",
+          "text": "Directly across the battery's terminals",
+          "why": "An ammeter's resistance is tiny, so this is nearly a short circuit: a very large current flows, which can damage the meter and the battery."
+        },
+        {
+          "id": "d",
+          "text": "Either way; it makes no difference",
+          "why": "The two connections measure different things, and one of them nearly short-circuits the resistor."
+        }
+      ],
+      "answer": "a",
+      "explanation": "An ammeter measures the current flowing **through** it, so the current being measured must pass through the meter: it goes in series. It is built with a very small resistance so that inserting it barely changes that current.",
+      "tags": ["ohms-law"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "parallel-voltage",
+      "prompt": "Two resistors, $10\\,\\Omega$ and $20\\,\\Omega$, are connected in parallel across an ideal $6.0\\,\\mathrm{V}$ battery. What is the voltage across the $20\\,\\Omega$ resistor?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$4.0\\,\\mathrm{V}$",
+          "why": "This splits the voltage in proportion to resistance, which is what happens in **series**. In parallel each resistor is connected straight across the battery."
+        },
+        {
+          "id": "b",
+          "text": "$2.0\\,\\mathrm{V}$",
+          "why": "This is the series share of the $10\\,\\Omega$ resistor. In parallel there is no sharing of voltage."
+        },
+        {
+          "id": "c",
+          "text": "$3.0\\,\\mathrm{V}$",
+          "why": "Halving the voltage between two branches confuses voltage with current. It is the **current** that divides in parallel."
+        },
+        {
+          "id": "d",
+          "text": "$6.0\\,\\mathrm{V}$"
+        }
+      ],
+      "answer": "d",
+      "explanation": "Each parallel branch connects directly across the battery, so each has the full $6.0\\,\\mathrm{V}$ across it. The **currents** differ: $6.0/10 = 0.60\\,\\mathrm{A}$ and $6.0/20 = 0.30\\,\\mathrm{A}$.",
+      "tags": ["series-and-parallel"],
+      "difficulty": "medium"
+    }
+  ]
+}

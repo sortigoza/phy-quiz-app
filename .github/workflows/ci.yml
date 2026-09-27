@@ -34,5 +34,8 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Validate the example banks
+        run: pnpm validate-banks examples
+
       - name: Production build
         run: pnpm build

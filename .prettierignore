@@ -8,3 +8,7 @@ coverage
 
 # Encrypted private banks, written by `pnpm bank-crypto encrypt`. Ciphertext, not source.
 banks
+
+# YAML example banks keep every text in single quotes, the style the docs teach:
+# Prettier would switch some to double quotes, where a LaTeX backslash is an escape.
+examples/*.yaml
