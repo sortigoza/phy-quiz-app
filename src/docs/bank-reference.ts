@@ -10,6 +10,9 @@
  * ticket that alters the format or how banks load.
  */
 
+/** Where the app serves the bank JSON Schema, relative to itself. Stable: banks point at it. */
+export const BANK_SCHEMA_PATH = 'schema/bank-v1.schema.json';
+
 export type FieldDoc = {
   name: string;
   type: string;
@@ -23,7 +26,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: '$schema',
       type: 'string',
       required: false,
-      rules: 'Up to 500 characters. Ignored by the app.',
+      rules: `Up to 500 characters. The URL of the bank JSON Schema, which the app serves at ${BANK_SCHEMA_PATH}, so an editor checks the bank as you type. Ignored by the app.`,
     },
     { name: 'formatVersion', type: 'integer', required: true, rules: 'Must be 1.' },
     {
@@ -189,7 +192,7 @@ export const quizSteps: string[] = [
 
 /**
  * Private banks, from the participant's side. How a teacher publishes one is
- * the teacher guide's job (ticket 13); this says they exist and how to open one.
+ * in the teacher guide, `docs/bank-format.md`; this says they exist and how to open one.
  */
 export const privateBanks: string[] = [
   'A teacher can publish a private bank: an encrypted file that nobody can read without its bank link. The file itself shows nothing, not even its title.',

@@ -1,4 +1,5 @@
 import {
+  BANK_SCHEMA_PATH,
   bankRepositories,
   currentLimits,
   fieldReference,
@@ -57,6 +58,7 @@ function FieldTable({ caption, fields }: { caption: string; fields: FieldDoc[] }
 export function Help() {
   // Shown in full so it can be pasted into a chat with an assistant.
   const llmsUrl = new URL(LLMS_TXT_PATH, document.baseURI).href;
+  const schemaUrl = new URL(BANK_SCHEMA_PATH, document.baseURI).href;
 
   return (
     <section className="help" aria-labelledby="help-heading">
@@ -80,7 +82,7 @@ export function Help() {
         <a href={EXAMPLE_BANK_PATH} download="kinematics.json">
           Download the example bank
         </a>
-        , five questions on kinematics, then load it from the library.
+        , ten questions on kinematics, then load it from the library.
       </p>
 
       <h4>Private banks</h4>
@@ -142,6 +144,13 @@ export function Help() {
         check a file before sharing it, use <strong>Validate a bank</strong> on the library: it
         names every problem by the field it is in, including a backslash that went missing, and adds
         nothing to your library.
+      </p>
+      <p>
+        Writing in an editor such as VS Code? Point the bank at the app&apos;s{' '}
+        <a href={BANK_SCHEMA_PATH}>JSON Schema</a> and the editor completes field names and marks
+        mistakes as you type. Add this as the first field of a JSON bank:{' '}
+        <code>&quot;$schema&quot;: &quot;{schemaUrl}&quot;</code>. In a YAML bank, make the first
+        line <code># yaml-language-server: $schema={schemaUrl}</code>.
       </p>
 
       <h4>Maths and Markdown</h4>

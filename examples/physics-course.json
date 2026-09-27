@@ -3,5 +3,18 @@
   "title": "Physics Quiz examples",
   "description": "Every example bank that ships with Physics Quiz, loaded with one link.",
   "author": "Physics Quiz",
-  "banks": [{ "url": "kinematics.json" }, { "url": "advanced-quantum-mechanics.json" }]
+  "banks": [
+    {
+      "url": "kinematics.json"
+    },
+    {
+      "url": "dc-circuits.json"
+    },
+    {
+      "url": "energy-and-momentum.yaml"
+    },
+    {
+      "url": "advanced-quantum-mechanics.json"
+    }
+  ]
 }

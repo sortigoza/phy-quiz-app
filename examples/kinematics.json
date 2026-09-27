@@ -1,9 +1,10 @@
 {
+  "$schema": "https://sortigoza.github.io/phy-quiz-app/schema/bank-v1.schema.json",
   "formatVersion": 1,
   "id": "example.mechanics.kinematics",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Kinematics in one dimension",
-  "description": "Constant acceleration, free fall, and reading motion graphs. An example bank; see docs for how to write your own.",
+  "description": "Constant acceleration, free fall, displacement, and reading motion graphs. An example bank: see docs/bank-format.md for how to write your own.",
   "author": "Physics Quiz examples",
   "license": "CC-BY-4.0",
   "language": "en",
@@ -19,7 +20,10 @@
           "text": "$4.91\\,\\mathrm{m/s}$",
           "why": "This is $\\tfrac{1}{2}gt$, the **average** speed over the fall, not the speed at the end of it."
         },
-        { "id": "b", "text": "$9.81\\,\\mathrm{m/s}$" },
+        {
+          "id": "b",
+          "text": "$9.81\\,\\mathrm{m/s}$"
+        },
         {
           "id": "c",
           "text": "$19.6\\,\\mathrm{m/s}$",
@@ -45,7 +49,10 @@
           "text": "$2d$",
           "why": "Stopping distance is not proportional to speed. Look at which power of $v$ appears in $v^2 = 2ad$."
         },
-        { "id": "b", "text": "$4d$" },
+        {
+          "id": "b",
+          "text": "$4d$"
+        },
         {
           "id": "c",
           "text": "$d$",
@@ -71,7 +78,10 @@
           "text": "Acceleration",
           "why": "Acceleration is the **slope** of a velocity against time graph, not its area."
         },
-        { "id": "b", "text": "Displacement" },
+        {
+          "id": "b",
+          "text": "Displacement"
+        },
         {
           "id": "c",
           "text": "Average velocity",
@@ -102,7 +112,10 @@
           "text": "The fired ball",
           "why": "Moving horizontally gives no upward support, so it does not stay aloft any longer."
         },
-        { "id": "c", "text": "They land at the same time" },
+        {
+          "id": "c",
+          "text": "They land at the same time"
+        },
         {
           "id": "d",
           "text": "It depends on the horizontal speed",
@@ -123,7 +136,10 @@
           "text": "$15\\,\\mathrm{km/h}$",
           "why": "This averages the speeds, but more time is spent at the slower speed, so the true average is lower."
         },
-        { "id": "b", "text": "$13.3\\,\\mathrm{km/h}$" },
+        {
+          "id": "b",
+          "text": "$13.3\\,\\mathrm{km/h}$"
+        },
         {
           "id": "c",
           "text": "$0\\,\\mathrm{km/h}$",
@@ -139,6 +155,151 @@
       "explanation": "Average speed is total distance over total time, not the mean of the speeds. For equal distances it is the harmonic mean: $\\frac{2 v_1 v_2}{v_1 + v_2} = \\frac{2(10)(20)}{30} = 13.3\\,\\mathrm{km/h}$. The slower leg takes twice as long, so it dominates.",
       "tags": ["average-speed"],
       "difficulty": "hard"
+    },
+    {
+      "id": "braking-time",
+      "prompt": "A car travelling at $20\\,\\mathrm{m/s}$ brakes with a constant deceleration of $5.0\\,\\mathrm{m/s^2}$. How long does it take to stop?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$0.25\\,\\mathrm{s}$",
+          "why": "This is $a/v$, the ratio upside down. Its units are $\\mathrm{s^{-1}}$, not seconds, which gives it away."
+        },
+        {
+          "id": "b",
+          "text": "$4.0\\,\\mathrm{s}$"
+        },
+        {
+          "id": "c",
+          "text": "$40\\,\\mathrm{m}$",
+          "why": "That is the stopping **distance**, $v^2/2a$. The question asks for a time."
+        },
+        {
+          "id": "d",
+          "text": "$100\\,\\mathrm{s}$",
+          "why": "This multiplies speed by deceleration. The units come out as $\\mathrm{m^2/s^3}$, so it cannot be a time."
+        }
+      ],
+      "answer": "b",
+      "explanation": "From $v = u + at$ with final speed $v = 0$: $t = u/|a| = 20 / 5.0 = 4.0\\,\\mathrm{s}$. The speed falls by $5.0\\,\\mathrm{m/s}$ every second, and it has $20\\,\\mathrm{m/s}$ to lose.",
+      "tags": ["constant-acceleration"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "top-of-flight-acceleration",
+      "prompt": "A ball is thrown straight up. Ignoring air resistance, what is its acceleration at the highest point of its flight?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Zero",
+          "why": "The **velocity** is zero at the top, for an instant. The acceleration is not: if it were, the ball would stay up there."
+        },
+        {
+          "id": "b",
+          "text": "$9.81\\,\\mathrm{m/s^2}$, downwards"
+        },
+        {
+          "id": "c",
+          "text": "$9.81\\,\\mathrm{m/s^2}$, upwards",
+          "why": "Nothing pushes the ball up once it has left the hand. The only force on it is its weight, which points down."
+        },
+        {
+          "id": "d",
+          "text": "It depends on how hard the ball was thrown",
+          "why": "The throw sets the starting velocity, and so how high the ball goes. Gravity sets the acceleration, and that is the same throughout."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Once released, the only force on the ball is gravity, so its acceleration is $g = 9.81\\,\\mathrm{m/s^2}$ downwards the whole time: on the way up, at the top and on the way down. At the top the velocity is changing from upwards to downwards, which is exactly what a downward acceleration does.",
+      "tags": ["free-fall"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "position-time-slope",
+      "prompt": "On a graph of position against time, what does the gradient (slope) of the line represent?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Velocity"
+        },
+        {
+          "id": "b",
+          "text": "Acceleration",
+          "why": "Acceleration is the gradient of a **velocity**–time graph. On a position–time graph it shows up as curvature, not slope."
+        },
+        {
+          "id": "c",
+          "text": "Distance travelled",
+          "why": "The vertical axis shows position. Distance travelled comes from how far that position changes, not from the slope."
+        },
+        {
+          "id": "d",
+          "text": "Displacement",
+          "why": "Displacement is a change in the vertical coordinate. The gradient is that change **divided by** the time taken."
+        }
+      ],
+      "answer": "a",
+      "explanation": "The gradient is $\\Delta x / \\Delta t$, change in position over change in time, which is the definition of velocity. A steeper line means a faster object, and a line sloping down means motion in the negative direction.",
+      "tags": ["graphs"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "distance-from-rest",
+      "prompt": "A car starts from rest and accelerates uniformly at $2.0\\,\\mathrm{m/s^2}$ for $5.0\\,\\mathrm{s}$. How far does it travel in that time?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$10\\,\\mathrm{m}$",
+          "why": "$at = 10$ is the car's final **speed**, in $\\mathrm{m/s}$, not a distance."
+        },
+        {
+          "id": "b",
+          "text": "$25\\,\\mathrm{m}$"
+        },
+        {
+          "id": "c",
+          "text": "$50\\,\\mathrm{m}$",
+          "why": "This is $at^2$, missing the factor of one half. The car only reaches $10\\,\\mathrm{m/s}$ at the very end, so it covers less than $10 \\times 5.0$."
+        },
+        {
+          "id": "d",
+          "text": "$5.0\\,\\mathrm{m}$",
+          "why": "This is $\\tfrac{1}{2}at$: the time has to be squared."
+        }
+      ],
+      "answer": "b",
+      "explanation": "From rest, $s = \\tfrac{1}{2}at^2 = \\tfrac{1}{2} \\times 2.0 \\times 5.0^2 = 25\\,\\mathrm{m}$. As a check, the speed rises steadily from 0 to $10\\,\\mathrm{m/s}$, so the average speed is $5.0\\,\\mathrm{m/s}$, and $5.0\\,\\mathrm{m/s} \\times 5.0\\,\\mathrm{s} = 25\\,\\mathrm{m}$.",
+      "tags": ["constant-acceleration"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "lap-average-velocity",
+      "prompt": "A runner completes exactly one lap of a $400\\,\\mathrm{m}$ track in $80\\,\\mathrm{s}$, finishing where they started. What is their average **velocity** over the lap?",
+      "options": [
+        {
+          "id": "a",
+          "text": "$5.0\\,\\mathrm{m/s}$",
+          "why": "That is the average **speed**: distance over time. Velocity uses displacement, and the runner ends where they began."
+        },
+        {
+          "id": "b",
+          "text": "$0\\,\\mathrm{m/s}$"
+        },
+        {
+          "id": "c",
+          "text": "$400\\,\\mathrm{m}$",
+          "why": "That is the distance run, and it has units of length, not of velocity."
+        },
+        {
+          "id": "d",
+          "text": "$0.20\\,\\mathrm{m/s}$",
+          "why": "This is time over distance, upside down: its units are $\\mathrm{s/m}$."
+        }
+      ],
+      "answer": "b",
+      "explanation": "Average velocity is displacement divided by time. After one full lap the displacement is zero, so the average velocity is $0/80 = 0\\,\\mathrm{m/s}$, even though the average speed was $400/80 = 5.0\\,\\mathrm{m/s}$.",
+      "tags": ["average-speed", "displacement"],
+      "difficulty": "medium"
     }
   ]
 }
