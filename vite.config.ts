@@ -1,13 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json' with { type: 'json' };
+import { BANK_SCHEMA_PATH, bankJsonSchema } from './src/docs/bank-json-schema';
 import { renderLlmsTxt } from './src/docs/llms';
 
 /**
  * Files served beside the app at stable paths, so they can be linked to:
- * `llms.txt` for AI agents, and the example banks and repository the docs link to.
+ * `llms.txt` for AI agents, the bank JSON Schema for editors, and every file in
+ * `examples/`, which the docs link to.
  * Emitted into the build and served by the dev server from the same map.
  */
 function publishedFiles(): Plugin {
@@ -16,11 +18,17 @@ function publishedFiles(): Plugin {
       type: 'text/plain; charset=utf-8',
       read: () => renderLlmsTxt(pkg.version),
     },
+    [BANK_SCHEMA_PATH]: {
+      type: 'application/schema+json; charset=utf-8',
+      read: () => `${JSON.stringify(bankJsonSchema(), null, 2)}\n`,
+    },
     ...Object.fromEntries(
-      ['kinematics.json', 'advanced-quantum-mechanics.json', 'physics-course.json'].map((name) => [
+      readdirSync(new URL('./examples/', import.meta.url)).map((name) => [
         `examples/${name}`,
         {
-          type: 'application/json; charset=utf-8',
+          type: name.endsWith('.json')
+            ? 'application/json; charset=utf-8'
+            : 'application/yaml; charset=utf-8',
           read: () => readFileSync(new URL(`./examples/${name}`, import.meta.url), 'utf8'),
         },
       ]),

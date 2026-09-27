@@ -1,0 +1,215 @@
+# yaml-language-server: $schema=https://sortigoza.github.io/phy-quiz-app/schema/bank-v1.schema.json
+#
+# An example bank written in YAML. Text in single quotes needs no escaping, so
+# LaTeX is written exactly as in a LaTeX document: '$\frac{1}{2}mv^2$'.
+# A single quote inside such text is written twice: 'the ball''s speed'.
+
+formatVersion: 1
+id: example.mechanics.energy-and-momentum
+version: 1.0.0
+title: Energy and momentum
+description: >-
+  Kinetic and potential energy, work, power, and the conservation of momentum
+  in collisions. An example bank written in YAML: see docs/bank-format.md for
+  how to write your own.
+author: Physics Quiz examples
+license: CC-BY-4.0
+language: en
+tags: [mechanics, energy, momentum]
+defaultQuestionCount: 5
+
+questions:
+  - id: kinetic-energy-double-speed
+    prompt: 'A trolley''s speed doubles. By what factor does its kinetic energy change?'
+    options:
+      - id: a
+        text: '2'
+        why: 'Kinetic energy is not proportional to speed but to its **square**, $\tfrac{1}{2}mv^2$.'
+      - id: b
+        text: '4'
+      - id: c
+        text: '$\sqrt{2}$'
+        why: 'This inverts the relationship: doubling the **energy** multiplies the speed by $\sqrt{2}$.'
+      - id: d
+        text: '8'
+        why: 'That would need kinetic energy to depend on $v^3$. It depends on $v^2$.'
+    answer: b
+    explanation: 'Kinetic energy is $\tfrac{1}{2}mv^2$. Replacing $v$ with $2v$ gives $\tfrac{1}{2}m(2v)^2 = 4 \times \tfrac{1}{2}mv^2$: four times the energy. This is why stopping distances grow so quickly with speed.'
+    tags: [energy]
+    difficulty: easy
+
+  - id: car-kinetic-energy
+    prompt: 'What is the kinetic energy of a $1000\,\mathrm{kg}$ car travelling at $20\,\mathrm{m/s}$?'
+    options:
+      - id: a
+        text: '$200\,\mathrm{kJ}$'
+      - id: b
+        text: '$400\,\mathrm{kJ}$'
+        why: 'This is $mv^2$, missing the factor of one half.'
+      - id: c
+        text: '$20\,\mathrm{kJ}$'
+        why: 'The number $mv = 20\,000$ is the car''s **momentum**, in $\mathrm{kg\,m/s}$, not an energy.'
+      - id: d
+        text: '$10\,\mathrm{kJ}$'
+        why: 'This is $\tfrac{1}{2}mv$: the speed must be squared.'
+    answer: a
+    explanation: '$E_k = \tfrac{1}{2}mv^2 = \tfrac{1}{2} \times 1000 \times 20^2 = 200\,000\,\mathrm{J} = 200\,\mathrm{kJ}$.'
+    tags: [energy]
+    difficulty: easy
+
+  - id: lifting-potential-energy
+    prompt: 'A $2.0\,\mathrm{kg}$ box is lifted $3.0\,\mathrm{m}$ onto a shelf. Taking $g = 9.81\,\mathrm{m/s^2}$, by how much does its gravitational potential energy increase?'
+    options:
+      - id: a
+        text: '$6.0\,\mathrm{J}$'
+        why: 'This is $mh$, without $g$. Mass times height is not an energy: the units are $\mathrm{kg\,m}$.'
+      - id: b
+        text: '$19.6\,\mathrm{N}$'
+        why: 'That is the box''s **weight**, $mg$, a force. The energy also depends on how far it is lifted.'
+      - id: c
+        text: '$29.4\,\mathrm{J}$'
+        why: 'This halves $mgh$. The factor of one half belongs in kinetic energy, $\tfrac{1}{2}mv^2$, not in potential energy.'
+      - id: d
+        text: '$58.9\,\mathrm{J}$'
+    answer: d
+    explanation: 'Near the Earth''s surface $\Delta E_p = mgh = 2.0 \times 9.81 \times 3.0 = 58.9\,\mathrm{J}$. It equals the work done lifting the box at constant speed: a force equal to its weight, $19.6\,\mathrm{N}$, over $3.0\,\mathrm{m}$.'
+    tags: [energy]
+    difficulty: easy
+
+  - id: speed-after-drop
+    prompt: 'A stone is dropped from rest from a height of $5.0\,\mathrm{m}$. Ignoring air resistance and taking $g = 9.81\,\mathrm{m/s^2}$, how fast is it moving just before it hits the ground?'
+    options:
+      - id: a
+        text: '$9.9\,\mathrm{m/s}$'
+      - id: b
+        text: '$98\,\mathrm{m/s}$'
+        why: 'This is $2gh$, which is $v^2$. Take the square root to get the speed.'
+      - id: c
+        text: '$49\,\mathrm{m/s}$'
+        why: 'This is $gh$: the factor of two is missing, and so is the square root.'
+      - id: d
+        text: '$7.0\,\mathrm{m/s}$'
+        why: 'This is $\sqrt{gh}$. Setting $mgh = \tfrac{1}{2}mv^2$ leaves a factor of 2 under the root.'
+    answer: a
+    explanation: |-
+      All the potential energy lost becomes kinetic energy: $mgh = \tfrac{1}{2}mv^2$. The mass cancels, so
+
+      $$v = \sqrt{2gh} = \sqrt{2 \times 9.81 \times 5.0} = 9.9\,\mathrm{m/s}$$
+
+      The same result comes from the kinematic equation $v^2 = u^2 + 2as$.
+    tags: [energy]
+    difficulty: medium
+
+  - id: work-carrying-horizontally
+    prompt: 'You carry a box across a level room at constant velocity, holding it up with a vertical force. How much work does that vertical force do on the box?'
+    options:
+      - id: a
+        text: 'None'
+      - id: b
+        text: 'Its weight times the distance walked'
+        why: 'Work counts only the part of the displacement along the force. The force is vertical and the box moves horizontally.'
+      - id: c
+        text: 'A positive amount, because your arms get tired'
+        why: 'Your muscles use energy to keep a force up, even with nothing moving. That is chemistry in your body, not work done on the box.'
+      - id: d
+        text: 'A negative amount, because the force opposes gravity'
+        why: 'Work is negative when a force points **against** the motion. This force is at right angles to the motion.'
+    answer: a
+    explanation: 'Work is $W = Fd\cos\theta$, where $\theta$ is the angle between the force and the displacement. Here $\theta = 90^\circ$, so $W = 0$. A check: the box ends at the same height and the same speed, so neither its potential nor its kinetic energy has changed.'
+    tags: [work-and-power]
+    difficulty: medium
+
+  - id: stair-climbing-power
+    prompt: 'A $60\,\mathrm{kg}$ student runs up a staircase with a vertical height of $4.0\,\mathrm{m}$ in $8.0\,\mathrm{s}$. Taking $g = 9.81\,\mathrm{m/s^2}$, what is their average power output against gravity?'
+    options:
+      - id: a
+        text: '$294\,\mathrm{W}$'
+      - id: b
+        text: '$2.35\,\mathrm{kJ}$'
+        why: 'That is the energy gained, $mgh$. Power is how fast that energy is delivered: divide by the time.'
+      - id: c
+        text: '$30\,\mathrm{W}$'
+        why: 'This is $mh/t$, leaving out $g$. Mass times height is not an energy.'
+      - id: d
+        text: '$18.8\,\mathrm{kW}$'
+        why: 'This multiplies the energy by the time instead of dividing, which gives joule-seconds, not watts.'
+    answer: a
+    explanation: 'The energy gained is $mgh = 60 \times 9.81 \times 4.0 = 2354\,\mathrm{J}$. Power is energy per unit time: $P = 2354 / 8.0 = 294\,\mathrm{W}$.'
+    tags: [work-and-power]
+    difficulty: medium
+
+  - id: sticking-collision-speed
+    prompt: 'A $2.0\,\mathrm{kg}$ trolley moving at $3.0\,\mathrm{m/s}$ collides with a stationary $1.0\,\mathrm{kg}$ trolley, and the two stick together. What is their speed just after the collision?'
+    options:
+      - id: a
+        text: '$3.0\,\mathrm{m/s}$'
+        why: 'The moving trolley has to share its momentum with the second one, so together they must move more slowly.'
+      - id: b
+        text: '$1.5\,\mathrm{m/s}$'
+        why: 'This halves the speed as if the two trolleys had equal mass. Weight the momentum by the actual masses.'
+      - id: c
+        text: '$2.0\,\mathrm{m/s}$'
+      - id: d
+        text: '$2.4\,\mathrm{m/s}$'
+        why: 'This assumes kinetic energy is conserved. In a collision where the objects stick together it is not: only momentum is.'
+    answer: c
+    explanation: 'Momentum is conserved: $m_1u_1 = (m_1 + m_2)v$, so $v = (2.0 \times 3.0)/(2.0 + 1.0) = 6.0/3.0 = 2.0\,\mathrm{m/s}$.'
+    tags: [momentum]
+    difficulty: medium
+
+  - id: sticking-collision-energy-lost
+    prompt: 'A $2.0\,\mathrm{kg}$ trolley moving at $3.0\,\mathrm{m/s}$ collides with a stationary $1.0\,\mathrm{kg}$ trolley, and they move off together at $2.0\,\mathrm{m/s}$. How much kinetic energy is transferred to other forms in the collision?'
+    options:
+      - id: a
+        text: 'None, because momentum is conserved'
+        why: 'Momentum is conserved in every collision. Kinetic energy is conserved only in elastic ones, and trolleys that stick together are the least elastic kind.'
+      - id: b
+        text: '$3.0\,\mathrm{J}$'
+      - id: c
+        text: '$6.0\,\mathrm{J}$'
+        why: 'That is the kinetic energy **after** the collision, not the amount lost.'
+      - id: d
+        text: '$9.0\,\mathrm{J}$'
+        why: 'That is all the kinetic energy before the collision. The trolleys are still moving afterwards, so not all of it is lost.'
+    answer: b
+    explanation: 'Before: $\tfrac{1}{2} \times 2.0 \times 3.0^2 = 9.0\,\mathrm{J}$. After: $\tfrac{1}{2} \times 3.0 \times 2.0^2 = 6.0\,\mathrm{J}$. So $3.0\,\mathrm{J}$ goes into heat, sound and deforming the coupling.'
+    tags: [momentum, energy]
+    difficulty: hard
+
+  - id: rebound-impulse
+    prompt: 'A $0.15\,\mathrm{kg}$ ball hits a wall at $20\,\mathrm{m/s}$ and bounces straight back at $20\,\mathrm{m/s}$. What is the magnitude of the impulse the wall gives the ball?'
+    options:
+      - id: a
+        text: 'Zero'
+        why: 'The **speed** is unchanged, but the velocity has reversed. Momentum is a vector, so it has changed by a lot.'
+      - id: b
+        text: '$3.0\,\mathrm{N\,s}$'
+        why: 'This is the momentum before the bounce. The wall has to remove that momentum **and** supply the same amount in the opposite direction.'
+      - id: c
+        text: '$6.0\,\mathrm{N\,s}$'
+      - id: d
+        text: '$30\,\mathrm{J}$'
+        why: 'That is the ball''s kinetic energy, $\tfrac{1}{2}mv^2$. Impulse is a change of momentum, measured in newton-seconds.'
+    answer: c
+    explanation: 'Impulse equals the change in momentum. Taking the rebound direction as positive, $\Delta p = m v - m u = 0.15 \times 20 - 0.15 \times (-20) = 6.0\,\mathrm{N\,s}$.'
+    tags: [momentum]
+    difficulty: hard
+
+  - id: spring-stored-energy
+    prompt: 'A spring with spring constant $200\,\mathrm{N/m}$ is compressed by $0.10\,\mathrm{m}$. How much elastic potential energy does it store?'
+    options:
+      - id: a
+        text: '$1.0\,\mathrm{J}$'
+      - id: b
+        text: '$2.0\,\mathrm{J}$'
+        why: 'This is $kx^2$, missing the factor of one half.'
+      - id: c
+        text: '$10\,\mathrm{J}$'
+        why: 'This is $\tfrac{1}{2}kx$: the compression must be squared.'
+      - id: d
+        text: '$20\,\mathrm{N}$'
+        why: 'That is the **force** needed to hold the spring compressed, $kx$, not the energy stored in it.'
+    answer: a
+    explanation: 'The force grows steadily from $0$ to $kx$ as the spring is compressed, so the work done is the average force times the distance: $E = \tfrac{1}{2}kx^2 = \tfrac{1}{2} \times 200 \times 0.10^2 = 1.0\,\mathrm{J}$.'
+    tags: [energy]
+    difficulty: easy

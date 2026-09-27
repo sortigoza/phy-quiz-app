@@ -44,8 +44,9 @@ When asked to write a question bank, output one JSON document that follows the r
 ## Links
 
 - [The app](./): load a bank with "Upload a bank file" or "Load from URL", then press Start. Publishing a bank in a public GitHub repository and loading its file link is the easiest way to share one.
-- [Example bank](./examples/kinematics.json): a complete five-question bank on one-dimensional kinematics
+- [Example bank](./examples/kinematics.json): a complete ten-question bank on one-dimensional kinematics
 - [Example bank repository](./examples/physics-course.json): one file listing every example bank, loaded with one link
+- [Bank JSON Schema](./schema/bank-v1.schema.json): point a bank's \`$schema\` at this URL and an editor such as VS Code checks the bank as it is written
 
 ## Vocabulary
 
