@@ -6,6 +6,7 @@ import type { Selection } from '../domain/selection';
 import type { Attempt } from '../domain/attempt';
 import { attemptRecord } from '../test/attempts';
 import { reviewMarkdown } from '../domain/review-markdown';
+import { encouragement } from '../domain/encouragement';
 import { Review } from './Review';
 
 /**
@@ -126,5 +127,18 @@ describe('copying the review as Markdown', () => {
     const text = await screen.findByRole('textbox', { name: /review as markdown/i });
     expect(text).toHaveValue(reviewMarkdown(attempt, review));
     expect(text).toHaveAttribute('readonly');
+  });
+});
+
+describe('the score at the top of the review', () => {
+  it('opens with a score ring and the line of encouragement for the score band', () => {
+    const attempt = attemptRecord();
+    render(
+      <Review attempt={attempt} review={{ edition: 'none' }} backTo="library" onDone={() => {}} />,
+    );
+
+    // 1 of 2 correct: the 50 to 79 band.
+    expect(screen.getByRole('img', { name: 'Score: 50%' })).toBeInTheDocument();
+    expect(screen.getByText(encouragement(50))).toBeInTheDocument();
   });
 });
