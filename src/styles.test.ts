@@ -53,20 +53,31 @@ describe('contrast', () => {
 });
 
 describe('the palette', () => {
-  const backgrounds = {
-    bg: token('bg'),
-    surface: token('surface'),
-    // The glow on the horizon, where the page background is at its lightest.
-    horizon: over(token('horizon'), token('bg')),
-  };
-
+  const bg = token('bg');
+  // The glow on the horizon, where the page background is at its lightest.
+  const horizon = over(token('horizon'), bg);
+  // A line of the horizon grid over that glow.
+  const grid = over(token('grid'), horizon);
   const texts = ['text', 'text-muted', 'accent', 'link', 'correct', 'wrong', 'unanswered'];
-  for (const [backgroundName, background] of Object.entries(backgrounds)) {
+
+  for (const [backgroundName, background] of Object.entries({
+    bg,
+    surface: token('surface'),
+    horizon,
+  })) {
     for (const name of texts) {
       it(`shows --${name} text on ${backgroundName} at 4.5:1 or more`, () => {
         expect(contrast(token(name), background)).toBeGreaterThanOrEqual(4.5);
       });
     }
+  }
+
+  // Pink and red text would not hold 4.5:1 across a pink grid line, so they are
+  // only ever set on a card or panel, or on the title at the top, which the grid fades out before.
+  for (const name of ['text', 'text-muted', 'link', 'correct']) {
+    it(`shows --${name} text, which may sit on the bare page, on the horizon grid at 4.5:1 or more`, () => {
+      expect(contrast(token(name), grid)).toBeGreaterThanOrEqual(4.5);
+    });
   }
 
   it.each([
@@ -89,6 +100,8 @@ describe('the palette', () => {
     ['focus', 'bg'],
     ['focus', 'surface'],
     ['focus', 'danger-bg'],
+    // The checked choice's border and the score ring's arc.
+    ['accent', 'surface'],
   ])('draws --%s against --%s at 3:1 or more', (line, background) => {
     expect(contrast(token(line), token(background))).toBeGreaterThanOrEqual(3);
   });

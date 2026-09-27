@@ -47,6 +47,8 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             className="button"
+            // The focus was on something the failed screen no longer has; this is the one way on.
+            autoFocus
             onClick={() => {
               this.setState({ error: null });
               this.props.onBackToLibrary();

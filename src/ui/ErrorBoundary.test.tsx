@@ -36,6 +36,8 @@ describe('an unexpected failure on a screen', () => {
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent(/something went wrong/i);
     expect(alert).toHaveTextContent('Something deep went wrong');
+    // The control the focus was on is gone; it moves to the one way on.
+    expect(screen.getByRole('button', { name: /back to library/i })).toHaveFocus();
 
     await userEvent.setup().click(screen.getByRole('button', { name: /back to library/i }));
     expect(screen.getByText('The library')).toBeInTheDocument();
