@@ -151,7 +151,7 @@ Per bank. Sort by percentage descending, then shorter duration, then earlier sub
 
 ## Phase 8: Presentation and accessibility
 
-- Plain CSS with custom properties; light and dark palettes from `prefers-color-scheme`.
+- Plain CSS with custom properties; one dark palette, no light theme and no toggle.
 - Mobile-first single column near 640px, 44px touch targets, AA contrast, visible focus rings.
 - Score ring animation respecting `prefers-reduced-motion`; one encouraging line per score band.
 - Keyboard pass over every screen; screen reader pass over the attempt flow.
