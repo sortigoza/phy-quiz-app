@@ -7,7 +7,9 @@
  * Dark only, on purpose: there is no light theme and no toggle. Every text
  * colour holds WCAG AA contrast (4.5:1) on every background it sits on, and
  * every control border and the focus ring 3:1; styles.test.ts checks the
- * tokens. The focus ring is cyan, so it never reads as the pink of a choice.
+ * tokens. Pink and red text goes on a card or panel, never on the bare page,
+ * where a line of the horizon grid would take it below AA. The focus ring is
+ * cyan, so it never reads as the pink of a choice.
  */
 
 :root {
@@ -27,6 +29,7 @@
   --unanswered: #ffb000;
   --focus: #00e5ff;
   --horizon: rgb(138 69 192 / 35%);
+  --grid: rgb(255 43 214 / 30%);
   --glow: 0 0 8px rgb(255 43 214 / 55%);
   --text-glow: 0 0 6px rgb(57 255 106 / 50%);
   --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -94,8 +97,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgb(255 43 214 / 30%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 43 214 / 30%) 1px, transparent 1px);
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 48px 48px;
   transform: perspective(300px) rotateX(60deg);
   transform-origin: bottom;
@@ -132,8 +135,11 @@ body::before {
   outline-offset: 2px;
 }
 
-/* Headings take the focus when their screen opens (App.tsx), for screen readers. No ring. */
-h2[tabindex='-1']:focus {
+/*
+ * Headings take the focus when their screen opens, and the main content when the
+ * skip link is followed (App.tsx). They are not controls, so no ring.
+ */
+[tabindex='-1']:focus {
   outline: none;
 }
 
@@ -706,7 +712,7 @@ fieldset {
   stroke: var(--accent);
   stroke-dasharray: 100;
   stroke-dashoffset: calc(100 - var(--score));
-  filter: drop-shadow(0 0 4px rgb(255 43 214 / 60%));
+  filter: drop-shadow(var(--glow));
   animation: score-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -778,11 +784,7 @@ fieldset {
   min-width: 44px;
 }
 
-/* The question a confident-error link jumps to, clear of the top edge and marked. */
-.reviewed {
-  scroll-margin-top: 1rem;
-}
-
+/* The question a confident-error link jumps to, marked. */
 .reviewed:target {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -804,6 +806,8 @@ fieldset {
 
 .reviewed {
   border-left-width: 4px;
+  /* Clear of the top edge when a confident-error link jumps to it. */
+  scroll-margin-top: 1rem;
 }
 
 .reviewed--correct {

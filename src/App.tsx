@@ -173,6 +173,7 @@ export function App({
  * in an attempt, so a screen reader announces where the participant now is and
  * the next Tab reaches what follows the heading. Otherwise the focus would be
  * left on a button the new screen no longer has. Opening the app moves nothing.
+ * Each screen's title is the first `h2` in `<main>`.
  */
 function useFocusOnArrival(state: AppState, main: RefObject<HTMLElement | null>): void {
   const place = state.screen === 'attempt' ? `attempt:${state.index}` : state.screen;

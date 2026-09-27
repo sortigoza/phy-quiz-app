@@ -139,6 +139,6 @@ describe('the score at the top of the review', () => {
 
     // 1 of 2 correct: the 50 to 79 band.
     expect(screen.getByRole('img', { name: 'Score: 50%' })).toBeInTheDocument();
-    expect(screen.getByText(encouragement(50))).toBeInTheDocument();
+    expect(screen.getByText(encouragement(1, 2))).toBeInTheDocument();
   });
 });

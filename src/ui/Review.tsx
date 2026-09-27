@@ -81,7 +81,9 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
       <div className="card review__score">
         <div className="review__headline">
           <ScoreRing percent={score} />
-          <p className="review__encouragement">{encouragement(score)}</p>
+          <p className="review__encouragement">
+            {encouragement(attempt.correctCount, attempt.questionCount)}
+          </p>
         </div>
         <p className="review__details">
           <span className="review__name">{attempt.name}</span>
