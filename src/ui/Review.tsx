@@ -6,6 +6,7 @@ import {
   confidenceRecorded,
   confidentErrorPositions,
 } from '../domain/confidence';
+import { encouragement } from '../domain/encouragement';
 import type { AttemptReview, ReviewedQuestion } from '../domain/review';
 import { reviewMarkdown } from '../domain/review-markdown';
 import { outcome, outcomeLabel, percentage } from '../domain/scoring';
@@ -21,6 +22,7 @@ import type { ReviewBack } from '../app/state';
 import { BankText } from './BankText';
 import { UnverifiedBadge } from './UnverifiedBadge';
 import { ResponseText } from './ResponseText';
+import { ScoreRing } from './ScoreRing';
 
 /**
  * The review: where all the teaching happens.
@@ -42,6 +44,8 @@ import { ResponseText } from './ResponseText';
  * explanation and asks whether it matched. The participant may answer that on
  * a local attempt at any time, from any review (ADR 0004); an imported
  * attempt shows its self-grades read-only.
+ *
+ * It opens with the score as a ring and one line of encouragement for its band.
  *
  * Copy as Markdown puts the whole review on the clipboard, question text
  * included, for a note or an AI assistant that does not have the bank.
@@ -68,35 +72,43 @@ export function Review({ attempt, review, backTo, onDone, onSelfGrade }: Props) 
   const errorPositions = confidentErrorPositions(attempt.answers);
   // Without the bank there are no question cards to link to.
   const linkable = review.edition !== 'none';
+  const score = percentage(attempt.correctCount, attempt.questionCount);
 
   return (
     <section className="review">
       <h2>Review</h2>
 
-      <p className="card review__score">
-        <span className="review__name">{attempt.name}</span>
-        <span className="review__tally">
-          {attempt.correctCount} of {attempt.questionCount} correct (
-          {percentage(attempt.correctCount, attempt.questionCount)}%)
-          {attempt.origin === 'imported' && (
-            <>
-              {' '}
-              <UnverifiedBadge />
-            </>
-          )}
-        </span>
-        <span className="review__code" title="Attempt code">
-          {attempt.code}
-        </span>
-        <span className="review__calibration">
-          {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
-        </span>
-        {reportsSelfGrades(attempt) && (
-          <span className="review__self-grades">
-            Self-grade: {selfGradeCounts(attempt, review)}
+      <div className="card review__score">
+        <div className="review__headline">
+          <ScoreRing percent={score} />
+          <p className="review__encouragement">{encouragement(score)}</p>
+        </div>
+        <p className="review__details">
+          <span className="review__name">{attempt.name}</span>
+          <span className="review__tally">
+            {attempt.correctCount} of {attempt.questionCount} correct ({score}%)
+            {attempt.origin === 'imported' && (
+              <>
+                {' '}
+                <UnverifiedBadge />
+              </>
+            )}
           </span>
-        )}
-      </p>
+          {/* The title is for the pointer; the hidden label is for screen readers. */}
+          <span className="visually-hidden">Attempt code </span>
+          <span className="review__code" title="Attempt code">
+            {attempt.code}
+          </span>
+          <span className="review__calibration">
+            {withConfidence ? calibrationLine(attempt.answers) : 'Confidence not recorded'}
+          </span>
+          {reportsSelfGrades(attempt) && (
+            <span className="review__self-grades">
+              Self-grade: {selfGradeCounts(attempt, review)}
+            </span>
+          )}
+        </p>
+      </div>
 
       {withConfidence && (
         <section className="card confident-errors" aria-labelledby="confident-errors-heading">

@@ -2,8 +2,12 @@
  * Retro terminal meets synthwave: phosphor green text on near-black, neon
  * pink and cyan accents, a glow, and a faint perspective grid on the horizon.
  * One monospace font and square corners. Everything is driven by the tokens
- * below, so the screens' markup knows nothing about the theme. The full
- * presentation pass is ticket 12.
+ * below, so the screens' markup knows nothing about the theme.
+ *
+ * Dark only, on purpose: there is no light theme and no toggle. Every text
+ * colour holds WCAG AA contrast (4.5:1) on every background it sits on, and
+ * every control border and the focus ring 3:1; styles.test.ts checks the
+ * tokens. The focus ring is cyan, so it never reads as the pink of a choice.
  */
 
 :root {
@@ -21,6 +25,8 @@
   --correct-bg: #0b2413;
   --wrong: #ff5f56;
   --unanswered: #ffb000;
+  --focus: #00e5ff;
+  --horizon: rgb(138 69 192 / 35%);
   --glow: 0 0 8px rgb(255 43 214 / 55%);
   --text-glow: 0 0 6px rgb(57 255 106 / 50%);
   --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -38,7 +44,7 @@
 body {
   margin: 0;
   background:
-    radial-gradient(ellipse 80% 45% at 50% 100%, rgb(138 69 192 / 35%), transparent 70%), var(--bg);
+    radial-gradient(ellipse 80% 45% at 50% 100%, var(--horizon), transparent 70%), var(--bg);
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--mono);
@@ -59,6 +65,7 @@ body {
 
 .app__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -119,6 +126,51 @@ body::before {
   }
 }
 
+/* One focus ring for every control, shown for the keyboard rather than the pointer. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Headings take the focus when their screen opens (App.tsx), for screen readers. No ring. */
+h2[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* Bypasses the header's buttons for the keyboard. Shown only while it has the focus. */
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--focus);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/*
+ * Reduced motion: the cursor stops blinking, the score ring appears already
+ * drawn, and anything else that moves is stilled.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-text);
@@ -157,7 +209,7 @@ a {
   font-size: 0.875rem;
 }
 
-/* Buttons, panels and the library list. Ticket 12 does the full design pass. */
+/* Buttons, panels and the library list. Every control is at least 44px tall, for a finger. */
 
 .button {
   display: inline-block;
@@ -214,7 +266,7 @@ a {
 
 /* The file input is hidden but still focusable, so its label shows the focus. */
 .library__upload:focus-within .button {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -416,6 +468,13 @@ a {
   font: inherit;
 }
 
+/* Below 16px, iOS Safari zooms the page in on focusing a field and leaves it zoomed. */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em) !important;
+}
+
 .field label,
 .field legend {
   font-weight: 600;
@@ -461,7 +520,7 @@ fieldset {
 }
 
 .radio-card:has(input:focus-visible) {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -470,6 +529,8 @@ fieldset {
 .attempt__progress {
   color: var(--text-muted);
   font-size: 0.875rem;
+  font-weight: 500;
+  text-shadow: none;
   margin: 0 0 0.5rem;
 }
 
@@ -601,11 +662,69 @@ fieldset {
 
 /* Review */
 
-.review__score {
+.review__headline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.review__encouragement {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  text-shadow: var(--text-glow);
+}
+
+.review__details {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+/* The score ring: a track, and an arc drawn to the score from twelve o'clock. */
+.score-ring {
+  flex: none;
+  width: 6.5rem;
+  height: 6.5rem;
+  transform: rotate(-90deg);
+}
+
+.score-ring circle {
+  fill: none;
+  stroke-width: 10;
+}
+
+.score-ring__track {
+  stroke: var(--border);
+  opacity: 0.45;
+}
+
+.score-ring__fill {
+  stroke: var(--accent);
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--score));
+  filter: drop-shadow(0 0 4px rgb(255 43 214 / 60%));
+  animation: score-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.score-ring__label {
+  fill: var(--text);
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transform: rotate(90deg);
+  transform-origin: 60px 60px;
+}
+
+@keyframes score-ring-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
 }
 
 .review__tally {
@@ -650,6 +769,23 @@ fieldset {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.confident-errors a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* The question a confident-error link jumps to, clear of the top edge and marked. */
+.reviewed {
+  scroll-margin-top: 1rem;
+}
+
+.reviewed:target {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .mark--confidence {
@@ -987,7 +1123,7 @@ fieldset {
 
 /* The file input is hidden but still focusable, so its label shows the focus. */
 .history__tools:has(input:focus-visible) label.button {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -1007,6 +1143,24 @@ fieldset {
 
 .history__report {
   margin: 0;
+}
+
+summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+summary::before {
+  content: '▸';
+  content: '▸' / '';
+  margin-right: 0.5rem;
+}
+
+details[open] > summary::before {
+  content: '▾';
+  content: '▾' / '';
 }
 
 .history__report + details {
