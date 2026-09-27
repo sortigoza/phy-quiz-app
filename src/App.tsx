@@ -1,8 +1,10 @@
 import {
+  type RefObject,
   useCallback,
   useEffect,
   useLayoutEffect,
   useReducer,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
@@ -54,11 +56,16 @@ export function App({
   useLeaveWarning(attemptInProgress);
   const unsaved = usePersistAttempt(state);
   const [musicOn, toggleMusic] = useMusicSetting();
+  const main = useRef<HTMLElement>(null);
+  useFocusOnArrival(state, main);
   useBackgroundMusic(music, state.screen === 'library' && musicOn === true);
   const { updateOffered, deferUpdate, installable } = usePwa(pwa, attemptInProgress);
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <header className="app__header">
         <h1>Physics Quiz</h1>
         <div className="app__nav">
@@ -138,7 +145,7 @@ export function App({
         </div>
       )}
 
-      <main className="app__main">
+      <main ref={main} id="main" tabIndex={-1} className="app__main">
         <ErrorBoundary
           screen={state.screen}
           onBackToLibrary={() => dispatch({ type: 'open-library' })}
@@ -159,6 +166,26 @@ export function App({
       </footer>
     </div>
   );
+}
+
+/**
+ * Moves the focus to the heading of each new screen, and of each new question
+ * in an attempt, so a screen reader announces where the participant now is and
+ * the next Tab reaches what follows the heading. Otherwise the focus would be
+ * left on a button the new screen no longer has. Opening the app moves nothing.
+ * Each screen's title is the first `h2` in `<main>`.
+ */
+function useFocusOnArrival(state: AppState, main: RefObject<HTMLElement | null>): void {
+  const place = state.screen === 'attempt' ? `attempt:${state.index}` : state.screen;
+  const arrived = useRef(place);
+  useEffect(() => {
+    if (arrived.current === place) return;
+    arrived.current = place;
+    const heading = main.current?.querySelector('h2');
+    if (!heading) return;
+    heading.tabIndex = -1;
+    heading.focus();
+  }, [place, main]);
 }
 
 /** True from Begin until Submit, including while Help is open over the attempt. */

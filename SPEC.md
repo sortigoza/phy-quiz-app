@@ -564,7 +564,7 @@ public/
 - Options are native radios in a fieldset. Arrow keys, space, focus order and screen reader semantics come from the platform.
 - Number keys 1 to 9 select options. 44px minimum touch targets. WCAG AA contrast. `prefers-reduced-motion` respected by the score ring.
 - Mobile-first single column, capped near 640px, system font stack.
-- Dark mode from `prefers-color-scheme`. No toggle.
+- Dark only: a retro terminal palette, phosphor green on near-black with neon pink and cyan accents. No light theme and no toggle. (Ticket 12.)
 - English UI with inline strings. Bank text is wrapped in the bank's `language` tag so screen readers pronounce non-English banks correctly.
 
 ### 8.6 Music

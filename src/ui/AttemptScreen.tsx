@@ -135,9 +135,9 @@ export function AttemptScreen({
 
   return (
     <section className="attempt">
-      <p className="attempt__progress">
+      <h2 className="attempt__progress">
         Question {index + 1} of {total}
-      </p>
+      </h2>
 
       {/* Keyed by question so each question starts with fresh, unshared radio state. */}
       {/* Locked while submitting, so no answer can be saved as in progress after the submission. */}
