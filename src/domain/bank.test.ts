@@ -470,6 +470,20 @@ describe('issue messages a teacher can act on', () => {
     expect(messageAt(parse(validBank({ questions: [] })), 'questions')).toMatch(/at least 1 item/);
   });
 
+  it('allows a prompt and an explanation of up to 8000 characters each', () => {
+    for (const field of ['prompt', 'explanation']) {
+      const withLength = (length: number) => {
+        const bank = validBank();
+        (bank['questions'] as Record<string, unknown>[])[0]![field] = 'x'.repeat(length);
+        return parse(bank);
+      };
+      expect(messageAt(withLength(8000), `questions[0].${field}`)).toBeUndefined();
+      expect(messageAt(withLength(8001), `questions[0].${field}`)).toMatch(
+        /at most 8000 characters/,
+      );
+    }
+  });
+
   it('lists the allowed values of a field that has few', () => {
     const bank = validBank();
     (bank['questions'] as Record<string, unknown>[])[0]!['difficulty'] = 'tricky';

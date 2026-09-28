@@ -43,10 +43,10 @@ export const questionSchema = z
   .strictObject({
     id: z.string().min(1).max(128),
     type: z.literal('single-choice').default('single-choice'),
-    prompt: z.string().min(1).max(4000),
+    prompt: z.string().min(1).max(8000),
     options: z.array(optionSchema).min(2).max(8),
     answer: z.string().min(1).max(16),
-    explanation: z.string().min(1).max(4000),
+    explanation: z.string().min(1).max(8000),
     tags: z.array(z.string().min(1).max(40)).max(20).optional(),
     difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
   })

@@ -114,10 +114,10 @@ A bank is identified by `id` plus `version`. Because authors forget to bump vers
 | --- | --- | --- | --- |
 | `id` | string | **yes** | 1 to 128 chars, unique within the bank. Stable: attempt records reference it. |
 | `type` | string | no | `"single-choice"`, the default and the only v1 value. |
-| `prompt` | string | **yes** | 1 to 4000 chars. Markdown plus LaTeX. |
+| `prompt` | string | **yes** | 1 to 8000 chars. Markdown plus LaTeX. |
 | `options` | Option[] | **yes** | 2 to 8 entries, unique `id`s. |
 | `answer` | string | **yes** | Must equal the `id` of one option. |
-| `explanation` | string | **yes** | 1 to 4000 chars. Required on purpose: an explanation-free bank is a scoreboard, not a lesson. |
+| `explanation` | string | **yes** | 1 to 8000 chars. Required on purpose: an explanation-free bank is a scoreboard, not a lesson. |
 | `tags` | string[] | no | Up to 20. Drive the start screen's tag filter and history's tag breakdown (ticket 18). |
 | `difficulty` | string | no | `easy` \| `medium` \| `hard`. Recorded; unused in v1 UI. |
 

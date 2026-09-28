@@ -152,10 +152,10 @@ Every field there is. Any other key, anywhere in the file, is an error. Text lim
 | --- | --- | --- | --- |
 | `id` | text | **yes** | 1 to 128 characters, unique within the bank. Short kebab-case such as `free-fall-speed` reads best. Keep it stable across editions: history refers to questions by id. |
 | `type` | text | no | `"single-choice"`, the default and the only type there is. Leave it out. |
-| `prompt` | text | **yes** | 1 to 4000 characters, with maths and Markdown. The question itself. |
+| `prompt` | text | **yes** | 1 to 8000 characters, with maths and Markdown. The question itself. |
 | `options` | list of options | **yes** | 2 to 8 options, each with an `id` unique within the question. The app shuffles them for every attempt. |
 | `answer` | text | **yes** | The `id` of the correct option. Exactly one option is correct. |
-| `explanation` | text | **yes** | 1 to 4000 characters, with maths and Markdown. Why the correct option is correct. Shown in the review after submission. Required on purpose: it is where the teaching happens. |
+| `explanation` | text | **yes** | 1 to 8000 characters, with maths and Markdown. Why the correct option is correct. Shown in the review after submission. Required on purpose: it is where the teaching happens. |
 | `tags` | list of text | no | Up to 20 tags of up to 40 characters, saying what the question is about. A participant can restrict a quiz to chosen tags, and history shows their accuracy per tag. Use a small, consistent set across the bank. |
 | `difficulty` | text | no | `easy`, `medium` or `hard`. Recorded, not used yet. |
 

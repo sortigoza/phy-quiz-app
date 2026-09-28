@@ -41,10 +41,10 @@ The document is an object with these keys, and no others:
 Each question is an object with these keys, and no others:
 - "id": required, a short kebab-case string unique within the bank, e.g. "banked-curve-speed"
 - "type": optional; leave it out ("single-choice" is the default and only type)
-- "prompt": required, up to 4000 characters
+- "prompt": required, up to 8000 characters
 - "options": required, a list of 2 to 8 option objects; use 4 unless the question calls for fewer
 - "answer": required, the "id" of the one correct option
-- "explanation": required, up to 4000 characters, shown after the quiz
+- "explanation": required, up to 8000 characters, shown after the quiz
 - "tags": optional, a list of 1 to 3 short kebab-case subtopics, from a small set reused across the bank
 - "difficulty": optional, exactly "easy", "medium" or "hard"
 

@@ -106,7 +106,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       name: 'prompt',
       type: 'string',
       required: true,
-      rules: '1 to 4000 characters, with maths and Markdown.',
+      rules: '1 to 8000 characters, with maths and Markdown.',
     },
     {
       name: 'options',
@@ -125,7 +125,7 @@ export const fieldReference: { bank: FieldDoc[]; question: FieldDoc[]; option: F
       type: 'string',
       required: true,
       rules:
-        '1 to 4000 characters, with maths and Markdown. Why the correct option is correct. Shown in the review after submission.',
+        '1 to 8000 characters, with maths and Markdown. Why the correct option is correct. Shown in the review after submission.',
     },
     {
       name: 'tags',
